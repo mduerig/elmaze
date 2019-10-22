@@ -12,7 +12,7 @@ import Html exposing ( Html )
 
 type alias Flags = { }
 
-type alias Board = Array Cell
+type Board = Board Int Int (Array Cell)
 
 type alias Cell =
   { x : Int
@@ -31,9 +31,15 @@ type CellType
 
 type Boundary
   = Wall
-  | Free
+  | None
 
 type Player = Player Int Int
+
+type Direction
+  = Right
+  | Up
+  | Left
+  | Down
 
 type alias Model =
   ( Board
@@ -47,35 +53,108 @@ type Msg
 subscriptions : Model -> Sub msg
 subscriptions model = Sub.none
 
-  --   ___
-  --  |   |
-  --  |xxx|
-  --  |___|
-  --
-initBoard : Board
-initBoard =
+newBoard : Int -> Int -> Board
+newBoard width height =
   let
     cell =
       { x = 0
       , y = 0
       , cellType = Empty
-      , top = Free
-      , left = Free
-      , bottom = Free
-      , right = Free
+      , top = Wall
+      , left = Wall
+      , bottom = Wall
+      , right = Wall
       }
   in
-    Array.fromList
-      [ { cell | left = Wall, top = Wall },    { cell | top = Wall },    { cell | top = Wall, right = Wall }
-      , { cell | left = Wall },                  cell,                   { cell | right = Wall }
-      , { cell | left = Wall, bottom = Wall }, { cell | bottom = Wall }, { cell | bottom = Wall, right = Wall }
-      ]
-    |> Array.indexedMap ( \i -> \c ->
-      { c
-      | x = modBy 3 i
-      , y = 2 - i // 3
-      } )
+    Board width height
+      ( Array.repeat (width * height) cell
+        |> Array.indexedMap ( \i c ->
+          { c
+          | x = modBy width i
+          , y = height - 1 - i // width
+          } )
+      )
 
+updateCellBoundary : Direction -> Boundary -> Cell -> Cell
+updateCellBoundary direction boundary cell =
+  case direction of
+    Up    -> { cell | top = boundary }
+    Down  -> { cell | bottom = boundary }
+    Left  -> { cell | left = boundary }
+    Right -> { cell | right = boundary }
+
+opposite : Direction -> Direction
+opposite direction =
+  case direction of
+    Up    -> Down
+    Down  -> Up
+    Left  -> Right
+    Right -> Left
+
+setCellBoundary : (Int, Int) -> Direction -> Boundary -> Board -> Board
+setCellBoundary (x, y) direction boundary board =
+  let
+    cell      = board
+                  |> getCell (x, y)
+                  |> Maybe.map ( updateCellBoundary direction boundary )
+    neighbour = board
+                  |> getNeighbour (x, y) direction
+                  |> Maybe.map ( updateCellBoundary (opposite direction) boundary )
+  in
+    Just board
+      |> Maybe.map2 setCell cell
+      |> Maybe.map2 setCell neighbour
+      |> Maybe.withDefault board
+
+setCell : Cell -> Board -> Board
+setCell cell board =
+  let
+    ( Board width height cells ) = board
+    i = (height - 1 - cell.y) * width + cell.x
+  in
+    if isOnBoard (cell.x, cell.y) board
+      then Board width height ( Array.set i cell cells )
+      else board
+
+getCell : (Int, Int) -> Board -> Maybe Cell
+getCell (x, y) board =
+  let
+    ( Board width height cells ) = board
+    i = (height - 1 - y) * width + x
+  in
+    if isOnBoard (x, y) board
+      then Array.get i cells
+      else Nothing
+
+getNeighbour : (Int, Int) -> Direction -> Board -> Maybe Cell
+getNeighbour (x, y) direction board =
+  case direction of
+    Up    -> getCell ( x, y + 1 ) board
+    Down  -> getCell ( x, y - 1 ) board
+    Left  -> getCell ( x - 1, y ) board
+    Right -> getCell ( x + 1, y ) board
+
+isOnBoard : (Int, Int) -> Board -> Bool
+isOnBoard (x, y) (Board width height _) =
+  x >= 0 && x < width &&
+  y >= 0 && y < height
+
+initBoard : Board
+initBoard =
+  newBoard 10 10
+    |> setCellBoundary (0, 0) Right None
+    |> setCellBoundary (1, 0) Up None
+    |> setCellBoundary (1, 1) Right None
+    |> setCellBoundary (2, 1) Right None
+    |> setCellBoundary (3, 1) Right None
+    |> setCellBoundary (4, 1) Up None
+    |> setCellBoundary (4, 2) Up None
+    |> setCellBoundary (4, 3) Up None
+    |> setCellBoundary (4, 4) Left None
+    |> setCellBoundary (3, 4) Left None
+    |> setCellBoundary (2, 4) Down None
+    |> setCellBoundary (2, 3) Down None
+    |> setCellBoundary (2, 2) Down None
 
 initPlayer : Player
 initPlayer = Player 0 0
@@ -97,7 +176,7 @@ renderCell cell =
   let
       wallStyle wall = case wall of
         Wall -> solid thin ( uniform black )
-        Free -> invisible
+        None -> invisible
   in
     group
       [ line 50
@@ -122,8 +201,8 @@ renderCell cell =
       |> shift (50 * toFloat cell.x, 50 * toFloat cell.y)
 
 renderBoard : Board -> List ( Html Msg )
-renderBoard board =
-  [ board
+renderBoard (Board width height cells) =
+  [ cells
       |> Array.map renderCell
       |> Array.toList
       |> group

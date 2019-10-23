@@ -11,7 +11,12 @@ import Html exposing ( Html )
 
 type alias Flags = { }
 
-type Board = Board Int Int Player (Array Cell)
+type alias Board =
+  { width : Int
+  , height : Int
+  , player : Player
+  , cells : Array Cell
+  }
 
 type alias Cell =
   { cellType : CellType
@@ -30,7 +35,11 @@ type Boundary
   = Wall
   | None
 
-type Player = Player Int Int
+type alias Player =
+  { x : Int
+  , y : Int
+  , orientation : Direction
+  }
 
 type Direction
   = Right
@@ -72,7 +81,7 @@ newBoard width height =
       }
   in
     Board width height
-      ( Player 0 0 )
+      ( Player 0 0 Up )
       ( Array.repeat (width * height) cell )
 
 setType : CellType -> Cell -> Cell
@@ -112,7 +121,7 @@ setCellBoundary (x, y) direction boundary board =
 updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
 updateCell (x, y) f board =
   let
-    ( Board width height player cells ) = board
+    { width, height, player, cells } = board
     i = (height - 1 - y) * width + x
     updateBoard cell = Board width height player ( Array.set i cell cells )
   in
@@ -196,7 +205,7 @@ renderCell (x, y) { cellType, left, top, bottom, right } =
       |> shift (50 * toFloat x, 50 * toFloat y)
 
 cellsWithIndex : Board -> List ( Int, Int, Cell )
-cellsWithIndex ( Board width height _ cells ) =
+cellsWithIndex { width, height, cells } =
   cells
     |> Array.indexedMap (\i c ->
       ( modBy width i, height - 1 - i // width, c ) )

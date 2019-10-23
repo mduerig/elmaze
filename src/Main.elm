@@ -160,8 +160,8 @@ update msg model =
   , Cmd.none
   )
 
-renderCell : ( Int, Int ) -> Cell -> Collage Msg
-renderCell (x, y) { cellType, left, top, bottom, right } =
+renderCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
+renderCell (x, y) direction { cellType, left, top, bottom, right } =
   let
       wallStyle wall = case wall of
         Wall -> solid thin ( uniform black )
@@ -173,12 +173,30 @@ renderCell (x, y) { cellType, left, top, bottom, right } =
                     |> Text.color red
                     |> Text.weight Text.Bold
                     |> Text.size Text.huge
-                    |> rendered ]
+                    |> rendered
+                  ]
         Goal  -> [ Text.fromString "G"
                     |> Text.color green
                     |> Text.weight Text.Bold
                     |> Text.size Text.huge
-                    |> rendered ]
+                    |> rendered
+                  ]
+
+      angle d = case d of
+          Left  -> pi/2
+          Up    -> pi
+          Right -> -pi/2
+          Down  -> 0
+
+      player = case direction of
+         Nothing -> [ ]
+         Just d  -> [ Text.fromString "T"
+                      |> Text.color blue
+                      |> Text.weight Text.Bold
+                      |> Text.size Text.huge
+                      |> rendered
+                      |> rotate (angle d)
+                    ]
   in
     group
       [ line 50
@@ -195,6 +213,8 @@ renderCell (x, y) { cellType, left, top, bottom, right } =
           |> traced ( wallStyle left )
           |> rotate (pi/2)
           |> shiftX -25
+      , group
+          player
       , group
           cell
       , group
@@ -214,7 +234,11 @@ cellsWithIndex { width, height, cells } =
 renderBoard : Board -> List ( Html Msg )
 renderBoard board =
   let
-      render ( x, y, cell ) = renderCell (x, y) cell
+      playerAt (x, y) =
+        if board.player.x == x && board.player.y == y
+          then Just board.player.orientation
+          else Nothing
+      render ( x, y, cell ) = renderCell (x, y) (playerAt (x, y)) cell
   in
     [ cellsWithIndex board
         |> List.map render

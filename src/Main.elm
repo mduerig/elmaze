@@ -77,6 +77,9 @@ newBoard width height =
     Board width height
       ( Array.repeat (width * height) cell )
 
+setType : CellType -> Cell -> Cell
+setType t c = { c | cellType = t }
+
 setCellBoundary : (Int, Int) -> Direction -> Boundary -> Board -> Board
 setCellBoundary (x, y) direction boundary board =
   let
@@ -122,6 +125,8 @@ updateCell (x, y) f board =
 initBoard : Board
 initBoard =
   newBoard 10 10
+    |> updateCell (0, 0) ( setType Start )
+    |> updateCell (9, 9) ( setType Goal )
     |> setCellBoundary (0, 0) Right None
     |> setCellBoundary (1, 0) Up None
     |> setCellBoundary (1, 1) Right None
@@ -152,27 +157,42 @@ update msg model =
   )
 
 renderCell : ( Int, Int ) -> Cell -> Collage Msg
-renderCell (x, y) cell =
+renderCell (x, y) { cellType, left, top, bottom, right } =
   let
       wallStyle wall = case wall of
         Wall -> solid thin ( uniform black )
         None -> invisible
+
+      cell = case cellType of
+        Empty -> [ ]
+        Start -> [ Text.fromString "S"
+                    |> Text.color red
+                    |> Text.weight Text.Bold
+                    |> Text.size Text.huge
+                    |> rendered ]
+        Goal  -> [ Text.fromString "G"
+                    |> Text.color green
+                    |> Text.weight Text.Bold
+                    |> Text.size Text.huge
+                    |> rendered ]
   in
     group
       [ line 50
-          |> traced ( wallStyle cell.bottom )
+          |> traced ( wallStyle bottom )
           |> shiftY -25
       , line 50
-          |> traced ( wallStyle cell.top )
+          |> traced ( wallStyle top )
           |> shiftY 25
       , line 50
-          |> traced ( wallStyle cell.right )
+          |> traced ( wallStyle right )
           |> rotate (pi/2)
           |> shiftX 25
       , line 50
-          |> traced ( wallStyle cell.left )
+          |> traced ( wallStyle left )
           |> rotate (pi/2)
           |> shiftX -25
+      , group
+          cell
       , group
           ( debugGridCoordinates x y )
       , square 50

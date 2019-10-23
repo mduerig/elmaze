@@ -1,7 +1,6 @@
-module Main exposing (..)
+module Main exposing ( main )
 
 import Array exposing (..)
-
 import Browser exposing ( document, Document )
 import Collage exposing (..)
 import Collage.Text as Text
@@ -15,9 +14,7 @@ type alias Flags = { }
 type Board = Board Int Int (Array Cell)
 
 type alias Cell =
-  { x : Int
-  , y : Int
-  , cellType : CellType
+  { cellType : CellType
   , top : Boundary
   , left : Boundary
   , bottom : Boundary
@@ -57,9 +54,7 @@ newBoard : Int -> Int -> Board
 newBoard width height =
   let
     cell =
-      { x = 0
-      , y = 0
-      , cellType = Empty
+      { cellType = Empty
       , top = Wall
       , left = Wall
       , bottom = Wall
@@ -67,77 +62,49 @@ newBoard width height =
       }
   in
     Board width height
-      ( Array.repeat (width * height) cell
-        |> Array.indexedMap ( \i c ->
-          { c
-          | x = modBy width i
-          , y = height - 1 - i // width
-          } )
-      )
-
-updateCellBoundary : Direction -> Boundary -> Cell -> Cell
-updateCellBoundary direction boundary cell =
-  case direction of
-    Up    -> { cell | top = boundary }
-    Down  -> { cell | bottom = boundary }
-    Left  -> { cell | left = boundary }
-    Right -> { cell | right = boundary }
-
-opposite : Direction -> Direction
-opposite direction =
-  case direction of
-    Up    -> Down
-    Down  -> Up
-    Left  -> Right
-    Right -> Left
+      ( Array.repeat (width * height) cell )
 
 setCellBoundary : (Int, Int) -> Direction -> Boundary -> Board -> Board
 setCellBoundary (x, y) direction boundary board =
   let
-    cell      = board
-                  |> getCell (x, y)
-                  |> Maybe.map ( updateCellBoundary direction boundary )
-    neighbour = board
-                  |> getNeighbour (x, y) direction
-                  |> Maybe.map ( updateCellBoundary (opposite direction) boundary )
-  in
-    Just board
-      |> Maybe.map2 setCell cell
-      |> Maybe.map2 setCell neighbour
-      |> Maybe.withDefault board
+    updateCellBoundary dir cell =
+      case dir of
+        Up    -> { cell | top = boundary }
+        Down  -> { cell | bottom = boundary }
+        Left  -> { cell | left = boundary }
+        Right -> { cell | right = boundary }
 
-setCell : Cell -> Board -> Board
-setCell cell board =
-  let
-    ( Board width height cells ) = board
-    i = (height - 1 - cell.y) * width + cell.x
-  in
-    if isOnBoard (cell.x, cell.y) board
-      then Board width height ( Array.set i cell cells )
-      else board
+    neighbour  =
+      case direction of
+        Up    -> ( x, y + 1 )
+        Down  -> ( x, y - 1 )
+        Left  -> ( x - 1, y )
+        Right -> ( x + 1, y )
 
-getCell : (Int, Int) -> Board -> Maybe Cell
-getCell (x, y) board =
+    opposite =
+      case direction of
+        Up    -> Down
+        Down  -> Up
+        Left  -> Right
+        Right -> Left
+  in
+    board
+      |> updateCell (x, y)
+            ( updateCellBoundary direction )
+
+      |> updateCell neighbour
+            ( updateCellBoundary opposite )
+
+updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
+updateCell (x, y) f board =
   let
     ( Board width height cells ) = board
     i = (height - 1 - y) * width + x
+    updateBoard cell = Board width height ( Array.set i cell cells )
   in
-    if isOnBoard (x, y) board
-      then Array.get i cells
-      else Nothing
-
-getNeighbour : (Int, Int) -> Direction -> Board -> Maybe Cell
-getNeighbour (x, y) direction board =
-  case direction of
-    Up    -> getCell ( x, y + 1 ) board
-    Down  -> getCell ( x, y - 1 ) board
-    Left  -> getCell ( x - 1, y ) board
-    Right -> getCell ( x + 1, y ) board
-
-isOnBoard : (Int, Int) -> Board -> Bool
-isOnBoard (x, y) (Board width height _) =
-  x >= 0 && x < width &&
-  y >= 0 && y < height
+    Array.get i cells
+      |> Maybe.map (f >> updateBoard)
+      |> Maybe.withDefault board
 
 initBoard : Board
 initBoard =
@@ -171,8 +138,8 @@ update msg model =
   , Cmd.none
   )
 
-renderCell : Cell -> Collage Msg
-renderCell cell =
+renderCell : ( Int, Int ) -> Cell -> Collage Msg
+renderCell (x, y) cell =
   let
       wallStyle wall = case wall of
         Wall -> solid thin ( uniform black )
@@ -193,21 +160,30 @@ renderCell cell =
           |> traced ( wallStyle cell.left )
           |> rotate (pi/2)
           |> shiftX -25
-      , Text.fromString (String.fromInt cell.x ++ "," ++ String.fromInt cell.y)
+      , Text.fromString (String.fromInt x ++ "," ++ String.fromInt y)
           |> rendered
       , square 50
           |> filled ( uniform lightYellow )
       ]
-      |> shift (50 * toFloat cell.x, 50 * toFloat cell.y)
+      |> shift (50 * toFloat x, 50 * toFloat y)
+
+cellsWithIndex : Board -> List ( Int, Int, Cell )
+cellsWithIndex ( Board width height cells ) =
+  cells
+    |> Array.indexedMap (\i c ->
+      ( modBy width i, height - 1 - i // width, c ) )
+    |> Array.toList
 
 renderBoard : Board -> List ( Html Msg )
-renderBoard (Board width height cells) =
-  [ cells
-      |> Array.map renderCell
-      |> Array.toList
-      |> group
-      |> svg
-  ]
+renderBoard board =
+  let
+      render ( x, y, cell ) = renderCell (x, y) cell
+  in
+    [ cellsWithIndex board
+        |> List.map render
+        |> group
+        |> svg
+    ]
 
 view : Model -> Document Msg
 view ( board, player ) =

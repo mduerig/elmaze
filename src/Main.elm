@@ -47,6 +47,19 @@ type Msg
   = Switch
   | Tick
 
+debugGridCoordinates : Int -> Int -> List ( Collage msg )
+debugGridCoordinates x y =
+  let
+      on = False
+  in
+    if on then
+        [ Text.fromString (String.fromInt x ++ "," ++ String.fromInt y)
+            |> Text.size Text.tiny
+            |> rendered
+            |> shift (-12, 12)
+        ]
+    else []
+
 subscriptions : Model -> Sub msg
 subscriptions model = Sub.none
 
@@ -160,8 +173,8 @@ renderCell (x, y) cell =
           |> traced ( wallStyle cell.left )
           |> rotate (pi/2)
           |> shiftX -25
-      , Text.fromString (String.fromInt x ++ "," ++ String.fromInt y)
-          |> rendered
+      , group
+          ( debugGridCoordinates x y )
       , square 50
           |> filled ( uniform lightYellow )
       ]

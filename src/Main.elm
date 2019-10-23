@@ -11,7 +11,7 @@ import Html exposing ( Html )
 
 type alias Flags = { }
 
-type Board = Board Int Int (Array Cell)
+type Board = Board Int Int Player (Array Cell)
 
 type alias Cell =
   { cellType : CellType
@@ -38,10 +38,7 @@ type Direction
   | Left
   | Down
 
-type alias Model =
-  ( Board
-  , Player
-  )
+type alias Model = Board
 
 type Msg
   = Switch
@@ -75,6 +72,7 @@ newBoard width height =
       }
   in
     Board width height
+      ( Player 0 0 )
       ( Array.repeat (width * height) cell )
 
 setType : CellType -> Cell -> Cell
@@ -114,9 +112,9 @@ setCellBoundary (x, y) direction boundary board =
 updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
 updateCell (x, y) f board =
   let
-    ( Board width height cells ) = board
+    ( Board width height player cells ) = board
     i = (height - 1 - y) * width + x
-    updateBoard cell = Board width height ( Array.set i cell cells )
+    updateBoard cell = Board width height player ( Array.set i cell cells )
   in
     Array.get i cells
       |> Maybe.map (f >> updateBoard)
@@ -141,12 +139,9 @@ initBoard =
     |> setCellBoundary (2, 3) Down None
     |> setCellBoundary (2, 2) Down None
 
-initPlayer : Player
-initPlayer = Player 0 0
-
 init : Flags -> ( Model, Cmd msg )
 init flags =
-  ( ( initBoard, initPlayer )
+  ( initBoard
   , Cmd.none
   )
 
@@ -201,7 +196,7 @@ renderCell (x, y) { cellType, left, top, bottom, right } =
       |> shift (50 * toFloat x, 50 * toFloat y)
 
 cellsWithIndex : Board -> List ( Int, Int, Cell )
-cellsWithIndex ( Board width height cells ) =
+cellsWithIndex ( Board width height _ cells ) =
   cells
     |> Array.indexedMap (\i c ->
       ( modBy width i, height - 1 - i // width, c ) )
@@ -219,7 +214,7 @@ renderBoard board =
     ]
 
 view : Model -> Document Msg
-view ( board, player ) =
+view board =
   { title = "Testi"
   , body = renderBoard board
   }

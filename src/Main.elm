@@ -2,6 +2,8 @@ module Main exposing ( main )
 
 import Array exposing (..)
 import Browser exposing ( document, Document )
+import Browser.Events as Events
+import Json.Decode as Decode
 import Collage exposing (..)
 import Collage.Text as Text
 import Collage.Layout exposing (..)
@@ -50,8 +52,11 @@ type Direction
 type alias Model = Board
 
 type Msg
-  = Switch
-  | Tick
+  = KeyRight
+  | KeyUp
+  | KeyLeft
+  | KeyDown
+  | KeyOther String
 
 debugGridCoordinates : Int -> Int -> List ( Collage msg )
 debugGridCoordinates x y =
@@ -66,8 +71,22 @@ debugGridCoordinates x y =
         ]
     else []
 
-subscriptions : Model -> Sub msg
-subscriptions model = Sub.none
+keyDecoder : Decode.Decoder Msg
+keyDecoder =
+  Decode.map toDirection (Decode.field "key" Decode.string)
+
+toDirection : String -> Msg
+toDirection string =
+  case string of
+    "ArrowLeft"  -> KeyLeft
+    "ArrowRight" -> KeyRight
+    "ArrowUp"    -> KeyUp
+    "ArrowDown"  -> KeyDown
+    _            -> KeyOther string
+
+subscriptions : Model -> Sub Msg
+subscriptions model = Sub.batch
+  [ Events.onKeyDown keyDecoder ]
 
 newBoard : Int -> Int -> Board
 newBoard width height =
@@ -81,7 +100,7 @@ newBoard width height =
       }
   in
     Board width height
-      ( Player 0 0 Up )
+      ( Player 5 5 Up )
       ( Array.repeat (width * height) cell )
 
 setType : CellType -> Cell -> Cell
@@ -156,9 +175,18 @@ init flags =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  ( model
-  , Cmd.none
-  )
+  let
+      moveRight player = { player | x = player.x + 1 }
+      moveUp    player = { player | y = player.y + 1 }
+      moveLeft  player = { player | x = player.x - 1 }
+      moveDown  player = { player | y = player.y - 1 }
+  in
+    case msg of
+        KeyRight -> ( { model | player = moveRight model.player } , Cmd.none )
+        KeyUp    -> ( { model | player = moveUp    model.player } , Cmd.none )
+        KeyLeft  -> ( { model | player = moveLeft  model.player } , Cmd.none )
+        KeyDown  -> ( { model | player = moveDown  model.player } , Cmd.none )
+        _        -> ( model, Cmd.none )
 
 renderCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
 renderCell (x, y) direction { cellType, left, top, bottom, right } =

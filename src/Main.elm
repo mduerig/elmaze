@@ -153,19 +153,6 @@ initBoard =
   newBoard 10 10
     |> updateCell (0, 0) ( setType Start )
     |> updateCell (9, 9) ( setType Goal )
-    |> setCellBoundary (0, 0) Right None
-    |> setCellBoundary (1, 0) Up None
-    |> setCellBoundary (1, 1) Right None
-    |> setCellBoundary (2, 1) Right None
-    |> setCellBoundary (3, 1) Right None
-    |> setCellBoundary (4, 1) Up None
-    |> setCellBoundary (4, 2) Up None
-    |> setCellBoundary (4, 3) Up None
-    |> setCellBoundary (4, 4) Left None
-    |> setCellBoundary (3, 4) Left None
-    |> setCellBoundary (2, 4) Down None
-    |> setCellBoundary (2, 3) Down None
-    |> setCellBoundary (2, 2) Down None
 
 init : Flags -> ( Model, Cmd msg )
 init flags =
@@ -182,10 +169,26 @@ update msg model =
       moveDown  player = { player | y = player.y - 1 }
   in
     case msg of
-        KeyRight -> ( { model | player = moveRight model.player } , Cmd.none )
-        KeyUp    -> ( { model | player = moveUp    model.player } , Cmd.none )
-        KeyLeft  -> ( { model | player = moveLeft  model.player } , Cmd.none )
-        KeyDown  -> ( { model | player = moveDown  model.player } , Cmd.none )
+        KeyRight ->
+          ( { model | player = moveRight model.player }
+                |> setCellBoundary (model.player.x, model.player.y) Right None
+          , Cmd.none
+          )
+        KeyUp    ->
+          ( { model | player = moveUp    model.player }
+                |> setCellBoundary (model.player.x, model.player.y) Up None
+          , Cmd.none
+          )
+        KeyLeft  ->
+          ( { model | player = moveLeft  model.player }
+                |> setCellBoundary (model.player.x, model.player.y) Left None
+          , Cmd.none
+          )
+        KeyDown  ->
+          ( { model | player = moveDown  model.player }
+                |> setCellBoundary (model.player.x, model.player.y) Down None
+          , Cmd.none
+          )
         _        -> ( model, Cmd.none )
 
 renderCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg

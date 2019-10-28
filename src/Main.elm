@@ -69,20 +69,6 @@ debugGridCoordinates x y =
         ]
     else []
 
-keyDecoder : Decode.Decoder Msg
-keyDecoder =
-  let
-    toDirection string =
-      case debugKey string of
-        "ArrowLeft"  -> KeyLeft
-        "ArrowRight" -> KeyRight
-        "ArrowUp"    -> KeyUp
-        "ArrowDown"  -> KeyDown
-        _            -> KeyOther string
-  in
-    Decode.field "key" Decode.string
-      |> Decode.map toDirection
-
 debugKey : String -> String
 debugKey s =
   let
@@ -91,6 +77,14 @@ debugKey s =
     if on
       then Debug.log s s
       else s
+
+initBoard : Flags -> ( Board, Cmd msg )
+initBoard flags =
+  ( newBoard 10 10
+      |> updateCell (0, 0) ( updateCellType Start )
+      |> updateCell (9, 9) ( updateCellType Goal )
+  , Cmd.none
+  )
 
 newBoard : Int -> Int -> Board
 newBoard width height =
@@ -106,6 +100,48 @@ newBoard width height =
     Board width height
       ( Player 5 5 Up )
       ( Array.repeat (width * height) cell )
+
+updateBoard : Msg -> Board -> ( Board, Cmd Msg )
+updateBoard msg board =
+  let
+      moveRight player = { player | x = player.x + 1 }
+      moveUp    player = { player | y = player.y + 1 }
+      moveLeft  player = { player | x = player.x - 1 }
+      moveDown  player = { player | y = player.y - 1 }
+  in
+    case msg of
+        KeyRight ->
+          ( { board | player = moveRight board.player }
+                |> updateCellBoundary (board.player.x, board.player.y) Right None
+          , Cmd.none
+          )
+        KeyUp    ->
+          ( { board | player = moveUp    board.player }
+                |> updateCellBoundary (board.player.x, board.player.y) Up None
+          , Cmd.none
+          )
+        KeyLeft  ->
+          ( { board | player = moveLeft  board.player }
+                |> updateCellBoundary (board.player.x, board.player.y) Left None
+          , Cmd.none
+          )
+        KeyDown  ->
+          ( { board | player = moveDown  board.player }
+                |> updateCellBoundary (board.player.x, board.player.y) Down None
+          , Cmd.none
+          )
+        _        -> ( board, Cmd.none )
+
+updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
+updateCell (x, y) f board =
+  let
+    { width, height, player, cells } = board
+    i = (height - 1 - y) * width + x
+    update cell = Board width height player ( Array.set i cell cells )
+  in
+    Array.get i cells
+      |> Maybe.map (f >> update)
+      |> Maybe.withDefault board
 
 updateCellType : CellType -> Cell -> Cell
 updateCellType t c = { c | cellType = t }
@@ -141,55 +177,27 @@ updateCellBoundary (x, y) direction boundary board =
       |> updateCell neighbour
             ( update opposite )
 
-updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
-updateCell (x, y) f board =
+viewBoard : Board -> List ( Html Msg )
+viewBoard board =
   let
-    { width, height, player, cells } = board
-    i = (height - 1 - y) * width + x
-    update cell = Board width height player ( Array.set i cell cells )
+      playerAt (x, y) =
+        if board.player.x == x && board.player.y == y
+          then Just board.player.orientation
+          else Nothing
+      render ( x, y, cell ) = viewCell (x, y) (playerAt (x, y)) cell
   in
-    Array.get i cells
-      |> Maybe.map (f >> update)
-      |> Maybe.withDefault board
+    [ cellsWithIndex board
+        |> List.map render
+        |> group
+        |> svg
+    ]
 
-initBoard : Flags -> ( Board, Cmd msg )
-initBoard flags =
-  ( newBoard 10 10
-      |> updateCell (0, 0) ( updateCellType Start )
-      |> updateCell (9, 9) ( updateCellType Goal )
-  , Cmd.none
-  )
-
-updateBoard : Msg -> Board -> ( Board, Cmd Msg )
-updateBoard msg board =
-  let
-      moveRight player = { player | x = player.x + 1 }
-      moveUp    player = { player | y = player.y + 1 }
-      moveLeft  player = { player | x = player.x - 1 }
-      moveDown  player = { player | y = player.y - 1 }
-  in
-    case msg of
-        KeyRight ->
-          ( { board | player = moveRight board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Right None
-          , Cmd.none
-          )
-        KeyUp    ->
-          ( { board | player = moveUp    board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Up None
-          , Cmd.none
-          )
-        KeyLeft  ->
-          ( { board | player = moveLeft  board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Left None
-          , Cmd.none
-          )
-        KeyDown  ->
-          ( { board | player = moveDown  board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Down None
-          , Cmd.none
-          )
-        _        -> ( board, Cmd.none )
+cellsWithIndex : Board -> List ( Int, Int, Cell )
+cellsWithIndex { width, height, cells } =
+  cells
+    |> Array.indexedMap (\i c ->
+      ( modBy width i, height - 1 - i // width, c ) )
+    |> Array.toList
 
 viewCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
 viewCell (x, y) direction { cellType, left, top, bottom, right } =
@@ -255,27 +263,19 @@ viewCell (x, y) direction { cellType, left, top, bottom, right } =
       ]
       |> shift (50 * toFloat x, 50 * toFloat y)
 
-cellsWithIndex : Board -> List ( Int, Int, Cell )
-cellsWithIndex { width, height, cells } =
-  cells
-    |> Array.indexedMap (\i c ->
-      ( modBy width i, height - 1 - i // width, c ) )
-    |> Array.toList
-
-viewBoard : Board -> List ( Html Msg )
-viewBoard board =
+keyDecoder : Decode.Decoder Msg
+keyDecoder =
   let
-      playerAt (x, y) =
-        if board.player.x == x && board.player.y == y
-          then Just board.player.orientation
-          else Nothing
-      render ( x, y, cell ) = viewCell (x, y) (playerAt (x, y)) cell
+    toDirection string =
+      case debugKey string of
+        "ArrowLeft"  -> KeyLeft
+        "ArrowRight" -> KeyRight
+        "ArrowUp"    -> KeyUp
+        "ArrowDown"  -> KeyDown
+        _            -> KeyOther string
   in
-    [ cellsWithIndex board
-        |> List.map render
-        |> group
-        |> svg
-    ]
+    Decode.field "key" Decode.string
+      |> Decode.map toDirection
 
 main : Program Flags Board Msg
 main = document

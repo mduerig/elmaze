@@ -56,19 +56,6 @@ type Msg
   | KeyDown
   | KeyOther String
 
-debugGridCoordinates : Int -> Int -> List ( Collage msg )
-debugGridCoordinates x y =
-  let
-      on = False
-  in
-    if on then
-        [ Text.fromString (String.fromInt x ++ "," ++ String.fromInt y)
-            |> Text.size Text.tiny
-            |> rendered
-            |> shift (-12, 12)
-        ]
-    else []
-
 initBoard : Flags -> ( Board, Cmd msg )
 initBoard flags =
   ( newBoard 10 10
@@ -251,8 +238,6 @@ viewCell (x, y) direction { cellType, left, top, bottom, right } =
           player
       , group
           cell
-      , group
-          ( debugGridCoordinates x y )
       , square 50
           |> filled ( uniform lightYellow )
       ]

@@ -71,7 +71,17 @@ debugGridCoordinates x y =
 
 keyDecoder : Decode.Decoder Msg
 keyDecoder =
-  Decode.map toDirection (Decode.field "key" Decode.string)
+  let
+    toDirection string =
+      case debugKey string of
+        "ArrowLeft"  -> KeyLeft
+        "ArrowRight" -> KeyRight
+        "ArrowUp"    -> KeyUp
+        "ArrowDown"  -> KeyDown
+        _            -> KeyOther string
+  in
+    Decode.field "key" Decode.string
+      |> Decode.map toDirection
 
 debugKey : String -> String
 debugKey s =
@@ -81,19 +91,6 @@ debugKey s =
     if on
       then Debug.log s s
       else s
-
-toDirection : String -> Msg
-toDirection string =
-  case debugKey string of
-    "ArrowLeft"  -> KeyLeft
-    "ArrowRight" -> KeyRight
-    "ArrowUp"    -> KeyUp
-    "ArrowDown"  -> KeyDown
-    _            -> KeyOther string
-
-subscriptions : Board -> Sub Msg
-subscriptions board = Sub.batch
-  [ Events.onKeyDown keyDecoder ]
 
 newBoard : Int -> Int -> Board
 newBoard width height =
@@ -110,13 +107,13 @@ newBoard width height =
       ( Player 5 5 Up )
       ( Array.repeat (width * height) cell )
 
-setType : CellType -> Cell -> Cell
-setType t c = { c | cellType = t }
+updateCellType : CellType -> Cell -> Cell
+updateCellType t c = { c | cellType = t }
 
-setCellBoundary : (Int, Int) -> Direction -> Boundary -> Board -> Board
-setCellBoundary (x, y) direction boundary board =
+updateCellBoundary : (Int, Int) -> Direction -> Boundary -> Board -> Board
+updateCellBoundary (x, y) direction boundary board =
   let
-    updateCellBoundary dir cell =
+    update dir cell =
       case dir of
         Up    -> { cell | top = boundary }
         Down  -> { cell | bottom = boundary }
@@ -139,36 +136,32 @@ setCellBoundary (x, y) direction boundary board =
   in
     board
       |> updateCell (x, y)
-            ( updateCellBoundary direction )
+            ( update direction )
 
       |> updateCell neighbour
-            ( updateCellBoundary opposite )
+            ( update opposite )
 
 updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
 updateCell (x, y) f board =
   let
     { width, height, player, cells } = board
     i = (height - 1 - y) * width + x
-    updateBoard cell = Board width height player ( Array.set i cell cells )
+    update cell = Board width height player ( Array.set i cell cells )
   in
     Array.get i cells
-      |> Maybe.map (f >> updateBoard)
+      |> Maybe.map (f >> update)
       |> Maybe.withDefault board
 
-initBoard : Board
-initBoard =
-  newBoard 10 10
-    |> updateCell (0, 0) ( setType Start )
-    |> updateCell (9, 9) ( setType Goal )
-
-init : Flags -> ( Board, Cmd msg )
-init flags =
-  ( initBoard
+initBoard : Flags -> ( Board, Cmd msg )
+initBoard flags =
+  ( newBoard 10 10
+      |> updateCell (0, 0) ( updateCellType Start )
+      |> updateCell (9, 9) ( updateCellType Goal )
   , Cmd.none
   )
 
-update : Msg -> Board -> ( Board, Cmd Msg )
-update msg board =
+updateBoard : Msg -> Board -> ( Board, Cmd Msg )
+updateBoard msg board =
   let
       moveRight player = { player | x = player.x + 1 }
       moveUp    player = { player | y = player.y + 1 }
@@ -178,28 +171,28 @@ update msg board =
     case msg of
         KeyRight ->
           ( { board | player = moveRight board.player }
-                |> setCellBoundary (board.player.x, board.player.y) Right None
+                |> updateCellBoundary (board.player.x, board.player.y) Right None
           , Cmd.none
           )
         KeyUp    ->
           ( { board | player = moveUp    board.player }
-                |> setCellBoundary (board.player.x, board.player.y) Up None
+                |> updateCellBoundary (board.player.x, board.player.y) Up None
           , Cmd.none
           )
         KeyLeft  ->
           ( { board | player = moveLeft  board.player }
-                |> setCellBoundary (board.player.x, board.player.y) Left None
+                |> updateCellBoundary (board.player.x, board.player.y) Left None
           , Cmd.none
           )
         KeyDown  ->
           ( { board | player = moveDown  board.player }
-                |> setCellBoundary (board.player.x, board.player.y) Down None
+                |> updateCellBoundary (board.player.x, board.player.y) Down None
           , Cmd.none
           )
         _        -> ( board, Cmd.none )
 
-renderCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
-renderCell (x, y) direction { cellType, left, top, bottom, right } =
+viewCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
+viewCell (x, y) direction { cellType, left, top, bottom, right } =
   let
       wallStyle wall = case wall of
         Wall -> solid thin ( uniform black )
@@ -269,14 +262,14 @@ cellsWithIndex { width, height, cells } =
       ( modBy width i, height - 1 - i // width, c ) )
     |> Array.toList
 
-renderBoard : Board -> List ( Html Msg )
-renderBoard board =
+viewBoard : Board -> List ( Html Msg )
+viewBoard board =
   let
       playerAt (x, y) =
         if board.player.x == x && board.player.y == y
           then Just board.player.orientation
           else Nothing
-      render ( x, y, cell ) = renderCell (x, y) (playerAt (x, y)) cell
+      render ( x, y, cell ) = viewCell (x, y) (playerAt (x, y)) cell
   in
     [ cellsWithIndex board
         |> List.map render
@@ -284,18 +277,16 @@ renderBoard board =
         |> svg
     ]
 
-view : Board -> Document Msg
-view board =
-  { title = "Testi"
-  , body = renderBoard board
-  }
-
 main : Program Flags Board Msg
 main = document
-  { subscriptions = subscriptions
-  , init = init
-  , update = update
-  , view = view
+  { subscriptions = \_ -> Sub.batch
+      [ Events.onKeyDown keyDecoder ]
+  , init = initBoard
+  , update = updateBoard
+  , view = \board ->
+      { title = "ElMaze"
+      , body = viewBoard board
+      }
   }
 
 

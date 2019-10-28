@@ -82,37 +82,42 @@ newBoard width height =
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
 updateBoard msg board =
   let
-      moveRight player = { player | x = min (board.width - 1) (player.x + 1) }
-      moveUp    player = { player | y = min (board.height - 1) (player.y + 1) }
-      moveLeft  player = { player | x = max 0 (player.x - 1) }
-      moveDown  player = { player | y = max 0 (player.y - 1) }
+      player = board.player
+      moveRight = { player | x = player.x + 1 }
+      moveLeft  = { player | x = player.x - 1 }
+      moveUp    = { player | y = player.y + 1 }
+      moveDown  = { player | y = player.y - 1 }
+      removeWall direction = updateCellBoundary (board.player.x, board.player.y) direction None
+
+      updatedBoard = case msg of
+          KeyRight -> if board.player.x >= board.width - 1
+              then board
+              else { board
+                      | player = moveRight }
+                      |> removeWall Right
+
+          KeyLeft -> if board.player.x <= 0
+              then board
+              else { board
+                      | player = moveLeft }
+                      |> removeWall Left
+
+          KeyUp -> if board.player.y >= board.height - 1
+              then board
+              else { board
+                      | player = moveUp }
+                      |> removeWall Up
+
+          KeyDown -> if board.player.y <= 0
+              then board
+              else { board
+                      | player = moveDown }
+                      |> removeWall Down
+
+          _ -> board
+
   in
-    case msg of
-        KeyRight ->
-          ( { board
-                | player = moveRight board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Right None
-          , Cmd.none
-          )
-        KeyUp    ->
-          ( { board
-                | player = moveUp    board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Up None
-          , Cmd.none
-          )
-        KeyLeft  ->
-          ( { board
-                | player = moveLeft  board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Left None
-          , Cmd.none
-          )
-        KeyDown  ->
-          ( { board
-                | player = moveDown  board.player }
-                |> updateCellBoundary (board.player.x, board.player.y) Down None
-          , Cmd.none
-          )
-        _        -> ( board, Cmd.none )
+    ( updatedBoard, Cmd.none )
 
 updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
 updateCell (x, y) f board =

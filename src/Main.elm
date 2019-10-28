@@ -49,8 +49,6 @@ type Direction
   | Left
   | Down
 
-type alias Model = Board
-
 type Msg
   = KeyRight
   | KeyUp
@@ -93,8 +91,8 @@ toDirection string =
     "ArrowDown"  -> KeyDown
     _            -> KeyOther string
 
-subscriptions : Model -> Sub Msg
-subscriptions model = Sub.batch
+subscriptions : Board -> Sub Msg
+subscriptions board = Sub.batch
   [ Events.onKeyDown keyDecoder ]
 
 newBoard : Int -> Int -> Board
@@ -163,14 +161,14 @@ initBoard =
     |> updateCell (0, 0) ( setType Start )
     |> updateCell (9, 9) ( setType Goal )
 
-init : Flags -> ( Model, Cmd msg )
+init : Flags -> ( Board, Cmd msg )
 init flags =
   ( initBoard
   , Cmd.none
   )
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Msg -> Board -> ( Board, Cmd Msg )
+update msg board =
   let
       moveRight player = { player | x = player.x + 1 }
       moveUp    player = { player | y = player.y + 1 }
@@ -179,26 +177,26 @@ update msg model =
   in
     case msg of
         KeyRight ->
-          ( { model | player = moveRight model.player }
-                |> setCellBoundary (model.player.x, model.player.y) Right None
+          ( { board | player = moveRight board.player }
+                |> setCellBoundary (board.player.x, board.player.y) Right None
           , Cmd.none
           )
         KeyUp    ->
-          ( { model | player = moveUp    model.player }
-                |> setCellBoundary (model.player.x, model.player.y) Up None
+          ( { board | player = moveUp    board.player }
+                |> setCellBoundary (board.player.x, board.player.y) Up None
           , Cmd.none
           )
         KeyLeft  ->
-          ( { model | player = moveLeft  model.player }
-                |> setCellBoundary (model.player.x, model.player.y) Left None
+          ( { board | player = moveLeft  board.player }
+                |> setCellBoundary (board.player.x, board.player.y) Left None
           , Cmd.none
           )
         KeyDown  ->
-          ( { model | player = moveDown  model.player }
-                |> setCellBoundary (model.player.x, model.player.y) Down None
+          ( { board | player = moveDown  board.player }
+                |> setCellBoundary (board.player.x, board.player.y) Down None
           , Cmd.none
           )
-        _        -> ( model, Cmd.none )
+        _        -> ( board, Cmd.none )
 
 renderCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
 renderCell (x, y) direction { cellType, left, top, bottom, right } =
@@ -286,13 +284,13 @@ renderBoard board =
         |> svg
     ]
 
-view : Model -> Document Msg
+view : Board -> Document Msg
 view board =
   { title = "Testi"
   , body = renderBoard board
   }
 
-main : Program Flags Model Msg
+main : Program Flags Board Msg
 main = document
   { subscriptions = subscriptions
   , init = init

@@ -69,15 +69,6 @@ debugGridCoordinates x y =
         ]
     else []
 
-debugKey : String -> String
-debugKey s =
-  let
-      on = False
-  in
-    if on
-      then Debug.log s s
-      else s
-
 initBoard : Flags -> ( Board, Cmd msg )
 initBoard flags =
   ( newBoard 10 10
@@ -271,7 +262,7 @@ keyDecoder : Decode.Decoder Msg
 keyDecoder =
   let
     toDirection string =
-      case debugKey string of
+      case string of
         "ArrowLeft"  -> KeyLeft
         "ArrowRight" -> KeyRight
         "ArrowUp"    -> KeyUp

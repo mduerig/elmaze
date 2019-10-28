@@ -72,7 +72,7 @@ debugGridCoordinates x y =
 debugKey : String -> String
 debugKey s =
   let
-      on = True
+      on = False
   in
     if on
       then Debug.log s s
@@ -104,29 +104,33 @@ newBoard width height =
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
 updateBoard msg board =
   let
-      moveRight player = { player | x = player.x + 1 }
-      moveUp    player = { player | y = player.y + 1 }
-      moveLeft  player = { player | x = player.x - 1 }
-      moveDown  player = { player | y = player.y - 1 }
+      moveRight player = { player | x = min (board.width - 1) (player.x + 1) }
+      moveUp    player = { player | y = min (board.height - 1) (player.y + 1) }
+      moveLeft  player = { player | x = max 0 (player.x - 1) }
+      moveDown  player = { player | y = max 0 (player.y - 1) }
   in
     case msg of
         KeyRight ->
-          ( { board | player = moveRight board.player }
+          ( { board
+                | player = moveRight board.player }
                 |> updateCellBoundary (board.player.x, board.player.y) Right None
           , Cmd.none
           )
         KeyUp    ->
-          ( { board | player = moveUp    board.player }
+          ( { board
+                | player = moveUp    board.player }
                 |> updateCellBoundary (board.player.x, board.player.y) Up None
           , Cmd.none
           )
         KeyLeft  ->
-          ( { board | player = moveLeft  board.player }
+          ( { board
+                | player = moveLeft  board.player }
                 |> updateCellBoundary (board.player.x, board.player.y) Left None
           , Cmd.none
           )
         KeyDown  ->
-          ( { board | player = moveDown  board.player }
+          ( { board
+                | player = moveDown  board.player }
                 |> updateCellBoundary (board.player.x, board.player.y) Down None
           , Cmd.none
           )

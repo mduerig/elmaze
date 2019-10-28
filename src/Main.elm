@@ -75,9 +75,18 @@ keyDecoder : Decode.Decoder Msg
 keyDecoder =
   Decode.map toDirection (Decode.field "key" Decode.string)
 
+debugKey : String -> String
+debugKey s =
+  let
+      on = True
+  in
+    if on
+      then Debug.log s s
+      else s
+
 toDirection : String -> Msg
 toDirection string =
-  case string of
+  case debugKey string of
     "ArrowLeft"  -> KeyLeft
     "ArrowRight" -> KeyRight
     "ArrowUp"    -> KeyUp

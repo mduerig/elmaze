@@ -50,10 +50,7 @@ type Direction
   | Down
 
 type Msg
-  = KeyRight
-  | KeyUp
-  | KeyLeft
-  | KeyDown
+  = KeyArrow Direction
   | KeySpace
   | KeyOther String
 
@@ -85,37 +82,27 @@ updateBoard msg board =
   let
       { width, height, player } = board
       { x, y }   = player
-      moveRight = { player | x = x + 1 }
-      moveLeft  = { player | x = x - 1 }
-      moveUp    = { player | y = y + 1 }
-      moveDown  = { player | y = y - 1 }
+
+      offBoard direction = case direction of
+        Right -> x + 1 >= width
+        Left  -> x     <= 0
+        Up    -> y + 1 >= height
+        Down  -> y     <= 0
+
+      move direction = case direction of
+         Right -> { player | x = x + 1 }
+         Left  -> { player | x = x - 1 }
+         Up    -> { player | y = y + 1 }
+         Down  -> { player | y = y - 1 }
       removeWall direction = updateCellBoundary (x, y) direction None
       restoreWall direction = updateCellBoundary (x, y) direction Wall
 
       updatedBoard = case msg of
-          KeyRight -> if x >= width - 1
-              then board
+          KeyArrow direction -> if offBoard direction
+              then   board
               else { board
-                      | player = moveRight }
-                      |> removeWall Right
-
-          KeyLeft -> if x <= 0
-              then board
-              else { board
-                      | player = moveLeft }
-                      |> removeWall Left
-
-          KeyUp -> if y >= height - 1
-              then board
-              else { board
-                      | player = moveUp }
-                      |> removeWall Up
-
-          KeyDown -> if y <= 0
-              then board
-              else { board
-                      | player = moveDown }
-                      |> removeWall Down
+                      | player = move direction }
+                      |> removeWall direction
 
           KeySpace -> board
                         |> restoreWall Up
@@ -262,10 +249,10 @@ keyDecoder =
   let
     toDirection string =
       case string of
-        "ArrowLeft"  -> KeyLeft
-        "ArrowRight" -> KeyRight
-        "ArrowUp"    -> KeyUp
-        "ArrowDown"  -> KeyDown
+        "ArrowLeft"  -> KeyArrow Left
+        "ArrowRight" -> KeyArrow Right
+        "ArrowUp"    -> KeyArrow Up
+        "ArrowDown"  -> KeyArrow Down
         " "          -> KeySpace
         _            -> KeyOther string
   in

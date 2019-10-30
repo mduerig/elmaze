@@ -79,9 +79,12 @@ newBoard width height =
       }
   in
     Board width height
-      ( Player 5 5 Up )
+      newPlayer
       ( Array.repeat (width * height) cell )
       False True
+
+newPlayer : Player
+newPlayer = Player 0 0 Up
 
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
 updateBoard msg board = if board.editMode
@@ -132,7 +135,7 @@ updateBoardEditMode msg board =
       restoreWall direction = updateCellBoundary (x, y) direction Wall
 
       updatedBoard = case msg of
-          KeyP         -> { board | editMode = False }
+          KeyP         -> { board | editMode = False, player = newPlayer }
           KeyShiftDown -> { board | shiftDown = True }
           KeyShiftUp   -> { board | shiftDown = False }
 

@@ -20,6 +20,7 @@ type alias Board =
   , cells : Array Cell
   , shiftDown : Bool
   , editMode : Bool
+  , replayLog : List Msg
   }
 
 type alias Cell =
@@ -82,6 +83,7 @@ newBoard width height =
       newPlayer
       ( Array.repeat (width * height) cell )
       False True
+      []
 
 newPlayer : Player
 newPlayer = Player 0 0 Up
@@ -94,7 +96,7 @@ updateBoard msg board = if board.editMode
 updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
 updateBoardPlayMode msg board =
   let
-      { player } = board
+      { player, replayLog } = board
       { x, y, orientation } = player
 
       turn direction = { player | orientation = case direction of
@@ -119,12 +121,18 @@ updateBoardPlayMode msg board =
         KeyArrow Up ->
             if isBlocked orientation
               then   board
-              else { board | player = movePlayer orientation player }
+              else { board
+                      | player = movePlayer orientation player
+                      , replayLog = msg :: replayLog
+                      }
 
         KeyArrow Down -> board
 
         KeyArrow direction ->
-            { board | player = turn direction }
+            { board
+                | player = turn direction
+                , replayLog = msg :: replayLog
+                }
 
         _    -> board
   in

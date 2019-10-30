@@ -91,14 +91,8 @@ updateBoard msg board = if board.editMode
 updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
 updateBoardPlayMode msg board =
   let
-      { width, height, player, cells } = board
-      { x, y }   = player
-      maybeCell = Array.get ((height - 1 - y) * width + x) cells
-      move direction = case direction of
-         Right -> { player | x = x + 1 }
-         Left  -> { player | x = x - 1 }
-         Up    -> { player | y = y + 1 }
-         Down  -> { player | y = y - 1 }
+      { player } = board
+      { x, y } = player
 
       blocked direction cell = case direction of
          Right -> cell.right == Wall
@@ -106,7 +100,7 @@ updateBoardPlayMode msg board =
          Up    -> cell.top == Wall
          Down  -> cell.bottom == Wall
 
-      isBlocked direction = maybeCell
+      isBlocked direction = getCell (x, y) board
           |> Maybe.map (blocked direction)
           |> Maybe.withDefault True
 
@@ -116,7 +110,7 @@ updateBoardPlayMode msg board =
         KeyArrow direction ->
             if isBlocked direction
               then   board
-              else { board | player = move direction }
+              else { board | player = movePlayer direction player }
 
         _    -> board
   in
@@ -134,12 +128,6 @@ updateBoardEditMode msg board =
         Up    -> y + 1 >= height
         Down  -> y     <= 0
 
-      move direction = case direction of
-         Right -> { player | x = x + 1 }
-         Left  -> { player | x = x - 1 }
-         Up    -> { player | y = y + 1 }
-         Down  -> { player | y = y - 1 }
-
       removeWall direction  = updateCellBoundary (x, y) direction None
       restoreWall direction = updateCellBoundary (x, y) direction Wall
 
@@ -153,20 +141,31 @@ updateBoardEditMode msg board =
               then   board
               else if shiftDown then
                   { board
-                      | player = move direction }
+                      | player = movePlayer direction player }
                       |> restoreWall Up
                       |> restoreWall Down
                       |> restoreWall Left
                       |> restoreWall Right
               else
                   { board
-                      | player = move direction }
+                      | player = movePlayer direction player }
                       |> removeWall direction
 
           _ -> board
 
   in
     ( updatedBoard, Cmd.none )
+
+movePlayer : Direction -> Player -> Player
+movePlayer direction player = case direction of
+    Right -> { player | x = player.x + 1 }
+    Left  -> { player | x = player.x - 1 }
+    Up    -> { player | y = player.y + 1 }
+    Down  -> { player | y = player.y - 1 }
+
+getCell : (Int, Int) -> Board -> Maybe Cell
+getCell (x, y) { width, height, cells } =
+    Array.get ((height - 1 - y) * width + x) cells
 
 updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
 updateCell (x, y) f board =

@@ -91,21 +91,24 @@ newPlayer : Player
 newPlayer = Player 0 0 Up
 
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
-updateBoard msg board = case board.mode of
-    Play   ->  updateBoardPlayMode msg board
-    Edit   ->  updateBoardEditMode msg board
-    Replay ->  updateBoardReplayMode msg board
+updateBoard msg board =
+  let
+      updatedBoard = case msg of
+        SwitchMode mode -> { board | mode = mode, player = newPlayer }
 
-updateBoardReplayMode : Msg -> Board -> ( Board, Cmd Msg )
+        _  -> case board.mode of
+                Play    ->  updateBoardPlayMode   msg board
+                Edit    ->  updateBoardEditMode   msg board
+                Replay  ->  updateBoardReplayMode msg board
+  in
+      ( updatedBoard, Cmd.none )
+
+updateBoardReplayMode : Msg -> Board -> Board
 updateBoardReplayMode msg board =
-    let
-        updatedBoard = case msg of
-           SwitchMode mode  -> { board | mode = mode }
-           _   -> board
-    in
-        ( updatedBoard, Cmd.none )
+    case msg of
+      _   -> board
 
-updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
+updateBoardPlayMode : Msg -> Board -> Board
 updateBoardPlayMode msg board =
   let
       { player, replayLog } = board
@@ -126,10 +129,8 @@ updateBoardPlayMode msg board =
       isBlocked direction = getCell (x, y) board
           |> Maybe.map (blocked direction)
           |> Maybe.withDefault True
-
-      updatedBoard = case msg of
-        SwitchMode mode -> { board | mode = mode }
-
+  in
+      case msg of
         KeyArrow Up ->
             if isBlocked orientation
               then   board
@@ -147,10 +148,8 @@ updateBoardPlayMode msg board =
                 }
 
         _    -> board
-  in
-    ( updatedBoard, Cmd.none )
 
-updateBoardEditMode : Msg -> Board -> ( Board, Cmd Msg )
+updateBoardEditMode : Msg -> Board -> Board
 updateBoardEditMode msg board =
   let
       { width, height, player, shiftDown } = board
@@ -164,9 +163,8 @@ updateBoardEditMode msg board =
 
       removeWall direction  = updateCellBoundary (x, y) direction None
       restoreWall direction = updateCellBoundary (x, y) direction Wall
-
-      updatedBoard = case msg of
-          SwitchMode mode -> { board | mode = mode }
+  in
+      case msg of
           KeyShiftDown    -> { board | shiftDown = True }
           KeyShiftUp      -> { board | shiftDown = False }
 
@@ -186,9 +184,6 @@ updateBoardEditMode msg board =
                       |> removeWall direction
 
           _ -> board
-
-  in
-    ( updatedBoard, Cmd.none )
 
 movePlayer : Direction -> Player -> Player
 movePlayer direction player = case direction of

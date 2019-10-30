@@ -19,6 +19,7 @@ type alias Board =
   , player : Player
   , cells : Array Cell
   , shiftDown : Bool
+  , editMode : Bool
   }
 
 type alias Cell =
@@ -54,6 +55,7 @@ type Msg
   = KeyArrow Direction
   | KeyShiftDown
   | KeyShiftUp
+  | KeyP
   | KeyOtherDown String
   | KeyOtherUp String
 
@@ -79,10 +81,24 @@ newBoard width height =
     Board width height
       ( Player 5 5 Up )
       ( Array.repeat (width * height) cell )
-      False
+      False True
 
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
-updateBoard msg board =
+updateBoard msg board = if board.editMode
+    then updateBoardEditMode msg board
+    else updateBoardPlayMode msg board
+
+updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
+updateBoardPlayMode msg board =
+  let
+    updatedBoard = case msg of
+       KeyP -> { board | editMode = True }
+       _    -> board
+  in
+    ( updatedBoard, Cmd.none )
+
+updateBoardEditMode : Msg -> Board -> ( Board, Cmd Msg )
+updateBoardEditMode msg board =
   let
       { width, height, player, shiftDown } = board
       { x, y }   = player
@@ -103,6 +119,7 @@ updateBoard msg board =
       restoreWall direction = updateCellBoundary (x, y) direction Wall
 
       updatedBoard = case msg of
+          KeyP         -> { board | editMode = False }
           KeyShiftDown -> { board | shiftDown = True }
           KeyShiftUp   -> { board | shiftDown = False }
 
@@ -265,6 +282,8 @@ keyDownDecoder =
         "ArrowUp"    -> KeyArrow Up
         "ArrowDown"  -> KeyArrow Down
         "Shift"      -> KeyShiftDown
+        "P"          -> KeyP
+        "p"          -> KeyP
         _            -> KeyOtherDown string
   in
     Decode.field "key" Decode.string

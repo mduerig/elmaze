@@ -97,17 +97,10 @@ updateBoardPlayMode msg board =
       { player } = board
       { x, y, orientation } = player
 
-      turnRight = { player | orientation = case orientation of
-          Right -> Down
-          Up -> Right
-          Left -> Up
-          Down -> Left
-        }
-      turnLeft = { player | orientation = case orientation of
-          Right -> Up
-          Up -> Left
-          Left -> Down
-          Down -> Right
+      turn direction = { player | orientation = case direction of
+          Right -> rightOfDirection orientation
+          Left  -> leftOfDirection orientation
+          _     -> orientation
         }
 
       blocked direction cell = case direction of
@@ -128,11 +121,10 @@ updateBoardPlayMode msg board =
               then   board
               else { board | player = movePlayer orientation player }
 
-        KeyArrow Right ->
-            { board | player = turnRight }
+        KeyArrow Down -> board
 
-        KeyArrow Left ->
-            { board | player = turnLeft }
+        KeyArrow direction ->
+            { board | player = turn direction }
 
         _    -> board
   in
@@ -219,20 +211,13 @@ updateCellBoundary (x, y) direction boundary board =
         Down  -> ( x, y - 1 )
         Left  -> ( x - 1, y )
         Right -> ( x + 1, y )
-
-    opposite =
-      case direction of
-        Up    -> Down
-        Down  -> Up
-        Left  -> Right
-        Right -> Left
   in
     board
       |> updateCell (x, y)
             ( update direction )
 
       |> updateCell neighbour
-            ( update opposite )
+            ( update <| oppositeDirection direction )
 
 viewBoard : Board -> List ( Html Msg )
 viewBoard board =
@@ -248,6 +233,28 @@ viewBoard board =
         |> group
         |> svg
     ]
+
+oppositeDirection : Direction -> Direction
+oppositeDirection d =
+  case d of
+    Up    -> Down
+    Down  -> Up
+    Left  -> Right
+    Right -> Left
+
+rightOfDirection : Direction -> Direction
+rightOfDirection d = case d of
+    Right -> Down
+    Up -> Right
+    Left -> Up
+    Down -> Left
+
+leftOfDirection : Direction -> Direction
+leftOfDirection d = case d of
+    Right -> Up
+    Up -> Left
+    Left -> Down
+    Down -> Right
 
 cellsWithIndex : Board -> List ( Int, Int, Cell )
 cellsWithIndex { width, height, cells } =

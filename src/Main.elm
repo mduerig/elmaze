@@ -95,7 +95,20 @@ updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
 updateBoardPlayMode msg board =
   let
       { player } = board
-      { x, y } = player
+      { x, y, orientation } = player
+
+      turnRight = { player | orientation = case orientation of
+          Right -> Down
+          Up -> Right
+          Left -> Up
+          Down -> Left
+        }
+      turnLeft = { player | orientation = case orientation of
+          Right -> Up
+          Up -> Left
+          Left -> Down
+          Down -> Right
+        }
 
       blocked direction cell = case direction of
          Right -> cell.right == Wall
@@ -110,10 +123,16 @@ updateBoardPlayMode msg board =
       updatedBoard = case msg of
         KeyP -> { board | editMode = True }
 
-        KeyArrow direction ->
-            if isBlocked direction
+        KeyArrow Up ->
+            if isBlocked orientation
               then   board
-              else { board | player = movePlayer direction player }
+              else { board | player = movePlayer orientation player }
+
+        KeyArrow Right ->
+            { board | player = turnRight }
+
+        KeyArrow Left ->
+            { board | player = turnLeft }
 
         _    -> board
   in
@@ -260,9 +279,9 @@ viewCell (x, y) direction { cellType, left, top, bottom, right } =
                   ]
 
       angle d = case d of
-          Left  -> pi/2
+          Left  -> -pi/2
           Up    -> pi
-          Right -> -pi/2
+          Right -> pi/2
           Down  -> 0
 
       player = case direction of

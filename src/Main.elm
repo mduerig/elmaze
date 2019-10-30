@@ -10,6 +10,7 @@ import Collage.Layout exposing (..)
 import Collage.Render exposing (svg)
 import Color exposing (..)
 import Html exposing ( Html )
+import Time
 
 type alias Flags = { }
 
@@ -61,6 +62,8 @@ type Msg
   | SwitchMode Mode
   | KeyOtherDown String
   | KeyOtherUp String
+  | Tick Time.Posix
+  | SetPlayer Player
 
 initBoard : Flags -> ( Board, Cmd msg )
 initBoard flags =
@@ -85,7 +88,7 @@ newBoard width height =
       newPlayer
       ( Array.repeat (width * height) cell )
       False Edit
-      []
+      [ SetPlayer newPlayer ]
 
 newPlayer : Player
 newPlayer = Player 0 0 Up
@@ -106,7 +109,35 @@ updateBoard msg board =
 updateBoardReplayMode : Msg -> Board -> Board
 updateBoardReplayMode msg board =
     case msg of
-      _   -> board
+      Tick _ ->
+        let
+          cycle list = case list of
+             []      -> []
+             x :: xs -> xs ++ [x]
+
+          cycledLog = cycle board.replayLog
+          move = List.head board.replayLog
+
+          turn player direction = { player | orientation = case direction of
+              Right -> rightOfDirection player.orientation
+              Left  -> leftOfDirection player.orientation
+              _     -> player.orientation
+            }
+
+          movedPlayer = case move of
+            Just (SetPlayer player)   -> player
+            Just (KeyArrow Up)        -> movePlayer board.player.orientation board.player
+            Just (KeyArrow direction) -> turn board.player direction
+            _ -> board.player
+
+          updatedBoard = { board
+                            | replayLog = cycledLog
+                            , player = movedPlayer
+                            }
+        in
+          updatedBoard
+
+      _ -> board
 
 updateBoardPlayMode : Msg -> Board -> Board
 updateBoardPlayMode msg board =
@@ -136,7 +167,7 @@ updateBoardPlayMode msg board =
               then   board
               else { board
                       | player = movePlayer orientation player
-                      , replayLog = msg :: replayLog
+                      , replayLog = replayLog ++ [msg]
                       }
 
         KeyArrow Down -> board
@@ -144,7 +175,7 @@ updateBoardPlayMode msg board =
         KeyArrow direction ->
             { board
                 | player = turn direction
-                , replayLog = msg :: replayLog
+                , replayLog = replayLog ++ [msg]
                 }
 
         _    -> board
@@ -377,6 +408,7 @@ main = document
   { subscriptions = \_ -> Sub.batch
       [ Events.onKeyDown keyDownDecoder
       , Events.onKeyUp   keyUpDecoder
+      , Time.every 400 Tick
       ]
   , init = initBoard
   , update = updateBoard

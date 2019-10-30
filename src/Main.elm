@@ -91,9 +91,34 @@ updateBoard msg board = if board.editMode
 updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
 updateBoardPlayMode msg board =
   let
-    updatedBoard = case msg of
-       KeyP -> { board | editMode = True }
-       _    -> board
+      { width, height, player, cells } = board
+      { x, y }   = player
+      maybeCell = Array.get ((height - 1 - y) * width + x) cells
+      move direction = case direction of
+         Right -> { player | x = x + 1 }
+         Left  -> { player | x = x - 1 }
+         Up    -> { player | y = y + 1 }
+         Down  -> { player | y = y - 1 }
+
+      blocked direction cell = case direction of
+         Right -> cell.right == Wall
+         Left  -> cell.left == Wall
+         Up    -> cell.top == Wall
+         Down  -> cell.bottom == Wall
+
+      isBlocked direction = maybeCell
+          |> Maybe.map (blocked direction)
+          |> Maybe.withDefault True
+
+      updatedBoard = case msg of
+        KeyP -> { board | editMode = True }
+
+        KeyArrow direction ->
+            if isBlocked direction
+              then   board
+              else { board | player = move direction }
+
+        _    -> board
   in
     ( updatedBoard, Cmd.none )
 

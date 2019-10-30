@@ -18,6 +18,7 @@ type alias Board =
   , height : Int
   , player : Player
   , cells : Array Cell
+  , shiftDown : Bool
   }
 
 type alias Cell =
@@ -51,8 +52,10 @@ type Direction
 
 type Msg
   = KeyArrow Direction
-  | KeySpace
-  | KeyOther String
+  | KeyShiftDown
+  | KeyShiftUp
+  | KeyOtherDown String
+  | KeyOtherUp String
 
 initBoard : Flags -> ( Board, Cmd msg )
 initBoard flags =
@@ -76,11 +79,12 @@ newBoard width height =
     Board width height
       ( Player 5 5 Up )
       ( Array.repeat (width * height) cell )
+      False
 
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
 updateBoard msg board =
   let
-      { width, height, player } = board
+      { width, height, player, shiftDown } = board
       { x, y }   = player
 
       offBoard direction = case direction of
@@ -94,21 +98,28 @@ updateBoard msg board =
          Left  -> { player | x = x - 1 }
          Up    -> { player | y = y + 1 }
          Down  -> { player | y = y - 1 }
-      removeWall direction = updateCellBoundary (x, y) direction None
+
+      removeWall direction  = updateCellBoundary (x, y) direction None
       restoreWall direction = updateCellBoundary (x, y) direction Wall
 
       updatedBoard = case msg of
-          KeyArrow direction -> if offBoard direction
+          KeyShiftDown -> { board | shiftDown = True }
+          KeyShiftUp   -> { board | shiftDown = False }
+
+          KeyArrow direction ->
+            if offBoard direction
               then   board
-              else { board
+              else if shiftDown then
+                  { board
+                      | player = move direction }
+                      |> restoreWall Up
+                      |> restoreWall Down
+                      |> restoreWall Left
+                      |> restoreWall Right
+              else
+                  { board
                       | player = move direction }
                       |> removeWall direction
-
-          KeySpace -> board
-                        |> restoreWall Up
-                        |> restoreWall Down
-                        |> restoreWall Left
-                        |> restoreWall Right
 
           _ -> board
 
@@ -118,9 +129,9 @@ updateBoard msg board =
 updateCell : (Int, Int) -> ( Cell -> Cell ) -> Board -> Board
 updateCell (x, y) f board =
   let
-    { width, height, player, cells } = board
+    { width, height, cells } = board
     i = (height - 1 - y) * width + x
-    update cell = Board width height player ( Array.set i cell cells )
+    update cell = { board | cells = Array.set i cell cells }
   in
     Array.get i cells
       |> Maybe.map (f >> update)
@@ -244,8 +255,8 @@ viewCell (x, y) direction { cellType, left, top, bottom, right } =
       ]
       |> shift (50 * toFloat x, 50 * toFloat y)
 
-keyDecoder : Decode.Decoder Msg
-keyDecoder =
+keyDownDecoder : Decode.Decoder Msg
+keyDownDecoder =
   let
     toDirection string =
       case string of
@@ -253,8 +264,19 @@ keyDecoder =
         "ArrowRight" -> KeyArrow Right
         "ArrowUp"    -> KeyArrow Up
         "ArrowDown"  -> KeyArrow Down
-        " "          -> KeySpace
-        _            -> KeyOther string
+        "Shift"      -> KeyShiftDown
+        _            -> KeyOtherDown string
+  in
+    Decode.field "key" Decode.string
+      |> Decode.map toDirection
+
+keyUpDecoder : Decode.Decoder Msg
+keyUpDecoder =
+  let
+    toDirection string =
+      case string of
+        "Shift"      -> KeyShiftUp
+        _            -> KeyOtherUp string
   in
     Decode.field "key" Decode.string
       |> Decode.map toDirection
@@ -262,7 +284,9 @@ keyDecoder =
 main : Program Flags Board Msg
 main = document
   { subscriptions = \_ -> Sub.batch
-      [ Events.onKeyDown keyDecoder ]
+      [ Events.onKeyDown keyDownDecoder
+      , Events.onKeyUp   keyUpDecoder
+      ]
   , init = initBoard
   , update = updateBoard
   , view = \board ->

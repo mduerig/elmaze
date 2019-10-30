@@ -54,6 +54,7 @@ type Msg
   | KeyUp
   | KeyLeft
   | KeyDown
+  | KeySpace
   | KeyOther String
 
 initBoard : Flags -> ( Board, Cmd msg )
@@ -82,37 +83,45 @@ newBoard width height =
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
 updateBoard msg board =
   let
-      player = board.player
-      moveRight = { player | x = player.x + 1 }
-      moveLeft  = { player | x = player.x - 1 }
-      moveUp    = { player | y = player.y + 1 }
-      moveDown  = { player | y = player.y - 1 }
-      removeWall direction = updateCellBoundary (board.player.x, board.player.y) direction None
+      { width, height, player } = board
+      { x, y }   = player
+      moveRight = { player | x = x + 1 }
+      moveLeft  = { player | x = x - 1 }
+      moveUp    = { player | y = y + 1 }
+      moveDown  = { player | y = y - 1 }
+      removeWall direction = updateCellBoundary (x, y) direction None
+      restoreWall direction = updateCellBoundary (x, y) direction Wall
 
       updatedBoard = case msg of
-          KeyRight -> if board.player.x >= board.width - 1
+          KeyRight -> if x >= width - 1
               then board
               else { board
                       | player = moveRight }
                       |> removeWall Right
 
-          KeyLeft -> if board.player.x <= 0
+          KeyLeft -> if x <= 0
               then board
               else { board
                       | player = moveLeft }
                       |> removeWall Left
 
-          KeyUp -> if board.player.y >= board.height - 1
+          KeyUp -> if y >= height - 1
               then board
               else { board
                       | player = moveUp }
                       |> removeWall Up
 
-          KeyDown -> if board.player.y <= 0
+          KeyDown -> if y <= 0
               then board
               else { board
                       | player = moveDown }
                       |> removeWall Down
+
+          KeySpace -> board
+                        |> restoreWall Up
+                        |> restoreWall Down
+                        |> restoreWall Left
+                        |> restoreWall Right
 
           _ -> board
 
@@ -257,6 +266,7 @@ keyDecoder =
         "ArrowRight" -> KeyRight
         "ArrowUp"    -> KeyUp
         "ArrowDown"  -> KeyDown
+        " "          -> KeySpace
         _            -> KeyOther string
   in
     Decode.field "key" Decode.string

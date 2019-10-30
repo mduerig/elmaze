@@ -19,9 +19,11 @@ type alias Board =
   , player : Player
   , cells : Array Cell
   , shiftDown : Bool
-  , editMode : Bool
+  , mode : Mode
   , replayLog : List Msg
   }
+
+type Mode = Edit | Play | Replay
 
 type alias Cell =
   { cellType : CellType
@@ -56,7 +58,7 @@ type Msg
   = KeyArrow Direction
   | KeyShiftDown
   | KeyShiftUp
-  | KeyP
+  | SwitchMode Mode
   | KeyOtherDown String
   | KeyOtherUp String
 
@@ -82,16 +84,26 @@ newBoard width height =
     Board width height
       newPlayer
       ( Array.repeat (width * height) cell )
-      False True
+      False Edit
       []
 
 newPlayer : Player
 newPlayer = Player 0 0 Up
 
 updateBoard : Msg -> Board -> ( Board, Cmd Msg )
-updateBoard msg board = if board.editMode
-    then updateBoardEditMode msg board
-    else updateBoardPlayMode msg board
+updateBoard msg board = case board.mode of
+    Play   ->  updateBoardPlayMode msg board
+    Edit   ->  updateBoardEditMode msg board
+    Replay ->  updateBoardReplayMode msg board
+
+updateBoardReplayMode : Msg -> Board -> ( Board, Cmd Msg )
+updateBoardReplayMode msg board =
+    let
+        updatedBoard = case msg of
+           SwitchMode mode  -> { board | mode = mode }
+           _   -> board
+    in
+        ( updatedBoard, Cmd.none )
 
 updateBoardPlayMode : Msg -> Board -> ( Board, Cmd Msg )
 updateBoardPlayMode msg board =
@@ -116,7 +128,7 @@ updateBoardPlayMode msg board =
           |> Maybe.withDefault True
 
       updatedBoard = case msg of
-        KeyP -> { board | editMode = True }
+        SwitchMode mode -> { board | mode = mode }
 
         KeyArrow Up ->
             if isBlocked orientation
@@ -154,9 +166,9 @@ updateBoardEditMode msg board =
       restoreWall direction = updateCellBoundary (x, y) direction Wall
 
       updatedBoard = case msg of
-          KeyP         -> { board | editMode = False, player = newPlayer }
-          KeyShiftDown -> { board | shiftDown = True }
-          KeyShiftUp   -> { board | shiftDown = False }
+          SwitchMode mode -> { board | mode = mode }
+          KeyShiftDown    -> { board | shiftDown = True }
+          KeyShiftUp      -> { board | shiftDown = False }
 
           KeyArrow direction ->
             if offBoard direction
@@ -343,8 +355,12 @@ keyDownDecoder =
         "ArrowUp"    -> KeyArrow Up
         "ArrowDown"  -> KeyArrow Down
         "Shift"      -> KeyShiftDown
-        "P"          -> KeyP
-        "p"          -> KeyP
+        "E"          -> SwitchMode Edit
+        "e"          -> SwitchMode Edit
+        "P"          -> SwitchMode Play
+        "p"          -> SwitchMode Play
+        "R"          -> SwitchMode Replay
+        "r"          -> SwitchMode Replay
         _            -> KeyOtherDown string
   in
     Decode.field "key" Decode.string

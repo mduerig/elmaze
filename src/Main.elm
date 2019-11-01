@@ -19,7 +19,7 @@ type alias Board =
   , height : Int
   , player : Player
   , cells : Array Cell
-  , shiftDown : Bool
+  , drawStyle : Boundary
   , mode : Mode
   , replayLog : List Msg
   }
@@ -41,7 +41,7 @@ type CellType
 
 type Boundary
   = Wall
-  | None
+  | Alley
 
 type alias Player =
   { x : Int
@@ -57,8 +57,7 @@ type Direction
 
 type Msg
   = KeyArrow Direction
-  | KeyShiftDown
-  | KeyShiftUp
+  | KeyShift Bool
   | SwitchMode Mode
   | KeyOtherDown String
   | KeyOtherUp String
@@ -87,7 +86,7 @@ newBoard width height =
     Board width height
       newPlayer
       ( Array.repeat (width * height) cell )
-      False Edit
+      Alley Edit
       [ SetPlayer newPlayer ]
 
 newPlayer : Player
@@ -183,7 +182,7 @@ updateBoardPlayMode msg board =
 updateBoardEditMode : Msg -> Board -> Board
 updateBoardEditMode msg board =
   let
-      { width, height, player, shiftDown } = board
+      { width, height, player, drawStyle } = board
       { x, y }   = player
 
       offBoard direction = case direction of
@@ -192,17 +191,16 @@ updateBoardEditMode msg board =
         Up    -> y + 1 >= height
         Down  -> y     <= 0
 
-      removeWall direction  = updateCellBoundary (x, y) direction None
+      removeWall direction  = updateCellBoundary (x, y) direction Alley
       restoreWall direction = updateCellBoundary (x, y) direction Wall
   in
       case msg of
-          KeyShiftDown    -> { board | shiftDown = True }
-          KeyShiftUp      -> { board | shiftDown = False }
+          KeyShift pressed -> { board | drawStyle = if pressed then Wall else Alley }
 
           KeyArrow direction ->
             if offBoard direction
               then   board
-              else if shiftDown then
+              else if drawStyle == Wall then
                   { board
                       | player = movePlayer direction player }
                       |> restoreWall Up
@@ -314,7 +312,7 @@ viewCell (x, y) direction { cellType, left, top, bottom, right } =
   let
       wallStyle wall = case wall of
         Wall -> solid thin ( uniform black )
-        None -> invisible
+        Alley -> invisible
 
       cell = case cellType of
         Empty -> [ ]
@@ -380,7 +378,7 @@ keyDownDecoder =
         "ArrowRight" -> KeyArrow Right
         "ArrowUp"    -> KeyArrow Up
         "ArrowDown"  -> KeyArrow Down
-        "Shift"      -> KeyShiftDown
+        "Shift"      -> KeyShift True
         "E"          -> SwitchMode Edit
         "e"          -> SwitchMode Edit
         "P"          -> SwitchMode Play
@@ -397,7 +395,7 @@ keyUpDecoder =
   let
     toDirection string =
       case string of
-        "Shift"      -> KeyShiftUp
+        "Shift"      -> KeyShift False
         _            -> KeyOtherUp string
   in
     Decode.field "key" Decode.string

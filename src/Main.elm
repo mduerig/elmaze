@@ -14,17 +14,52 @@ import Time
 
 type alias Flags = { }
 
+type alias Game =
+  { board : Board
+  , editor : Editor
+  , programmer : Programmer
+  , executor : Executor
+  , mode : Mode
+  }
+
 type alias Board =
   { width : Int
   , height : Int
   , player : Player
   , cells : Array Cell
-  , drawStyle : Boundary
-  , mode : Mode
-  , replayLog : List Msg
   }
 
-type Mode = Edit | Play | Replay
+type alias Editor =
+  { drawStyle : Boundary
+  }
+
+type alias Editing a =
+  { a
+  | board : Board
+  , editor : Editor
+  }
+
+type alias Programmer =
+  { moves : List Msg
+  }
+
+type alias Programming a =
+  { a
+  | board : Board
+  , programmer : Programmer
+  }
+
+type alias Executor =
+  { moves : List Msg
+  }
+
+type alias Executing a =
+  { a
+  | board : Board
+  , executor : Executor
+  }
+
+type Mode = Edit | Program | Execute
 
 type alias Cell =
   { cellType : CellType
@@ -64,85 +99,104 @@ type Msg
   | Tick Time.Posix
   | SetPlayer Player
 
-initBoard : Flags -> ( Board, Cmd msg )
-initBoard flags =
-  ( newBoard 10 10
-      |> updateCell (0, 0) ( updateCellType Start )
-      |> updateCell (9, 9) ( updateCellType Goal )
-  , Cmd.none
-  )
+initGame : Flags -> ( Game, Cmd msg )
+initGame flags =
+  let
+    game =
+      { board = newBoard 10 10
+          |> updateCell (0, 0) ( updateCellType Start )
+          |> updateCell (9, 9) ( updateCellType Goal )
+      , editor =
+          { drawStyle = Alley
+          }
+      , programmer =
+          { moves = [ SetPlayer (Player 0 0 Up ) ]
+          }
+      , executor =
+          { moves = []
+          }
+      , mode = Edit
+      }
+  in
+    ( game, Cmd.none )
 
 newBoard : Int -> Int -> Board
 newBoard width height =
-  let
-    cell =
+  { width = width
+  , height = height
+  , cells = Array.repeat (width * height)
       { cellType = Empty
       , top = Wall
       , left = Wall
       , bottom = Wall
       , right = Wall
       }
-  in
-    Board width height
-      newPlayer
-      ( Array.repeat (width * height) cell )
-      Alley Edit
-      [ SetPlayer newPlayer ]
+  , player = Player 0 0 Up
+  }
 
-newPlayer : Player
-newPlayer = Player 0 0 Up
-
-updateBoard : Msg -> Board -> ( Board, Cmd Msg )
-updateBoard msg board =
+updateGame : Msg -> Game -> ( Game, Cmd Msg )
+updateGame msg game =
   let
-      updatedBoard = case msg of
-        SwitchMode mode -> { board | mode = mode, player = newPlayer }
+      { board, executor } = game
 
-        _  -> case board.mode of
-                Play    ->  updateBoardPlayMode   msg board
-                Edit    ->  updateBoardEditMode   msg board
-                Replay  ->  updateBoardReplayMode msg board
+      updatedGame = case msg of
+        SwitchMode mode -> { game
+                           | mode = mode
+                           , board = { board | player = Player 0 0 Up }
+                           , executor = { executor | moves = game.programmer.moves }
+                           }
+
+        _  -> case game.mode of
+                Program ->  updateGameProgramMode  msg game
+                Edit    ->  updateGameEditMode     msg game
+                Execute ->  updateGameExecuteMode  msg game
   in
-      ( updatedBoard, Cmd.none )
+      ( updatedGame, Cmd.none )
 
-updateBoardReplayMode : Msg -> Board -> Board
-updateBoardReplayMode msg board =
-    case msg of
-      Tick _ ->
-        let
-          cycle list = case list of
-             []      -> []
-             x :: xs -> xs ++ [x]
-
-          cycledLog = cycle board.replayLog
-          move = List.head board.replayLog
-
-          turn player direction = { player | orientation = case direction of
-              Right -> rightOfDirection player.orientation
-              Left  -> leftOfDirection player.orientation
-              _     -> player.orientation
-            }
-
-          movedPlayer = case move of
-            Just (SetPlayer player)   -> player
-            Just (KeyArrow Up)        -> movePlayer board.player.orientation board.player
-            Just (KeyArrow direction) -> turn board.player direction
-            _ -> board.player
-
-          updatedBoard = { board
-                            | replayLog = cycledLog
-                            , player = movedPlayer
-                            }
-        in
-          updatedBoard
-
-      _ -> board
-
-updateBoardPlayMode : Msg -> Board -> Board
-updateBoardPlayMode msg board =
+updateGameExecuteMode : Msg -> Executing Game -> Executing Game
+updateGameExecuteMode msg game =
   let
-      { player, replayLog } = board
+      { board, executor } = game
+      { player } = board
+      { orientation } = player
+      { moves } = executor
+  in
+      case msg of
+        Tick _ ->
+          let
+            cycle list = case list of
+              []      -> []
+              x :: xs -> xs ++ [x]
+
+            cycledMoves = cycle moves
+            move = List.head moves
+
+            turn direction = { player | orientation = case direction of
+                Right -> rightOfDirection orientation
+                Left  -> leftOfDirection orientation
+                _     -> orientation
+              }
+
+            movedPlayer = case move of
+              Just (SetPlayer p)        -> p
+              Just (KeyArrow Up)        -> movePlayer orientation player
+              Just (KeyArrow direction) -> turn direction
+              _ -> player
+
+            updatedBoard = { board | player = movedPlayer }
+            updatedExecutor = { executor | moves = cycledMoves }
+          in
+            { game | board = updatedBoard, executor = updatedExecutor }
+
+        _ -> game
+
+updateGameProgramMode : Msg -> Programming Game -> Programming Game
+updateGameProgramMode msg game =
+  let
+      { board, programmer } = game
+      { player } = board
       { x, y, orientation } = player
+      { moves } = programmer
 
       turn direction = { player | orientation = case direction of
           Right -> rightOfDirection orientation
@@ -159,31 +213,34 @@ updateBoardPlayMode msg board =
       isBlocked direction = getCell (x, y) board
           |> Maybe.map (blocked direction)
           |> Maybe.withDefault True
+
   in
-      case msg of
+    case msg of
         KeyArrow Up ->
             if isBlocked orientation
-              then   board
-              else { board
-                      | player = movePlayer orientation player
-                      , replayLog = replayLog ++ [msg]
-                      }
+              then   game
+              else { game
+                      | board = { board | player = movePlayer orientation player }
+                      , programmer = { programmer | moves = moves ++ [msg] }
+                   }
 
-        KeyArrow Down -> board
+        KeyArrow Down -> game
 
         KeyArrow direction ->
-            { board
-                | player = turn direction
-                , replayLog = replayLog ++ [msg]
+            { game
+                | board = { board | player = turn direction }
+                , programmer = { programmer | moves = moves ++ [msg] }
                 }
 
-        _    -> board
+        _    -> game
 
-updateBoardEditMode : Msg -> Board -> Board
-updateBoardEditMode msg board =
+updateGameEditMode : Msg -> Editing Game -> Editing Game
+updateGameEditMode msg game =
   let
-      { width, height, player, drawStyle } = board
-      { x, y }   = player
+      { board, editor } = game
+      { width, height, player } = board
+      { x, y } = player
+      { drawStyle } = editor
 
       offBoard direction = case direction of
         Right -> x + 1 >= width
@@ -195,24 +252,30 @@ updateBoardEditMode msg board =
       restoreWall direction = updateCellBoundary (x, y) direction Wall
   in
       case msg of
-          KeyShift pressed -> { board | drawStyle = if pressed then Wall else Alley }
+          KeyShift pressed ->
+              let
+                updatedEditor = { editor | drawStyle = if pressed then Wall else Alley }
+              in
+              { game | editor = updatedEditor }
 
           KeyArrow direction ->
-            if offBoard direction
-              then   board
-              else if drawStyle == Wall then
-                  { board
-                      | player = movePlayer direction player }
-                      |> restoreWall Up
-                      |> restoreWall Down
-                      |> restoreWall Left
-                      |> restoreWall Right
-              else
-                  { board
-                      | player = movePlayer direction player }
-                      |> removeWall direction
+            let
+                updatedBoard = if drawStyle == Wall
+                  then { board
+                          | player = movePlayer direction player }
+                          |> restoreWall Up
+                          |> restoreWall Down
+                          |> restoreWall Left
+                          |> restoreWall Right
+                  else { board
+                          | player = movePlayer direction player }
+                          |> removeWall direction
+            in
+              { game | board = if offBoard direction
+                                    then board
+                                    else updatedBoard }
 
-          _ -> board
+          _ -> game
 
 movePlayer : Direction -> Player -> Player
 movePlayer direction player = case direction of
@@ -263,9 +326,10 @@ updateCellBoundary (x, y) direction boundary board =
       |> updateCell neighbour
             ( update <| oppositeDirection direction )
 
-viewBoard : Board -> List ( Html Msg )
-viewBoard board =
+viewGame : Game -> List ( Html Msg )
+viewGame game =
   let
+      { board } = game
       playerAt (x, y) =
         if board.player.x == x && board.player.y == y
           then Just board.player.orientation
@@ -381,10 +445,10 @@ keyDownDecoder =
         "Shift"      -> KeyShift True
         "E"          -> SwitchMode Edit
         "e"          -> SwitchMode Edit
-        "P"          -> SwitchMode Play
-        "p"          -> SwitchMode Play
-        "R"          -> SwitchMode Replay
-        "r"          -> SwitchMode Replay
+        "P"          -> SwitchMode Program
+        "p"          -> SwitchMode Program
+        "R"          -> SwitchMode Execute
+        "r"          -> SwitchMode Execute
         _            -> KeyOtherDown string
   in
     Decode.field "key" Decode.string
@@ -401,18 +465,18 @@ keyUpDecoder =
     Decode.field "key" Decode.string
       |> Decode.map toDirection
 
-main : Program Flags Board Msg
+main : Program Flags Game Msg
 main = document
   { subscriptions = \_ -> Sub.batch
       [ Events.onKeyDown keyDownDecoder
       , Events.onKeyUp   keyUpDecoder
       , Time.every 400 Tick
       ]
-  , init = initBoard
-  , update = updateBoard
-  , view = \board ->
+  , init = initGame
+  , update = updateGame
+  , view = \game ->
       { title = "ElMaze"
-      , body = viewBoard board
+      , body = viewGame game
       }
   }
 

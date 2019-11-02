@@ -108,15 +108,17 @@ type Msg
 initGame : Flags -> ( Game, Cmd msg )
 initGame flags =
     let
-        game =
-            { board = newBoard 10 10
+        board = newBoard 10 10
                 |> updateCell ( 0, 0 ) (updateCellType Start)
                 |> updateCell ( 9, 9 ) (updateCellType Goal)
+
+        game =
+            { board = board
             , editor =
                 { drawStyle = Alley
                 }
             , programmer =
-                { moves = [ SetPlayer (Player 0 0 Up) ]
+                { moves = [ SetPlayer board.player ]
                 }
             , executor =
                 { moves = []
@@ -263,16 +265,11 @@ updateGameEditMode msg game =
         restoreWall direction = updateCellBoundary ( x, y ) direction Wall
     in
         case msg of
-            KeyShift pressed ->
-                let
-                    updatedEditor =
-                        { editor | drawStyle =
-                            if pressed
-                                then Wall
-                                else Alley
-                        }
-                in
-                    { game | editor = updatedEditor }
+            KeyShift True    ->
+                { game | editor = { editor | drawStyle = Wall }}
+
+            KeyShift False   ->
+                { game | editor = { editor | drawStyle = Alley }}
 
             KeyArrow direction ->
                 let
@@ -349,10 +346,11 @@ viewGame : Game -> List (Html Msg)
 viewGame game =
     let
         { board } = game
+        { player } = board
 
         playerAt ( x, y ) =
-            if board.player.x == x && board.player.y == y
-                then Just board.player.orientation
+            if player.x == x && player.y == y
+                then Just player.orientation
                 else Nothing
 
         render ( x, y, cell ) = viewCell ( x, y ) (playerAt ( x, y )) cell

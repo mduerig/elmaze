@@ -177,19 +177,11 @@ updateGameExecuteMode msg game =
             []       -> []
             x :: xs  -> xs ++ [ x ]
 
-        turn direction =
-            { player | orientation =
-                case direction of
-                    Right -> rightOfDirection orientation
-                    Left  -> leftOfDirection orientation
-                    _     -> orientation
-            }
-
         movedPlayer =
             case List.head moves of
                 Just (SetPlayer p)        -> p
                 Just (KeyArrow Up)        -> movePlayer orientation player
-                Just (KeyArrow direction) -> turn direction
+                Just (KeyArrow direction) -> turnPlayer direction player
                 _                         -> player
     in
         case msg of
@@ -207,14 +199,6 @@ updateGameProgramMode msg game =
         { player } = board
         { x, y, orientation } = player
         { moves } = programmer
-
-        turn direction =
-            { player | orientation =
-                case direction of
-                    Right -> rightOfDirection orientation
-                    Left  -> leftOfDirection orientation
-                    _     -> orientation
-            }
 
         blocked direction cell =
             case direction of
@@ -240,7 +224,7 @@ updateGameProgramMode msg game =
 
             KeyArrow direction ->
                 { game
-                | board = { board | player = turn direction }
+                | board = { board | player = turnPlayer direction player }
                 , programmer = { programmer | moves = moves ++ [ msg ] }
                 }
 
@@ -301,7 +285,16 @@ movePlayer direction player =
         Up    -> { player | y = player.y + 1 }
         Down  -> { player | y = player.y - 1 }
 
-queryCell : (Int, Int ) -> Board -> (Cell -> Bool) -> Bool
+turnPlayer : Direction -> Player -> Player
+turnPlayer direction player =
+    { player | orientation =
+        case direction of
+            Right -> rightOfDirection player.orientation
+            Left  -> leftOfDirection player.orientation
+            _     -> player.orientation
+    }
+
+queryCell : ( Int, Int ) -> Board -> (Cell -> Bool) -> Bool
 queryCell ( x, y ) { width, height, cells } query =
     Array.get ((height - 1 - y) * width + x) cells
         |> Maybe.map query

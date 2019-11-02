@@ -146,15 +146,23 @@ newBoard width height =
 updateGame : Msg -> Game -> ( Game, Cmd Msg )
 updateGame msg game =
     let
-        { board, executor } = game
+        { board, executor, programmer } = game
+
+        updatePlayer mode = if mode == Edit
+            then board
+            else { board | player = Player 0 0 Up }
+
+        updateExecutor mode = if mode == Execute
+            then { executor | moves = programmer.moves }
+            else executor
 
         updatedGame =
             case msg of
                 SwitchMode mode ->
                     { game
                     | mode = mode
-                    , board = { board | player = Player 0 0 Up }
-                    , executor = { executor | moves = game.programmer.moves }
+                    , board = updatePlayer mode
+                    , executor = updateExecutor mode
                     }
 
                 _ ->

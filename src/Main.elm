@@ -222,9 +222,7 @@ updateGameProgramMode msg game =
                 Down  -> cell.bottom == Wall
 
         isBlocked direction =
-            getCell ( x, y ) board
-                |> Maybe.map (blocked direction)
-                |> Maybe.withDefault True
+            queryCell ( x, y ) board (blocked direction)
     in
         case msg of
             KeyArrow Up ->
@@ -306,9 +304,11 @@ movePlayer direction player =
         Up    -> { player | y = player.y + 1 }
         Down  -> { player | y = player.y - 1 }
 
-getCell : ( Int, Int ) -> Board -> Maybe Cell
-getCell ( x, y ) { width, height, cells } =
+queryCell : (Int, Int ) -> Board -> (Cell -> Bool) -> Bool
+queryCell ( x, y ) { width, height, cells } query =
     Array.get ((height - 1 - y) * width + x) cells
+        |> Maybe.map query
+        |> Maybe.withDefault True
 
 updateCell : ( Int, Int ) -> (Cell -> Cell) -> Board -> Board
 updateCell ( x, y ) f board =

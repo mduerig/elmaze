@@ -52,7 +52,7 @@ type alias Programming a =
     }
 
 type alias Executor =
-    { moves : List Msg
+    { commands : List Msg
     }
 
 type alias Executing a =
@@ -120,7 +120,7 @@ initGame flags =
                 { moves = []
                 }
             , executor =
-                { moves = []
+                { commands = []
                 }
             , mode = Edit
             }
@@ -154,7 +154,7 @@ updateGame msg game =
             else atStart
 
         updateExecutor mode = if mode == Execute
-            then { executor | moves = SetPlayer atStart.player :: programmer.moves }
+            then { executor | commands = SetPlayer atStart.player :: programmer.moves }
             else executor
 
         updatedGame =
@@ -180,14 +180,14 @@ updateGameExecuteMode msg game =
         { board, executor } = game
         { player } = board
         { orientation } = player
-        { moves } = executor
+        { commands } = executor
 
         cycle list = case list of
             []       -> []
             x :: xs  -> xs ++ [ x ]
 
         movedPlayer =
-            case List.head moves of
+            case List.head commands of
                 Just (SetPlayer p)        -> p
                 Just (KeyArrow Up)        -> movePlayer orientation player
                 Just (KeyArrow direction) -> turnPlayer direction player
@@ -196,7 +196,7 @@ updateGameExecuteMode msg game =
         case msg of
           Tick _ -> { game
                     | board = { board | player = movedPlayer }
-                    , executor = { executor | moves = cycle moves }
+                    , executor = { executor | commands = cycle commands }
                     }
 
           _      -> game

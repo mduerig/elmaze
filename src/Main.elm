@@ -64,7 +64,6 @@ type alias Executing a =
     , executor : Executor
     }
 
-
 type Mode
     = Edit
     | Program
@@ -212,7 +211,7 @@ updateGame msg game =
     in
         ( updatedGame, Cmd.none )
 
-updateGameExecuteMode : Msg -> Executing Game -> Executing Game
+updateGameExecuteMode : Msg -> Executing a -> Executing a
 updateGameExecuteMode msg game =
     let
         { board, executor } = game
@@ -239,7 +238,7 @@ updateGameExecuteMode msg game =
 
           _      -> game
 
-updateGameProgramMode : Msg -> Programming Game -> Programming Game
+updateGameProgramMode : Msg -> Programming a -> Programming a
 updateGameProgramMode msg game =
     let
         { board, programmer } = game
@@ -277,7 +276,7 @@ updateGameProgramMode msg game =
 
             _ -> game
 
-updateGameEditMode : Msg -> Editing Game -> Editing Game
+updateGameEditMode : Msg -> Editing a -> Editing a
 updateGameEditMode msg game =
     let
         { board, editor } = game

@@ -42,6 +42,7 @@ type alias Editing a =
 
 type alias Programmer =
     { moves : List Msg
+    , program : List String
     }
 
 
@@ -118,6 +119,7 @@ initGame flags =
                 }
             , programmer =
                 { moves = []
+                , program = []
                 }
             , executor =
                 { commands = []

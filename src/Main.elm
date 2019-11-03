@@ -108,18 +108,16 @@ type Msg
 initGame : Flags -> ( Game, Cmd msg )
 initGame flags =
     let
-        board = newBoard 10 10
+        game =
+            { board = newBoard 10 10
                 |> updateCell ( 0, 0 ) (updateCellType Start)
                 |> updateCell ( 9, 9 ) (updateCellType Goal)
                 |> playerAtStart
-
-        game =
-            { board = board
             , editor =
                 { drawStyle = Alley
                 }
             , programmer =
-                { moves = [ SetPlayer board.player ]
+                { moves = []
                 }
             , executor =
                 { moves = []
@@ -149,12 +147,14 @@ updateGame msg game =
     let
         { board, executor, programmer } = game
 
+        atStart = playerAtStart board
+
         updatePlayer mode = if mode == Edit
             then board
-            else playerAtStart board
+            else atStart
 
         updateExecutor mode = if mode == Execute
-            then { executor | moves = programmer.moves }
+            then { executor | moves = SetPlayer atStart.player :: programmer.moves }
             else executor
 
         updatedGame =

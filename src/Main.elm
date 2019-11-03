@@ -185,6 +185,10 @@ updateGame msg game =
             then { executor | commands = SetPlayer atStart.player :: programmer.moves }
             else executor
 
+        updateProgrammer mode = if mode == Program
+            then { programmer | moves = [] }
+            else programmer
+
         updatedGame =
             case msg of
                 ProgramChanged newProgram ->
@@ -197,6 +201,7 @@ updateGame msg game =
                     | mode = mode
                     , board = updatePlayer mode
                     , executor = updateExecutor mode
+                    , programmer = updateProgrammer mode
                     }
 
                 _ ->
@@ -391,7 +396,7 @@ updateCellBoundary ( x, y ) direction boundary board =
 viewGame : Game -> List (Html Msg)
 viewGame game =
     let
-        { board } = game
+        { board, programmer } = game
         { player } = board
 
         playerAt ( x, y ) =
@@ -418,13 +423,32 @@ viewGame game =
             ]
         , Html.div []
             [ Html.textarea
-                [ Atts.cols 60
+                [ Atts.cols 40
+                , Atts.rows 30
+                , Atts.value <| toProgram programmer.moves
+                ]
+                [ ]
+            , Html.textarea
+                [ Atts.cols 40
                 , Atts.rows 30
                 , onInput ProgramChanged
                 ]
-                [ Html.text game.programmer.program ]
+                [ Html.text programmer.program ]
             ]
         ]
+
+toProgram : List Msg -> String
+toProgram messages =
+    let
+        toCommand msg = case msg of
+           KeyArrow Up    -> "forward"
+           KeyArrow Left  -> "left"
+           KeyArrow Right -> "right"
+           _              -> ""
+    in
+        messages
+            |> List.map toCommand
+            |> String.join "\n"
 
 oppositeDirection : Direction -> Direction
 oppositeDirection d =

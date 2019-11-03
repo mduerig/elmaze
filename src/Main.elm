@@ -111,6 +111,7 @@ initGame flags =
         board = newBoard 10 10
                 |> updateCell ( 0, 0 ) (updateCellType Start)
                 |> updateCell ( 9, 9 ) (updateCellType Goal)
+                |> playerAtStart
 
         game =
             { board = board
@@ -150,7 +151,7 @@ updateGame msg game =
 
         updatePlayer mode = if mode == Edit
             then board
-            else { board | player = Player 0 0 Up }
+            else playerAtStart board
 
         updateExecutor mode = if mode == Execute
             then { executor | moves = programmer.moves }
@@ -284,6 +285,17 @@ updateGameEditMode msg game =
 
             _ ->
                 game
+
+playerAtStart : Board -> Board
+playerAtStart board =
+    let
+        player = cellsWithIndex board
+            |> List.filter (\(_,_,c) -> c.cellType == Start)
+            |> List.head
+            |> Maybe.map (\(x,y,_) -> Player x y Up)
+            |> Maybe.withDefault (Player 0 0 Up)
+    in
+        { board | player = player }
 
 movePlayer : Direction -> Player -> Player
 movePlayer direction player =

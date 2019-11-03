@@ -10,7 +10,7 @@ import Collage.Text as Text
 import Color exposing (..)
 import Html exposing (Html)
 import Html.Attributes as Atts
-import Html.Events exposing ( onClick )
+import Html.Events exposing ( onClick, onInput )
 import Json.Decode as Decode
 import Time
 
@@ -44,7 +44,7 @@ type alias Editing a =
 
 type alias Programmer =
     { moves : List Msg
-    , program : List String
+    , program : String
     }
 
 
@@ -107,6 +107,7 @@ type Msg
     | KeyOtherUp String
     | Tick Time.Posix
     | SetPlayer Player
+    | ProgramChanged String
 
 testBoard : Board -> Board
 testBoard board =
@@ -123,8 +124,8 @@ testBoard board =
       |> updateCellBoundary (2, 1) Left Alley
       |> updateCellBoundary (1, 1) Left Alley
 
-testProgram : List String
-testProgram =
+testProgram : String
+testProgram = String.join "\n"
   [ "forward"
   , "right"
   , "right"
@@ -186,6 +187,11 @@ updateGame msg game =
 
         updatedGame =
             case msg of
+                ProgramChanged newProgram ->
+                  { game
+                  | programmer = { programmer | program = newProgram }
+                  }
+
                 SwitchMode mode ->
                     { game
                     | mode = mode
@@ -414,8 +420,9 @@ viewGame game =
             [ Html.textarea
                 [ Atts.cols 60
                 , Atts.rows 30
+                , onInput ProgramChanged
                 ]
-                [ Html.text <| String.join "\n" game.programmer.program ]
+                [ Html.text game.programmer.program ]
             ]
         ]
 

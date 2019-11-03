@@ -108,6 +108,28 @@ type Msg
     | Tick Time.Posix
     | SetPlayer Player
 
+testBoard : Board -> Board
+testBoard board =
+    board
+      |> updateCellBoundary (0, 0) Up Alley
+      |> updateCellBoundary (0, 1) Up Alley
+      |> updateCellBoundary (0, 2) Up Alley
+      |> updateCellBoundary (0, 3) Right Alley
+      |> updateCellBoundary (1, 3) Right Alley
+      |> updateCellBoundary (2, 3) Right Alley
+      |> updateCellBoundary (3, 3) Down Alley
+      |> updateCellBoundary (3, 2) Down Alley
+      |> updateCellBoundary (3, 1) Left Alley
+      |> updateCellBoundary (2, 1) Left Alley
+      |> updateCellBoundary (1, 1) Left Alley
+
+testProgram : List String
+testProgram =
+  [ "forward"
+  , "right"
+  , "right"
+  ]
+
 initGame : Flags -> ( Game, Cmd msg )
 initGame flags =
     let
@@ -115,13 +137,14 @@ initGame flags =
             { board = newBoard 10 10
                 |> updateCell ( 0, 0 ) (updateCellType Start)
                 |> updateCell ( 9, 9 ) (updateCellType Goal)
+                |> testBoard
                 |> playerAtStart
             , editor =
                 { drawStyle = Alley
                 }
             , programmer =
                 { moves = []
-                , program = []
+                , program = testProgram
                 }
             , executor =
                 { commands = []
@@ -366,7 +389,7 @@ viewGame game =
         { player } = board
 
         playerAt ( x, y ) =
-            if player.x == x && player.y == y
+            if (player.x, player.y) == (x, y)
                 then Just player.orientation
                 else Nothing
 
@@ -392,7 +415,7 @@ viewGame game =
                 [ Atts.cols 60
                 , Atts.rows 30
                 ]
-                []
+                [ Html.text <| String.join "\n" game.programmer.program ]
             ]
         ]
 

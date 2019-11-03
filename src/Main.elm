@@ -2,13 +2,15 @@ module Main exposing (main)
 
 import Array exposing (..)
 import Browser exposing (document)
-import Browser.Events as Events
+import Browser.Events exposing ( onKeyDown, onKeyUp)
 import Collage exposing (..)
 import Collage.Layout exposing (..)
 import Collage.Render exposing (svg)
 import Collage.Text as Text
 import Color exposing (..)
 import Html exposing (Html)
+import Html.Attributes as Atts
+import Html.Events exposing ( onClick )
 import Json.Decode as Decode
 import Time
 
@@ -374,6 +376,24 @@ viewGame game =
             |> List.map render
             |> group
             |> svg
+        , Html.div []
+            [ Html.button
+                [ onClick <| SwitchMode Edit ]
+                [ Html.text "edit" ]
+            , Html.button
+                [ onClick <| SwitchMode Program ]
+                [ Html.text "program" ]
+            , Html.button
+                [ onClick <| SwitchMode Execute ]
+                [ Html.text "execute" ]
+            ]
+        , Html.div []
+            [ Html.textarea
+                [ Atts.cols 60
+                , Atts.rows 30
+                ]
+                []
+            ]
         ]
 
 oppositeDirection : Direction -> Direction
@@ -519,8 +539,8 @@ main =
     document
         { subscriptions =
             \_ -> Sub.batch
-                    [ Events.onKeyDown keyDownDecoder
-                    , Events.onKeyUp keyUpDecoder
+                    [ onKeyDown keyDownDecoder
+                    , onKeyUp keyUpDecoder
                     , Time.every 400 Tick
                     ]
         , init = initGame

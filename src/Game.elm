@@ -179,7 +179,9 @@ updateGame msg game =
 
         updateExecutor mode = if mode == Execute
             then { executor
-                 | solver = Just <| executor.init <| Solve board programmer.moves
+                 | solver = Just
+                     <| executor.init
+                     <| Solve board programmer.moves
                  }
             else { executor | solver = Nothing }
 
@@ -225,11 +227,11 @@ updateGameExecuteMode msg game =
             Forward   -> movePlayer player.orientation
             TurnLeft  -> turnPlayer Left
             TurnRight -> turnPlayer Right
-            _         -> identity
+            _         -> always identity
     in
         case msg of
           Tick _ -> { game
-                    | board = { board | player = movedPlayer }
+                    | board = movedPlayer board
                     , executor = { executor | solver = updatedSolver }
                     }
           _      -> game
@@ -253,20 +255,20 @@ updateGameProgramMode msg game =
             queryCell ( x, y ) board (blocked direction)
     in
         case msg of
+            KeyArrow Down -> game
+
             KeyArrow Up ->
                 if isBlocked orientation then
                     game
                 else
                     { game
-                    | board = { board | player = movePlayer orientation player }
+                    | board = movePlayer orientation player board
                     , programmer = { programmer | moves = moves ++ [ msg ] }
                     }
 
-            KeyArrow Down -> game
-
             KeyArrow direction ->
                 { game
-                | board = { board | player = turnPlayer direction player }
+                | board = turnPlayer direction player board
                 , programmer = { programmer | moves = moves ++ [ msg ] }
                 }
 
@@ -301,13 +303,15 @@ updateGameEditMode msg game =
                 let
                     updatedBoard =
                         if drawStyle == Wall then
-                            { board | player = movePlayer direction player }
+                            board
+                                |> movePlayer direction player
                                 |> restoreWall Up
                                 |> restoreWall Down
                                 |> restoreWall Left
                                 |> restoreWall Right
 
-                        else { board | player = movePlayer direction player }
+                        else board
+                                |> movePlayer direction player
                                 |> removeWall direction
                 in
                     { game | board =
@@ -322,30 +326,39 @@ updateGameEditMode msg game =
 playerAtStart : Board -> Board
 playerAtStart board =
     let
+        startCellToPlayer (x, y, cell) = if cell.cellType == Start
+            then Just (Player x y Up)
+            else Nothing
+
         player = cellsWithIndex board
-            |> List.filter (\(_,_,c) -> c.cellType == Start)
+            |> List.filterMap startCellToPlayer
             |> List.head
-            |> Maybe.map (\(x,y,_) -> Player x y Up)
             |> Maybe.withDefault (Player 0 0 Up)
     in
         { board | player = player }
 
-movePlayer : Direction -> Player -> Player
-movePlayer direction player =
-    case direction of
-        Right -> { player | x = player.x + 1 }
-        Left  -> { player | x = player.x - 1 }
-        Up    -> { player | y = player.y + 1 }
-        Down  -> { player | y = player.y - 1 }
+movePlayer : Direction -> Player -> Board -> Board
+movePlayer direction player board =
+    let
+        movedPlayer = case direction of
+            Right -> { player | x = player.x + 1 }
+            Left  -> { player | x = player.x - 1 }
+            Up    -> { player | y = player.y + 1 }
+            Down  -> { player | y = player.y - 1 }
+    in
+        { board | player = movedPlayer }
 
-turnPlayer : Direction -> Player -> Player
-turnPlayer direction player =
-    { player | orientation =
-        case direction of
-            Right -> rightOfDirection player.orientation
-            Left  -> leftOfDirection player.orientation
-            _     -> player.orientation
-    }
+turnPlayer : Direction -> Player -> Board -> Board
+turnPlayer direction player board =
+    let
+        turnedPlayer = { player | orientation =
+            case direction of
+                Right -> rightOfDirection player.orientation
+                Left  -> leftOfDirection player.orientation
+                _     -> player.orientation
+            }
+    in
+        { board | player = turnedPlayer }
 
 queryCell : ( Int, Int ) -> Board -> (Cell -> Bool) -> Bool
 queryCell ( x, y ) { width, height, cells } query =
@@ -354,18 +367,18 @@ queryCell ( x, y ) { width, height, cells } query =
         |> Maybe.withDefault True
 
 updateCell : ( Int, Int ) -> (Cell -> Cell) -> Board -> Board
-updateCell ( x, y ) f board =
+updateCell ( x, y ) update board =
     let
         { width, height, cells } = board
         i = (height - 1 - y) * width + x
-        update cell = { board | cells = Array.set i cell cells }
+        set cell = { board | cells = Array.set i cell cells }
     in
         Array.get i cells
-            |> Maybe.map (f >> update)
+            |> Maybe.map (update >> set)
             |> Maybe.withDefault board
 
 updateCellType : CellType -> Cell -> Cell
-updateCellType t c = { c | cellType = t }
+updateCellType cellType cell = { cell | cellType = cellType }
 
 updateCellBoundary : ( Int, Int ) -> Direction -> Boundary -> Board -> Board
 updateCellBoundary ( x, y ) direction boundary board =
@@ -446,24 +459,24 @@ toProgram messages =
             |> String.join "\n"
 
 oppositeDirection : Direction -> Direction
-oppositeDirection d =
-    case d of
+oppositeDirection direction =
+    case direction of
         Up    -> Down
         Down  -> Up
         Left  -> Right
         Right -> Left
 
 rightOfDirection : Direction -> Direction
-rightOfDirection d =
-    case d of
+rightOfDirection direction =
+    case direction of
         Right -> Down
         Up    -> Right
         Left  -> Up
         Down  -> Left
 
 leftOfDirection : Direction -> Direction
-leftOfDirection d =
-    case d of
+leftOfDirection direction =
+    case direction of
         Right -> Up
         Up    -> Left
         Left  -> Down
@@ -473,14 +486,14 @@ cellsWithIndex : Board -> List ( Int, Int, Cell )
 cellsWithIndex { width, height, cells } =
     cells
         |> Array.indexedMap
-            (\i c ->
-                ( modBy width i, height - 1 - i // width, c )
+            (\i cell ->
+                ( modBy width i, height - 1 - i // width, cell )
             )
         |> Array.toList
 
 
 viewCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
-viewCell ( x, y ) direction { cellType, left, top, bottom, right } =
+viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
     let
         wallStyle wall =
             case wall of
@@ -507,24 +520,24 @@ viewCell ( x, y ) direction { cellType, left, top, bottom, right } =
                         |> rendered
                     ]
 
-        angle d =
-            case d of
+        angle direction =
+            case direction of
                 Left  -> -pi / 2
                 Up    -> pi
                 Right -> pi / 2
                 Down  -> 0
 
         player =
-            case direction of
+            case playerOrientation of
                 Nothing -> []
 
-                Just d ->
+                Just direction ->
                     [ Text.fromString "T"
                         |> Text.color blue
                         |> Text.weight Text.Bold
                         |> Text.size Text.huge
                         |> rendered
-                        |> rotate (angle d)
+                        |> rotate (angle direction)
                     ]
     in
         group

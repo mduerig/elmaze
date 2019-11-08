@@ -1,6 +1,25 @@
 module Main exposing ( main )
 
-import Game exposing (Game, Msg(..), Direction(..), Move(..) )
+import Game exposing
+    (Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
+    , CellType(..), Msg(..), Direction(..), Move(..)
+    )
+
+testBoard : Board
+testBoard = newBoard 10 10
+    |> updateCellBoundary (0, 0) Up Alley
+    |> updateCellBoundary (0, 1) Up Alley
+    |> updateCellBoundary (0, 2) Up Alley
+    |> updateCellBoundary (0, 3) Right Alley
+    |> updateCellBoundary (1, 3) Right Alley
+    |> updateCellBoundary (2, 3) Right Alley
+    |> updateCellBoundary (3, 3) Down Alley
+    |> updateCellBoundary (3, 2) Down Alley
+    |> updateCellBoundary (3, 1) Left Alley
+    |> updateCellBoundary (2, 1) Left Alley
+    |> updateCellBoundary (1, 1) Left Alley
+    |> updateCell ( 0, 0 ) (updateCellType Start)
+    |> updateCell ( 9, 9 ) (updateCellType Goal)
 
 updateGame : List Msg -> ( List Msg, Move )
 updateGame commands =
@@ -22,7 +41,8 @@ updateGame commands =
 main : Program () (Game ( List Msg ) ) Msg
 main =
     Game.play
-        { init = .commands
+        { board = testBoard
+        , init = .commands
         , update = updateGame
         }
 

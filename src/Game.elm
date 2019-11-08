@@ -23,6 +23,12 @@ type alias Game solver =
     , executor : Executor solver
     }
 
+type alias Configuration solver =
+  { board : Board
+  , init : Solve -> solver
+  , update : solver -> ( solver, Move )
+  }
+
 type Move
     = Forward
     | TurnLeft
@@ -117,23 +123,6 @@ type Msg
     | Tick Time.Posix
     | ProgramChanged String
 
-testBoard : Board -> Board
-testBoard board =
-    board
-      |> updateCellBoundary (0, 0) Up Alley
-      |> updateCellBoundary (0, 1) Up Alley
-      |> updateCellBoundary (0, 2) Up Alley
-      |> updateCellBoundary (0, 3) Right Alley
-      |> updateCellBoundary (1, 3) Right Alley
-      |> updateCellBoundary (2, 3) Right Alley
-      |> updateCellBoundary (3, 3) Down Alley
-      |> updateCellBoundary (3, 2) Down Alley
-      |> updateCellBoundary (3, 1) Left Alley
-      |> updateCellBoundary (2, 1) Left Alley
-      |> updateCellBoundary (1, 1) Left Alley
-      |> updateCell ( 0, 0 ) (updateCellType Start)
-      |> updateCell ( 9, 9 ) (updateCellType Goal)
-
 testProgram : String
 testProgram = String.join "\n"
   [ "forward"
@@ -141,12 +130,11 @@ testProgram = String.join "\n"
   , "right"
   ]
 
-initGame : (Solve -> solver) -> (solver -> (solver, Move)) -> ( Game solver, Cmd msg )
-initGame init update =
+initGame : Configuration solver -> ( Game solver, Cmd msg )
+initGame { board, init, update } =
     let
         game =
-            { board = newBoard 10 10
-                |> testBoard
+            { board = board
                 |> playerAtStart
             , mode = Edit
             , editor =
@@ -595,12 +583,8 @@ keyUpDecoder =
         Decode.field "key" Decode.string
             |> Decode.map toDirection
 
-play :
-  { init : Solve -> solver
-  , update : solver -> ( solver, Move )
-  }
-  -> Program () (Game solver) Msg
-play { init, update } =
+play : Configuration solver -> Program () (Game solver) Msg
+play configuration =
     document
         { subscriptions =
             \_ -> Sub.batch
@@ -608,7 +592,7 @@ play { init, update } =
                     , onKeyUp keyUpDecoder
                     , Time.every 400 Tick
                     ]
-        , init = \_ -> initGame init update
+        , init = \_ -> initGame configuration
         , update = updateGame
         , view =
             \game ->

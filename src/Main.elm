@@ -6,7 +6,7 @@ import Game exposing
     )
 
 testBoard : Board
-testBoard = newBoard 10 10
+testBoard = newBoard 4 4
     |> updateCellBoundary (0, 0) Up Alley
     |> updateCellBoundary (0, 1) Up Alley
     |> updateCellBoundary (0, 2) Up Alley
@@ -19,7 +19,7 @@ testBoard = newBoard 10 10
     |> updateCellBoundary (2, 1) Left Alley
     |> updateCellBoundary (1, 1) Left Alley
     |> updateCell ( 0, 0 ) (updateCellType Start)
-    |> updateCell ( 9, 9 ) (updateCellType Goal)
+    |> updateCell ( 3, 3 ) (updateCellType Goal)
 
 updateGame : List String -> ( List String, Move )
 updateGame commands =

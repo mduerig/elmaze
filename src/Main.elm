@@ -45,34 +45,3 @@ main =
         , init = .program >> String.split "\n"
         , update = updateGame
         }
-
-
--- program
---   = command*
---     WHERE
---     definition*
---
--- definition
---   = commandDefinition
---   | conditionDefinition
---
--- commandDefinition
---   = COMMAND_IDENTIFIER IDENTIFIER* ASSIGN ...
---
--- conditionDefinition
---   = CONDITION_IDENTIFIER IDENTIFIER* ASSIGN ...
---
--- command
---   = COMMAND_IDENTIFIER parameter*
---   | CONDITION_IDENTIFIER parameter* command
---
--- parameter
---   = NUM
---   | BOOL
---
--- COMMAND_IDENTIFIER = IDENTIFIER
--- CONDITION_IDENTIFIER = IDENTIFIER"?"
--- IDENTIFIER = [a-zA-Z][a-zA-Z0-9]*
--- ASSIGN = "="
--- NUM = [+-]?0*[0-9]
--- BOOL = "true"|"false"

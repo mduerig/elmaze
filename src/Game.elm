@@ -573,12 +573,6 @@ keyDownDecoder =
                 "ArrowUp"    -> KeyArrow Up
                 "ArrowDown"  -> KeyArrow Down
                 "Shift"      -> KeyShift True
-                "E"          -> SwitchMode Edit
-                "e"          -> SwitchMode Edit
-                "P"          -> SwitchMode Program
-                "p"          -> SwitchMode Program
-                "R"          -> SwitchMode Execute
-                "r"          -> SwitchMode Execute
                 _            -> KeyOtherDown string
     in
         Decode.field "key" Decode.string

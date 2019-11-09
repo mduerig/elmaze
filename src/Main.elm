@@ -2,7 +2,7 @@ module Main exposing ( main )
 
 import Game exposing
     (Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
-    , CellType(..), Msg(..), Direction(..), Move(..)
+    , CellType(..), Msg, Direction(..), Move(..)
     )
 
 testBoard : Board
@@ -21,7 +21,7 @@ testBoard = newBoard 10 10
     |> updateCell ( 0, 0 ) (updateCellType Start)
     |> updateCell ( 9, 9 ) (updateCellType Goal)
 
-updateGame : List Msg -> ( List Msg, Move )
+updateGame : List String -> ( List String, Move )
 updateGame commands =
     let
         newCommands =
@@ -30,19 +30,19 @@ updateGame commands =
 
         move =
             case List.head commands of
-                Just (KeyArrow Up)    -> Forward
-                Just (KeyArrow Right) -> TurnRight
-                Just (KeyArrow Left)  -> TurnLeft
-                _                     -> Nop
+                Just "forward" -> Forward
+                Just "right"   -> TurnRight
+                Just "left"    -> TurnLeft
+                _              -> Nop
     in
         ( newCommands, move )
 
 
-main : Program () (Game ( List Msg ) ) Msg
+main : Program () (Game ( List String ) ) Msg
 main =
     Game.play
         { board = testBoard
-        , init = .commands
+        , init = .program >> String.split "\n"
         , update = updateGame
         }
 

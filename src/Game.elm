@@ -76,7 +76,7 @@ type alias Executing a solver =
 
 type alias Solve =
     { board : Board
-    , commands : List Msg
+    , program : String
     }
 
 type Mode
@@ -180,7 +180,7 @@ updateGame msg game =
             then { executor
                  | solver = Just
                      <| executor.init
-                     <| Solve board programmer.moves
+                     <| Solve board programmer.program
                  }
             else { executor | solver = Nothing }
 

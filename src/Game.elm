@@ -122,13 +122,6 @@ type Msg
     | Tick Time.Posix
     | ProgramChanged String
 
-testProgram : String
-testProgram = String.join "\n"
-  [ "forward"
-  , "right"
-  , "right"
-  ]
-
 initGame : Configuration solver -> ( Game solver, Cmd msg )
 initGame { board, init, update } =
     let
@@ -141,7 +134,7 @@ initGame { board, init, update } =
                 }
             , programmer =
                 { moves = []
-                , program = testProgram
+                , program = ""
                 }
             , executor =
                 { solver = Nothing

@@ -1,14 +1,13 @@
 module Game exposing (..)
 
-import Array exposing (..)
-import Browser exposing (document)
+import Array exposing ( Array )
+import Browser
 import Browser.Events exposing ( onKeyDown, onKeyUp)
-import Collage exposing (..)
-import Collage.Layout exposing (..)
-import Collage.Render exposing (svg)
+import Collage exposing ( .. )
+import Collage.Render exposing ( svg )
 import Collage.Text as Text
-import Color exposing (..)
-import Html exposing (Html)
+import Color
+import Html exposing ( Html )
 import Html.Attributes as Atts
 import Html.Events exposing ( onClick, onInput )
 import Json.Decode as Decode
@@ -497,7 +496,7 @@ viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
     let
         wallStyle wall =
             case wall of
-                Wall  -> solid thin (uniform black)
+                Wall  -> solid thin (uniform Color.black)
                 Alley -> invisible
 
         cell =
@@ -506,7 +505,7 @@ viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
 
                 Start ->
                     [ Text.fromString "S"
-                        |> Text.color red
+                        |> Text.color Color.red
                         |> Text.weight Text.Bold
                         |> Text.size Text.huge
                         |> rendered
@@ -514,7 +513,7 @@ viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
 
                 Goal ->
                     [ Text.fromString "G"
-                        |> Text.color green
+                        |> Text.color Color.green
                         |> Text.weight Text.Bold
                         |> Text.size Text.huge
                         |> rendered
@@ -533,7 +532,7 @@ viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
 
                 Just direction ->
                     [ Text.fromString "T"
-                        |> Text.color blue
+                        |> Text.color Color.blue
                         |> Text.weight Text.Bold
                         |> Text.size Text.huge
                         |> rendered
@@ -560,7 +559,7 @@ viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
             , group
                 cell
             , square 50
-                |> filled (uniform lightYellow)
+                |> filled (uniform Color.lightYellow)
             ]
             |> shift ( 50 * toFloat x, 50 * toFloat y )
 
@@ -598,7 +597,7 @@ keyUpDecoder =
 
 play : Configuration solver -> Program () (Game solver) Msg
 play configuration =
-    document
+    Browser.document
         { subscriptions =
             \_ -> Sub.batch
                     [ onKeyDown keyDownDecoder

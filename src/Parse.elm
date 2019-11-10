@@ -39,7 +39,7 @@ atomicMove =
             |. keyword "forward"
         , succeed Move
             |. keyword "move"
-            |. spaces
+            |. hspaces
             |= moveId
         ]
 
@@ -60,7 +60,7 @@ moves =
             { start = "["
             , separator = ","
             , end = "]"
-            , spaces = spaces
+            , spaces = hspaces
             , item = atomicMove
             , trailing = Forbidden
             }
@@ -90,7 +90,7 @@ condition =
             |. keyword "goal"
         , succeed Not
             |. keyword "not"
-            |. spaces
+            |. hspaces
             |= lazy (\_ -> condition)
         ]
 
@@ -114,25 +114,24 @@ move =
             |= moves
         , succeed If
             |. keyword "if"
-            |. spaces
+            |. hspaces
             |= condition
-            |. spaces
+            |. hspaces
             |. keyword "then"
-            |. spaces
+            |. hspaces
             |= moves
-            |. spaces
             |= maybeMoves
         , succeed While
             |. keyword "while"
-            |. spaces
+            |. hspaces
             |= condition
-            |. spaces
+            |. hspaces
             |= moves
         , succeed Repeat
             |. keyword "repeat"
-            |. spaces
+            |. hspaces
             |= int
-            |. spaces
+            |. hspaces
             |= moves
         ]
 
@@ -140,8 +139,9 @@ maybeMoves : Parser ( Maybe Moves )
 maybeMoves =
     oneOf
         [ succeed Just
+            |. hspaces
             |. keyword "else"
-            |. spaces
+            |. hspaces
             |= moves
         , succeed Nothing
         ]
@@ -157,11 +157,11 @@ binding : Parser Binding
 binding =
     succeed Let
         |. keyword "let"
-        |. spaces
+        |. hspaces
         |= moveId
-        |. spaces
+        |. hspaces
         |. symbol "="
-        |. spaces
+        |. hspaces
         |= move
 
 
@@ -187,19 +187,14 @@ type alias Program
 program : Parser Program
 program =
     let
-        ws : Parser ()
-        ws = chompWhile (\c -> c == ' ' || c == '\t')
-
-        eol : Parser ()
-        eol = ws |. oneOf [ symbol "\n", symbol "\r" ]
-
         line : Parser ( Maybe Statement )
         line = succeed identity
-            |. ws
+            |. hspaces
             |= oneOf
                 [ map Just statement
                 , succeed Nothing |. token ""
                 ]
+            |. hspaces
             |. eol
 
         lines : Program -> Parser ( Step Program Program )
@@ -215,18 +210,8 @@ program =
     in
         loop [] lines
 
+hspaces : Parser ()
+hspaces = chompWhile (\c -> c == ' ' || c == '\t')
 
-{-
-Examples:
-.let rightIfFreeForwardOtherwise = if free then right else [right, forward, move rightIfFreeForwardOtherwise]
-.let forwardUntilLeftFree = [ left, move rightIfFreeForwardOtherwise ]
-
-.let leftIfFreeForwardOtherwise = if free then left else [left, forward, move forwardUntilRightFree]
-.let forwardUntilRightFree = [ right, move leftIfFreeForwardOtherwise ]
-
-.let forwardUntilBlocked = while free forward
-.let forwardUntilGoal = while not goal forward
-
-Solution:
-( forwardUntilRightFree right forwardUntilLeftFree forwardUntilGoal )
--}
+eol : Parser ()
+eol = oneOf [ symbol "\n", symbol "\r" ]

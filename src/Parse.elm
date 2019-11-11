@@ -39,8 +39,6 @@ atomicMove =
         , succeed Forward
             |. keyword "forward"
         , succeed Move
-            |. keyword "move"
-            |. hspaces
             |= moveId
         ]
 

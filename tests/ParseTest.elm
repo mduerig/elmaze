@@ -35,11 +35,11 @@ suite = describe "Parse tests"
 
     , test "custom move" <|
         testProgram
-            "move foobar\n"
+            "foobar\n"
 
     , test "list of atomic moves" <|
         testProgram
-            "[left, right,move  foobar,forward]\n"
+            "[left, right,  foobar,forward]\n"
 
     , test "empty list of moves" <|
         testProgram
@@ -55,7 +55,7 @@ suite = describe "Parse tests"
 
     , test "repeat loop" <|
         testProgram
-            "repeat 42 move foobar\n"
+            "repeat 42  foobar\n"
 
     , test "while loop" <|
         testProgram
@@ -84,16 +84,16 @@ suite = describe "Parse tests"
     , test "program" <|
         testProgram  <|
             """
-            let rightIfFreeForwardOtherwise = if free then right else [right, forward, move rightIfFreeForwardOtherwise]
-            let forwardUntilLeftFree = [ left, move rightIfFreeForwardOtherwise ]
+            let rightIfFreeForwardOtherwise = if free then right else [right, forward, rightIfFreeForwardOtherwise]
+            let forwardUntilLeftFree = [ left, rightIfFreeForwardOtherwise ]
 
-            let leftIfFreeForwardOtherwise = if free then left else [left, forward, move forwardUntilRightFree]
-            let forwardUntilRightFree = [ right, move leftIfFreeForwardOtherwise ]
+            let leftIfFreeForwardOtherwise = if free then left else [left, forward, forwardUntilRightFree]
+            let forwardUntilRightFree = [ right, leftIfFreeForwardOtherwise ]
 
             let forwardUntilBlocked = while free forward
             let forwardUntilGoal = while not goal forward
 
-            [ move forwardUntilRightFree, right, move forwardUntilLeftFree, move forwardUntilGoal ]
+            [ forwardUntilRightFree, right, forwardUntilLeftFree, forwardUntilGoal ]
             """ ++ "\n"
 
     , test "fail on reserved word in move" <|

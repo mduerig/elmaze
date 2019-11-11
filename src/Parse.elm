@@ -4,7 +4,8 @@ import Set exposing ( Set )
 import Parser exposing ( .. )
 
 reserved : Set String
-reserved = Set.fromList [ "let", "if", "then", "else", "while", "repeat" ]
+reserved = Set.fromList
+    [ "let", "if", "then", "else", "while", "repeat", "left", "right", "forward" ]
 
 -- atomic_move
 --   = LEFT

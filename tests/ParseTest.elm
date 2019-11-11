@@ -12,6 +12,12 @@ expectOk s =
         Ok _       -> Expect.pass
         Err error  -> Expect.fail <| Debug.toString error
 
+expectErr : Result a value -> Expectation
+expectErr s =
+    case s of
+        Ok value  -> Expect.fail <| "Expected parsing to fail. Got " ++ Debug.toString value
+        Err _     -> Expect.pass
+
 testProgram : String -> () -> Expectation
 testProgram text =
     \_ -> Parser.run program text
@@ -89,5 +95,14 @@ suite = describe "Parse tests"
 
             [ move forwardUntilRightFree, right, move forwardUntilLeftFree, move forwardUntilGoal ]
             """ ++ "\n"
+
+    , test "fail on reserved word in move" <|
+        \_ -> Parser.run program "[then]\n"
+            |> expectErr
+
+    , test "fail on reserved word in binding" <|
+        \_ -> Parser.run program "let then = [left]\n"
+            |> expectErr
+
     ]
 

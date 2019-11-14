@@ -2,8 +2,16 @@ module Main exposing ( main )
 
 import Game exposing
     (Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
-    , CellType(..), Msg, Direction(..), Move(..)
+    , CellType(..), Msg, Direction(..), Move(..), Solve, Move(..)
     )
+import Parse as P
+import Parser
+import Interpreter as I
+
+type alias RunProgram =
+    { board : Board
+    , interpreter : Maybe I.Interpreter
+    }
 
 testBoard : Board
 testBoard = newBoard 4 4
@@ -21,27 +29,40 @@ testBoard = newBoard 4 4
     |> updateCell ( 0, 0 ) (updateCellType Start)
     |> updateCell ( 3, 3 ) (updateCellType Goal)
 
-updateGame : List String -> ( List String, Move )
-updateGame commands =
+updateGame : RunProgram -> ( RunProgram, Move )
+updateGame runProgram =
     let
-        newCommands =
-            List.tail commands
-                |> Maybe.withDefault []
+        { board, interpreter } = runProgram
 
-        move =
-            case List.head commands of
-                Just "forward" -> Forward
-                Just "right"   -> TurnRight
-                Just "left"    -> TurnLeft
-                _              -> Nop
+        ( newInterpreter, move ) =
+            case interpreter of
+                Just interp
+                    -> I.update board interp
+                        |> Tuple.mapFirst Just
+                _
+                    ->  ( Nothing, Nop )
     in
-        ( newCommands, move )
+        ( { runProgram | interpreter = newInterpreter }, move )
 
+initGame : Solve -> RunProgram
+initGame solve =
+    let
+        parsed : Result (List Parser.DeadEnd) P.Program
+        parsed = Parser.run P.program solve.program
 
-main : Program () (Game ( List String ) ) Msg
+        interpreter : Maybe I.Interpreter
+        interpreter = case parsed of
+            Ok program
+                -> Just <| I.init program
+            Err error
+                -> Debug.log (Debug.toString error) Nothing
+    in
+        { board = solve.board, interpreter = interpreter}
+
+main : Program () (Game RunProgram ) Msg
 main =
     Game.play
         { board = testBoard
-        , init = .program >> String.split "\n"
+        , init = initGame
         , update = updateGame
         }

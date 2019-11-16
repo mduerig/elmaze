@@ -25,7 +25,7 @@ type alias Game solver =
 type alias Configuration solver =
   { board : Board
   , init : Board -> String -> solver
-  , update : solver -> ( solver, Move )
+  , update : Board -> solver -> ( solver, Move )
   }
 
 type Move
@@ -65,7 +65,7 @@ type alias Programming a =
 type alias Executor solver =
     { solver : Maybe solver
     , init : Board -> String -> solver
-    , update : solver -> ( solver, Move )
+    , update : Board -> solver -> ( solver, Move )
     }
 
 type alias Executing a solver =
@@ -205,9 +205,11 @@ updateGameExecuteMode msg game =
         { player } = board
 
         ( updatedSolver, move ) = case executor.solver of
-           Just solver -> executor.update solver
-                            |> Tuple.mapFirst Just
-           _           -> ( Nothing, Nop )
+           Just solver
+                -> executor.update board solver
+                    |> Tuple.mapFirst Just
+           _
+                -> ( Nothing, Nop )
 
         movedPlayer = player |> case move of
             Forward   -> movePlayer player.orientation

@@ -29,10 +29,10 @@ testBoard = newBoard 4 4
     |> updateCell ( 0, 0 ) (updateCellType Start)
     |> updateCell ( 3, 3 ) (updateCellType Goal)
 
-updateGame : RunProgram -> ( RunProgram, Move )
-updateGame runProgram =
+updateGame : Board -> RunProgram -> ( RunProgram, Move )
+updateGame board runProgram =
     let
-        { board, interpreter } = runProgram
+        { interpreter } = runProgram
 
         ( newInterpreter, move ) =
             case interpreter of

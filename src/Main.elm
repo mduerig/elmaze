@@ -9,15 +9,17 @@ import Parser
 import Interpreter as I
 
 testBoard : Board
-testBoard = newBoard 4 4
+testBoard = newBoard 5 4
     |> updateCellBoundary (0, 0) Up Alley
     |> updateCellBoundary (0, 1) Up Alley
     |> updateCellBoundary (0, 2) Up Alley
     |> updateCellBoundary (0, 3) Right Alley
     |> updateCellBoundary (1, 3) Right Alley
     |> updateCellBoundary (2, 3) Right Alley
-    |> updateCellBoundary (3, 3) Down Alley
-    |> updateCellBoundary (3, 2) Down Alley
+    |> updateCellBoundary (3, 3) Right Alley
+    |> updateCellBoundary (4, 3) Down Alley
+    |> updateCellBoundary (4, 2) Down Alley
+    |> updateCellBoundary (4, 1) Left Alley
     |> updateCellBoundary (3, 1) Left Alley
     |> updateCellBoundary (2, 1) Left Alley
     |> updateCellBoundary (1, 1) Left Alley

@@ -34,7 +34,7 @@ update board ( Interpreter ( program ) bindings ) =
         evalCondition : P.Condition -> Bool
         evalCondition condition = case condition of
             P.Not notCondition
-                -> evalCondition notCondition
+                -> not <| evalCondition notCondition
 
             P.Free
                 -> queryPlayer ( hasBoundary G.Alley )

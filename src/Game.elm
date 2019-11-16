@@ -24,7 +24,7 @@ type alias Game solver =
 
 type alias Configuration solver =
   { board : Board
-  , init : Solve -> solver
+  , init : Board -> String -> solver
   , update : solver -> ( solver, Move )
   }
 
@@ -64,7 +64,7 @@ type alias Programming a =
 
 type alias Executor solver =
     { solver : Maybe solver
-    , init : Solve -> solver
+    , init : Board -> String -> solver
     , update : solver -> ( solver, Move )
     }
 
@@ -72,11 +72,6 @@ type alias Executing a solver =
     { a
     | board : Board
     , executor : Executor solver
-    }
-
-type alias Solve =
-    { board : Board
-    , program : String
     }
 
 type Mode
@@ -172,8 +167,7 @@ updateGame msg game =
         updateExecutor mode = if mode == Execute
             then { executor
                  | solver = Just
-                     <| executor.init
-                     <| Solve board programmer.program
+                     <| executor.init board programmer.program
                  }
             else { executor | solver = Nothing }
 

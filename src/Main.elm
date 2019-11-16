@@ -1,8 +1,8 @@
 module Main exposing ( main )
 
 import Game exposing
-    (Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
-    , CellType(..), Msg, Direction(..), Move(..), Solve, Move(..)
+    ( Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
+    , CellType(..), Msg, Direction(..), Move(..), Move(..)
     )
 import Parse as P
 import Parser
@@ -44,20 +44,20 @@ updateGame runProgram =
     in
         ( { runProgram | interpreter = newInterpreter }, move )
 
-initGame : Solve -> RunProgram
-initGame solve =
+initGame : Board -> String -> RunProgram
+initGame board program =
     let
         parsed : Result (List Parser.DeadEnd) P.Program
-        parsed = Parser.run P.program solve.program
+        parsed = Parser.run P.program program
 
         interpreter : Maybe I.Interpreter
         interpreter = case parsed of
-            Ok program
-                -> Just <| I.init program
+            Ok ast
+                -> Just <| I.init ast
             Err error
                 -> Debug.log (Debug.toString error) Nothing
     in
-        { board = solve.board, interpreter = interpreter}
+        { board = board, interpreter = interpreter}
 
 main : Program () (Game RunProgram ) Msg
 main =

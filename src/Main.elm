@@ -8,11 +8,6 @@ import Parse as P
 import Parser
 import Interpreter as I
 
-type alias RunProgram =
-    { board : Board
-    , interpreter : Maybe I.Interpreter
-    }
-
 testBoard : Board
 testBoard = newBoard 4 4
     |> updateCellBoundary (0, 0) Up Alley
@@ -29,11 +24,9 @@ testBoard = newBoard 4 4
     |> updateCell ( 0, 0 ) (updateCellType Start)
     |> updateCell ( 3, 3 ) (updateCellType Goal)
 
-updateGame : Board -> RunProgram -> ( RunProgram, Move )
-updateGame board runProgram =
+updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
+updateGame board interpreter =
     let
-        { interpreter } = runProgram
-
         ( newInterpreter, move ) =
             case interpreter of
                 Just interp
@@ -42,9 +35,9 @@ updateGame board runProgram =
                 _
                     ->  ( Nothing, Nop )
     in
-        ( { runProgram | interpreter = newInterpreter }, move )
+        ( newInterpreter, move )
 
-initGame : Board -> String -> RunProgram
+initGame : Board -> String -> Maybe I.Interpreter
 initGame board program =
     let
         parsed : Result (List Parser.DeadEnd) P.Program
@@ -57,9 +50,9 @@ initGame board program =
             Err error
                 -> Debug.log (Debug.toString error) Nothing
     in
-        { board = board, interpreter = interpreter}
+        interpreter
 
-main : Program () (Game RunProgram ) Msg
+main : Program () (Game ( Maybe I.Interpreter )) Msg
 main =
     Game.play
         { board = testBoard

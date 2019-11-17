@@ -84,16 +84,20 @@ suite = describe "Parse tests"
     , test "program" <|
         testProgram  <|
             """
-            let rightIfFreeForwardOtherwise = if free then right else [right, forward, rightIfFreeForwardOtherwise]
-            let forwardUntilLeftFree = [ left, rightIfFreeForwardOtherwise ]
+            let rightIfBlocked = if blocked then [right, forward, forwardUntilLeftFree]
+            let forwardUntilLeftFree = [left, rightIfBlocked]
 
-            let leftIfFreeForwardOtherwise = if free then left else [left, forward, forwardUntilRightFree]
-            let forwardUntilRightFree = [ right, leftIfFreeForwardOtherwise ]
+            let leftIfBlocked = if blocked then [left, forward, forwardUntilRightFree]
+            let forwardUntilRightFree = [right, leftIfBlocked]
 
-            let forwardUntilBlocked = while free forward
             let forwardUntilGoal = while not goal forward
 
-            [ forwardUntilRightFree, right, forwardUntilLeftFree, forwardUntilGoal ]
+            forwardUntilRightFree
+            forward
+            forwardUntilLeftFree
+            forward
+            forwardUntilLeftFree
+            forwardUntilGoal
             """ ++ "\n"
 
     , test "fail on reserved word in move" <|

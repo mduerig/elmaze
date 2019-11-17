@@ -2,7 +2,7 @@ module Main exposing ( main )
 
 import Game exposing
     ( Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
-    , CellType(..), Msg, Direction(..), Move(..), Move(..)
+    , CellType(..), Msg, Direction(..), Move(..)
     )
 import Parse as P
 import Parser

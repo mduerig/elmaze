@@ -596,11 +596,13 @@ play : Configuration solver -> Program () (Game solver) Msg
 play configuration =
     Browser.document
         { subscriptions =
-            \_ -> Sub.batch
-                    [ onKeyDown keyDownDecoder
-                    , onKeyUp keyUpDecoder
-                    , Time.every 400 Tick
-                    ]
+            \game -> Sub.batch
+                [ onKeyDown keyDownDecoder
+                , onKeyUp keyUpDecoder
+                , if game.mode == Execute
+                    then Time.every 400 Tick
+                    else Sub.none
+                ]
         , init = \_ -> initGame configuration
         , update = updateGame
         , view =

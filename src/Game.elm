@@ -232,15 +232,8 @@ updateGameProgramMode msg game =
         { x, y, orientation } = player
         { moves } = programmer
 
-        blocked direction cell =
-            case direction of
-                Right -> cell.right == Wall
-                Left  -> cell.left == Wall
-                Up    -> cell.top == Wall
-                Down  -> cell.bottom == Wall
-
         isBlocked direction =
-            queryCell ( x, y ) board (blocked direction)
+            queryCell ( x, y ) board ( hasBoundary direction Wall )
     in
         case msg of
             KeyArrow Down -> game
@@ -388,6 +381,14 @@ updateCellBoundary ( x, y ) direction boundary board =
     board
         |> updateCell ( x, y ) (update direction)
         |> updateCell neighbour (update <| oppositeDirection direction)
+
+hasBoundary : Direction -> Boundary -> Cell -> Bool
+hasBoundary direction boundary cell =
+    boundary == case direction of
+        Right -> cell.right
+        Left  -> cell.left
+        Up    -> cell.top
+        Down  -> cell.bottom
 
 viewGame : Game solver -> List (Html Msg)
 viewGame game =

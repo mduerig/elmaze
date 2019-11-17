@@ -23,13 +23,6 @@ update board ( Interpreter ( program ) bindings ) =
     let
         player = board.player
 
-        hasBoundary boundary cell =
-            boundary == case player.orientation of
-                G.Right -> cell.right
-                G.Left  -> cell.left
-                G.Up    -> cell.top
-                G.Down  -> cell.bottom
-
         isAtGoal cell = cell.cellType == G.Goal
 
         queryPlayer : (G.Cell -> Bool) -> Bool
@@ -41,10 +34,10 @@ update board ( Interpreter ( program ) bindings ) =
                 -> not <| evalCondition notCondition
 
             P.Free
-                -> queryPlayer ( hasBoundary G.Alley )
+                -> queryPlayer ( G.hasBoundary player.orientation G.Alley )
 
             P.Blocked
-                -> queryPlayer ( hasBoundary G.Wall )
+                -> queryPlayer ( G.hasBoundary player.orientation G.Wall )
 
             P.Goal
                 -> queryPlayer isAtGoal

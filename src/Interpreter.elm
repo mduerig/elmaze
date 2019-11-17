@@ -1,4 +1,8 @@
-module Interpreter exposing ( .. )
+module Interpreter exposing
+    ( init
+    , update
+    , Interpreter
+    )
 
 import Dict exposing ( Dict )
 

@@ -160,7 +160,7 @@ updateGame msg game =
     let
         { board, programmer, executor } = game
 
-        updatePlayer mode = if mode == Edit
+        updatePlayerPos mode = if mode == Edit
             then board
             else playerAtStart board
 
@@ -185,7 +185,7 @@ updateGame msg game =
                 SwitchMode mode ->
                     { game
                     | mode = mode
-                    , board = updatePlayer mode
+                    , board = updatePlayerPos mode
                     , executor = updateExecutor mode
                     , programmer = updateProgrammer mode
                     }
@@ -202,8 +202,7 @@ updateGameExecuteMode : Msg -> Executing a s -> Executing a s
 updateGameExecuteMode msg game =
     let
         { board, executor } = game
-        { player } = board
-        { x, y, orientation } = player
+        { x, y, orientation } = board.player
 
         ( updatedSolver, move ) = case executor.solver of
            Just solver
@@ -215,20 +214,20 @@ updateGameExecuteMode msg game =
         isFree direction =
             queryCell ( x, y ) board ( hasBoundary direction Alley )
 
-        movedPlayer = player |> case move of
+        movedPlayer = case move of
             Forward
                 -> if isFree orientation
-                    then movePlayer orientation
-                    else always identity
+                    then updatePlayer ( movePlayer orientation )
+                    else identity
 
             TurnLeft
-                -> turnPlayer Left
+                -> updatePlayer (turnPlayer Left)
 
             TurnRight
-                -> turnPlayer Right
+                -> updatePlayer (turnPlayer Right)
 
             _
-                -> always identity
+                -> identity
     in
         case msg of
           Tick _ -> { game
@@ -241,8 +240,7 @@ updateGameProgramMode : Msg -> Programming a -> Programming a
 updateGameProgramMode msg game =
     let
         { board, programmer } = game
-        { player } = board
-        { x, y, orientation } = player
+        { x, y, orientation } = board.player
         { moves } = programmer
 
         isBlocked direction =
@@ -256,13 +254,13 @@ updateGameProgramMode msg game =
                     game
                 else
                     { game
-                    | board = movePlayer orientation player board
+                    | board = updatePlayer ( movePlayer orientation ) board
                     , programmer = { programmer | moves = moves ++ [ msg ] }
                     }
 
             KeyArrow direction ->
                 { game
-                | board = turnPlayer direction player board
+                | board = updatePlayer ( turnPlayer direction ) board
                 , programmer = { programmer | moves = moves ++ [ msg ] }
                 }
 
@@ -272,8 +270,8 @@ updateGameEditMode : Msg -> Editing a -> Editing a
 updateGameEditMode msg game =
     let
         { board, editor } = game
-        { width, height, player } = board
-        { x, y } = player
+        { width, height } = board
+        { x, y } = board.player
         { drawStyle } = editor
 
         offBoard direction =
@@ -298,14 +296,14 @@ updateGameEditMode msg game =
                     updatedBoard =
                         if drawStyle == Wall then
                             board
-                                |> movePlayer direction player
+                                |> updatePlayer ( movePlayer direction )
                                 |> restoreWall Up
                                 |> restoreWall Down
                                 |> restoreWall Left
                                 |> restoreWall Right
 
                         else board
-                                |> movePlayer direction player
+                                |> updatePlayer ( movePlayer direction )
                                 |> removeWall direction
                 in
                     { game | board =
@@ -331,28 +329,26 @@ playerAtStart board =
     in
         { board | player = player }
 
-movePlayer : Direction -> Player -> Board -> Board
-movePlayer direction player board =
-    let
-        movedPlayer = case direction of
-            Right -> { player | x = player.x + 1 }
-            Left  -> { player | x = player.x - 1 }
-            Up    -> { player | y = player.y + 1 }
-            Down  -> { player | y = player.y - 1 }
-    in
-        { board | player = movedPlayer }
+movePlayer : Direction -> Player -> Player
+movePlayer direction player =
+    case direction of
+        Right -> { player | x = player.x + 1 }
+        Left  -> { player | x = player.x - 1 }
+        Up    -> { player | y = player.y + 1 }
+        Down  -> { player | y = player.y - 1 }
 
-turnPlayer : Direction -> Player -> Board -> Board
-turnPlayer direction player board =
-    let
-        turnedPlayer = { player | orientation =
-            case direction of
-                Right -> rightOfDirection player.orientation
-                Left  -> leftOfDirection player.orientation
-                _     -> player.orientation
-            }
-    in
-        { board | player = turnedPlayer }
+turnPlayer : Direction -> Player -> Player
+turnPlayer direction player =
+    { player | orientation =
+        case direction of
+            Right -> rightOfDirection player.orientation
+            Left  -> leftOfDirection player.orientation
+            _     -> player.orientation
+        }
+
+updatePlayer : ( Player -> Player ) -> Board -> Board
+updatePlayer update board =
+    { board | player = update board.player}
 
 queryCell : ( Int, Int ) -> Board -> (Cell -> Bool) -> Bool
 queryCell ( x, y ) { width, height, cells } query =

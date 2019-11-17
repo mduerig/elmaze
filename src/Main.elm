@@ -5,7 +5,6 @@ import Game exposing
     , CellType(..), Msg, Direction(..), Move(..)
     )
 import Parse as P
-import Parser
 import Interpreter as I
 
 testBoard : Board
@@ -37,7 +36,7 @@ updateGame board interpreter =
 
 initGame : Board -> String -> Maybe I.Interpreter
 initGame board program =
-    case Parser.run P.program program of
+    case P.parse program of
         Ok ast
             -> Just <| I.init ast
         Err error

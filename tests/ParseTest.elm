@@ -1,12 +1,11 @@
-module ParseTest exposing (..)
+module ParseTest exposing ( suite )
 
 import Expect exposing ( Expectation )
 import Test exposing (..)
 
-import Parse exposing ( program )
-import Parser
+import Parse exposing ( parse )
 
-expectOk : Result (List Parser.DeadEnd) a -> Expectation
+expectOk : Result (List a) b -> Expectation
 expectOk s =
     case s of
         Ok _       -> Expect.pass
@@ -20,7 +19,7 @@ expectErr s =
 
 testProgram : String -> () -> Expectation
 testProgram text =
-    \_ -> Parser.run program text
+    \_ -> parse text
             |> expectOk
 
 suite : Test
@@ -101,11 +100,11 @@ suite = describe "Parse tests"
             """ ++ "\n"
 
     , test "fail on reserved word in move" <|
-        \_ -> Parser.run program "[then]\n"
+        \_ -> parse "[then]\n"
             |> expectErr
 
     , test "fail on reserved word in binding" <|
-        \_ -> Parser.run program "let then = [left]\n"
+        \_ -> parse "let then = [left]\n"
             |> expectErr
 
     ]

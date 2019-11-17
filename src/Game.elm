@@ -203,6 +203,7 @@ updateGameExecuteMode msg game =
     let
         { board, executor } = game
         { player } = board
+        { x, y, orientation } = player
 
         ( updatedSolver, move ) = case executor.solver of
            Just solver
@@ -211,11 +212,23 @@ updateGameExecuteMode msg game =
            _
                 -> ( Nothing, Nop )
 
+        isFree direction =
+            queryCell ( x, y ) board ( hasBoundary direction Alley )
+
         movedPlayer = player |> case move of
-            Forward   -> movePlayer player.orientation
-            TurnLeft  -> turnPlayer Left
-            TurnRight -> turnPlayer Right
-            _         -> always identity
+            Forward
+                -> if isFree orientation
+                    then movePlayer orientation
+                    else always identity
+
+            TurnLeft
+                -> turnPlayer Left
+
+            TurnRight
+                -> turnPlayer Right
+
+            _
+                -> always identity
     in
         case msg of
           Tick _ -> { game

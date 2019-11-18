@@ -2,7 +2,7 @@ module Game exposing (..)
 
 import Array exposing ( Array )
 import Browser
-import Browser.Events exposing ( onKeyDown, onKeyUp)
+import Browser.Events exposing ( onKeyDown, onKeyUp, onAnimationFrameDelta )
 import Collage exposing ( .. )
 import Collage.Render exposing ( svg )
 import Collage.Text as Text
@@ -13,13 +13,21 @@ import Html.Events exposing ( onClick, onInput )
 import Json.Decode as Decode
 import Time
 
-
 type alias Game solver =
     { board : Board
     , mode : Mode
+    , animation : Animation
     , editor : Editor
     , programmer : Programmer
     , executor : Executor solver
+    }
+
+type alias Animation =
+    { v : Float
+    , t : Float
+    , playerX : Float -> Float
+    , playerY : Float -> Float
+    , playerOrientation : Float -> Float
     }
 
 type alias Configuration solver =
@@ -59,6 +67,7 @@ type alias Programmer =
 type alias Programming a =
     { a
     | board : Board
+    , animation : Animation
     , programmer : Programmer
     }
 
@@ -115,6 +124,7 @@ type Msg
     | KeyOtherDown String
     | KeyOtherUp String
     | Tick Time.Posix
+    | AnimationFrame Float
     | ProgramChanged String
 
 initGame : Configuration solver -> ( Game solver, Cmd msg )
@@ -124,6 +134,7 @@ initGame { board, init, update } =
             { board = board
                 |> playerAtStart
             , mode = Edit
+            , animation = { startAnimation | t = 1 }
             , editor =
                 { drawStyle = Alley
                 }
@@ -139,6 +150,15 @@ initGame { board, init, update } =
             }
     in
         ( game, Cmd.none )
+
+startAnimation : Animation
+startAnimation =
+    { v = 1.5
+    , t = 0
+    , playerX = always 0
+    , playerY = always 0
+    , playerOrientation = always 0
+    }
 
 newBoard : Int -> Int -> Board
 newBoard width height =
@@ -158,7 +178,7 @@ newBoard width height =
 updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
 updateGame msg game =
     let
-        { board, programmer, executor } = game
+        { board, programmer, executor, animation } = game
 
         updatePlayerPos mode = if mode == Edit
             then board
@@ -177,10 +197,15 @@ updateGame msg game =
 
         updatedGame =
             case msg of
+                AnimationFrame dt ->
+                    { game
+                    | animation = { animation | t = animation.t + animation.v * dt / 1000 }
+                    }
+
                 ProgramChanged newProgram ->
-                  { game
-                  | programmer = { programmer | program = newProgram }
-                  }
+                    { game
+                    | programmer = { programmer | program = newProgram }
+                    }
 
                 SwitchMode mode ->
                     { game
@@ -255,16 +280,33 @@ updateGameProgramMode msg game =
                 else
                     { game
                     | board = updatePlayer ( movePlayer orientation ) board
+                    , animation = movePlayerAnimation orientation
                     , programmer = { programmer | moves = moves ++ [ msg ] }
                     }
 
             KeyArrow direction ->
                 { game
                 | board = updatePlayer ( turnPlayer direction ) board
+                , animation = turnPlayerAnimation direction
                 , programmer = { programmer | moves = moves ++ [ msg ] }
                 }
 
             _ -> game
+
+movePlayerAnimation : Direction -> Animation
+movePlayerAnimation direction =
+    case direction of
+        Left  -> { startAnimation | playerX = \t -> 1 - t }
+        Right -> { startAnimation | playerX = \t -> t - 1 }
+        Up    -> { startAnimation | playerY = \t -> t - 1 }
+        Down  -> { startAnimation | playerY = \t -> 1 - t }
+
+turnPlayerAnimation : Direction -> Animation
+turnPlayerAnimation direction =
+    case direction of
+        Left  -> { startAnimation | playerOrientation = \t -> pi/2 * (t - 1) }
+        Right -> { startAnimation | playerOrientation = \t -> pi/2 * (1 - t) }
+        _     ->   startAnimation
 
 updateGameEditMode : Msg -> Editing a -> Editing a
 updateGameEditMode msg game =
@@ -402,18 +444,31 @@ hasBoundary direction boundary tile =
 viewGame : Game solver -> List (Html Msg)
 viewGame game =
     let
-        { board, programmer } = game
+        { board, programmer, animation } = game
         { player } = board
 
-        playerAt ( x, y ) =
-            if (player.x, player.y) == (x, y)
-                then Just player.orientation
-                else Nothing
+        angle = case player.orientation of
+            Left  -> -pi / 2
+            Up    -> pi
+            Right -> pi / 2
+            Down  -> 0
 
-        render ( x, y, tile ) = viewTile ( x, y ) (playerAt ( x, y )) tile
+        renderPlayer =
+            Text.fromString "T"
+                |> Text.color Color.blue
+                |> Text.weight Text.Bold
+                |> Text.size Text.huge
+                |> rendered
+                |> rotate ( angle + animation.playerOrientation animation.t )
+                |> shiftX ( 50 * ( toFloat player.x + animation.playerX animation.t ) )
+                |> shiftY ( 50 * ( toFloat player.y + animation.playerY animation.t ) )
+
+        renderTile ( x, y, tile ) = viewTile ( x, y ) tile
     in
-        [ tilesWithIndex board
-            |> List.map render
+        [ renderPlayer ::
+            ( tilesWithIndex board
+                |> List.map renderTile
+            )
             |> group
             |> svg
         , Html.div []
@@ -490,8 +545,8 @@ tilesWithIndex { width, height, tiles } =
         |> Array.toList
 
 
-viewTile : ( Int, Int ) -> Maybe Direction -> Tile -> Collage Msg
-viewTile ( x, y ) playerOrientation { tileType, left, top, bottom, right } =
+viewTile : ( Int, Int ) -> Tile -> Collage Msg
+viewTile ( x, y ) { tileType, left, top, bottom, right } =
     let
         wallStyle wall =
             case wall of
@@ -517,26 +572,6 @@ viewTile ( x, y ) playerOrientation { tileType, left, top, bottom, right } =
                         |> Text.size Text.huge
                         |> rendered
                     ]
-
-        angle direction =
-            case direction of
-                Left  -> -pi / 2
-                Up    -> pi
-                Right -> pi / 2
-                Down  -> 0
-
-        player =
-            case playerOrientation of
-                Nothing -> []
-
-                Just direction ->
-                    [ Text.fromString "T"
-                        |> Text.color Color.blue
-                        |> Text.weight Text.Bold
-                        |> Text.size Text.huge
-                        |> rendered
-                        |> rotate (angle direction)
-                    ]
     in
         group
             [ line 50
@@ -553,8 +588,6 @@ viewTile ( x, y ) playerOrientation { tileType, left, top, bottom, right } =
                 |> traced (wallStyle left)
                 |> rotate (pi / 2)
                 |> shiftX -25
-            , group
-                player
             , group
                 tile
             , square 50
@@ -595,9 +628,15 @@ play configuration =
             \game -> Sub.batch
                 [ onKeyDown keyDownDecoder
                 , onKeyUp keyUpDecoder
-                , if game.mode == Execute
-                    then Time.every 400 Tick
-                    else Sub.none
+                , case game.mode of
+                    Execute
+                        -> Time.every 400 Tick
+                    Program
+                        -> if game.animation.t < 1
+                                then onAnimationFrameDelta AnimationFrame
+                                else Sub.none
+                    _
+                        -> Sub.none
                 ]
         , init = \_ -> initGame configuration
         , update = updateGame

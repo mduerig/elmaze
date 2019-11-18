@@ -23,10 +23,10 @@ update board ( Interpreter ( program ) bindings ) =
     let
         player = board.player
 
-        isAtGoal cell = cell.cellType == G.Goal
+        isAtGoal tile = tile.tileType == G.Goal
 
-        queryPlayer : (G.Cell -> Bool) -> Bool
-        queryPlayer = G.queryCell (player.x, player.y) board
+        queryPlayer : (G.Tile -> Bool) -> Bool
+        queryPlayer = G.queryTile (player.x, player.y) board
 
         evalCondition : P.Condition -> Bool
         evalCondition condition = case condition of

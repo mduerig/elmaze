@@ -1,29 +1,29 @@
 module Main exposing ( main )
 
 import Game exposing
-    ( Game, Board, newBoard, updateCellBoundary, updateCellType, updateCell, Boundary(..)
-    , CellType(..), Msg, Direction(..), Move(..)
+    ( Game, Board, newBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
+    , TileType(..), Msg, Direction(..), Move(..)
     )
 import Parse as P
 import Interpreter as I
 
 testBoard : Board
 testBoard = newBoard 5 4
-    |> updateCellBoundary (0, 0) Up Alley
-    |> updateCellBoundary (0, 1) Up Alley
-    |> updateCellBoundary (0, 2) Up Alley
-    |> updateCellBoundary (0, 3) Right Alley
-    |> updateCellBoundary (1, 3) Right Alley
-    |> updateCellBoundary (2, 3) Right Alley
-    |> updateCellBoundary (3, 3) Right Alley
-    |> updateCellBoundary (4, 3) Down Alley
-    |> updateCellBoundary (4, 2) Down Alley
-    |> updateCellBoundary (4, 1) Left Alley
-    |> updateCellBoundary (3, 1) Left Alley
-    |> updateCellBoundary (2, 1) Left Alley
-    |> updateCellBoundary (1, 1) Left Alley
-    |> updateCell ( 0, 0 ) (updateCellType Start)
-    |> updateCell ( 3, 3 ) (updateCellType Goal)
+    |> updateTileBoundary (0, 0) Up Alley
+    |> updateTileBoundary (0, 1) Up Alley
+    |> updateTileBoundary (0, 2) Up Alley
+    |> updateTileBoundary (0, 3) Right Alley
+    |> updateTileBoundary (1, 3) Right Alley
+    |> updateTileBoundary (2, 3) Right Alley
+    |> updateTileBoundary (3, 3) Right Alley
+    |> updateTileBoundary (4, 3) Down Alley
+    |> updateTileBoundary (4, 2) Down Alley
+    |> updateTileBoundary (4, 1) Left Alley
+    |> updateTileBoundary (3, 1) Left Alley
+    |> updateTileBoundary (2, 1) Left Alley
+    |> updateTileBoundary (1, 1) Left Alley
+    |> updateTile ( 0, 0 ) (updateTileType Start)
+    |> updateTile ( 3, 3 ) (updateTileType Goal)
 
 updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
 updateGame board interpreter =

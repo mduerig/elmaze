@@ -38,7 +38,7 @@ type alias Board =
     { width : Int
     , height : Int
     , player : Player
-    , cells : Array Cell
+    , tiles : Array Tile
     }
 
 type alias Editor =
@@ -79,15 +79,15 @@ type Mode
     | Program
     | Execute
 
-type alias Cell =
-    { cellType : CellType
+type alias Tile =
+    { tileType : TileType
     , top : Boundary
     , left : Boundary
     , bottom : Boundary
     , right : Boundary
     }
 
-type CellType
+type TileType
     = Empty
     | Start
     | Goal
@@ -144,9 +144,9 @@ newBoard : Int -> Int -> Board
 newBoard width height =
     { width = width
     , height = height
-    , cells =
+    , tiles =
         Array.repeat (width * height)
-            { cellType = Empty
+            { tileType = Empty
             , top = Wall
             , left = Wall
             , bottom = Wall
@@ -212,7 +212,7 @@ updateGameExecuteMode msg game =
                 -> ( Nothing, Nop )
 
         isFree direction =
-            queryCell ( x, y ) board ( hasBoundary direction Alley )
+            queryTile ( x, y ) board ( hasBoundary direction Alley )
 
         movedPlayer = case move of
             Forward
@@ -244,7 +244,7 @@ updateGameProgramMode msg game =
         { moves } = programmer
 
         isBlocked direction =
-            queryCell ( x, y ) board ( hasBoundary direction Wall )
+            queryTile ( x, y ) board ( hasBoundary direction Wall )
     in
         case msg of
             KeyArrow Down -> game
@@ -281,8 +281,8 @@ updateGameEditMode msg game =
                 Up    -> y + 1 >= height
                 Down  -> y <= 0
 
-        removeWall direction = updateCellBoundary ( x, y ) direction Alley
-        restoreWall direction = updateCellBoundary ( x, y ) direction Wall
+        removeWall direction = updateTileBoundary ( x, y ) direction Alley
+        restoreWall direction = updateTileBoundary ( x, y ) direction Wall
     in
         case msg of
             KeyShift True    ->
@@ -318,12 +318,12 @@ updateGameEditMode msg game =
 playerAtStart : Board -> Board
 playerAtStart board =
     let
-        startCellToPlayer (x, y, cell) = if cell.cellType == Start
+        startTileToPlayer (x, y, tile) = if tile.tileType == Start
             then Just (Player x y Up)
             else Nothing
 
-        player = cellsWithIndex board
-            |> List.filterMap startCellToPlayer
+        player = tilesWithIndex board
+            |> List.filterMap startTileToPlayer
             |> List.head
             |> Maybe.withDefault (Player 0 0 Up)
     in
@@ -350,35 +350,35 @@ updatePlayer : ( Player -> Player ) -> Board -> Board
 updatePlayer update board =
     { board | player = update board.player}
 
-queryCell : ( Int, Int ) -> Board -> (Cell -> Bool) -> Bool
-queryCell ( x, y ) { width, height, cells } query =
-    Array.get ((height - 1 - y) * width + x) cells
+queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
+queryTile ( x, y ) { width, height, tiles } query =
+    Array.get ((height - 1 - y) * width + x) tiles
         |> Maybe.map query
         |> Maybe.withDefault True
 
-updateCell : ( Int, Int ) -> (Cell -> Cell) -> Board -> Board
-updateCell ( x, y ) update board =
+updateTile : ( Int, Int ) -> (Tile -> Tile) -> Board -> Board
+updateTile ( x, y ) update board =
     let
-        { width, height, cells } = board
+        { width, height, tiles } = board
         i = (height - 1 - y) * width + x
-        set cell = { board | cells = Array.set i cell cells }
+        set tile = { board | tiles = Array.set i tile tiles }
     in
-        Array.get i cells
+        Array.get i tiles
             |> Maybe.map (update >> set)
             |> Maybe.withDefault board
 
-updateCellType : CellType -> Cell -> Cell
-updateCellType cellType cell = { cell | cellType = cellType }
+updateTileType : TileType -> Tile -> Tile
+updateTileType tileType tile = { tile | tileType = tileType }
 
-updateCellBoundary : ( Int, Int ) -> Direction -> Boundary -> Board -> Board
-updateCellBoundary ( x, y ) direction boundary board =
+updateTileBoundary : ( Int, Int ) -> Direction -> Boundary -> Board -> Board
+updateTileBoundary ( x, y ) direction boundary board =
     let
-        update dir cell =
+        update dir tile =
             case dir of
-                Up    -> { cell | top = boundary }
-                Down  -> { cell | bottom = boundary }
-                Left  -> { cell | left = boundary }
-                Right -> { cell | right = boundary }
+                Up    -> { tile | top = boundary }
+                Down  -> { tile | bottom = boundary }
+                Left  -> { tile | left = boundary }
+                Right -> { tile | right = boundary }
 
         neighbour =
             case direction of
@@ -388,16 +388,16 @@ updateCellBoundary ( x, y ) direction boundary board =
                 Right -> ( x + 1, y )
     in
     board
-        |> updateCell ( x, y ) (update direction)
-        |> updateCell neighbour (update <| oppositeDirection direction)
+        |> updateTile ( x, y ) (update direction)
+        |> updateTile neighbour (update <| oppositeDirection direction)
 
-hasBoundary : Direction -> Boundary -> Cell -> Bool
-hasBoundary direction boundary cell =
+hasBoundary : Direction -> Boundary -> Tile -> Bool
+hasBoundary direction boundary tile =
     boundary == case direction of
-        Right -> cell.right
-        Left  -> cell.left
-        Up    -> cell.top
-        Down  -> cell.bottom
+        Right -> tile.right
+        Left  -> tile.left
+        Up    -> tile.top
+        Down  -> tile.bottom
 
 viewGame : Game solver -> List (Html Msg)
 viewGame game =
@@ -410,9 +410,9 @@ viewGame game =
                 then Just player.orientation
                 else Nothing
 
-        render ( x, y, cell ) = viewCell ( x, y ) (playerAt ( x, y )) cell
+        render ( x, y, tile ) = viewTile ( x, y ) (playerAt ( x, y )) tile
     in
-        [ cellsWithIndex board
+        [ tilesWithIndex board
             |> List.map render
             |> group
             |> svg
@@ -480,26 +480,26 @@ leftOfDirection direction =
         Left  -> Down
         Down  -> Right
 
-cellsWithIndex : Board -> List ( Int, Int, Cell )
-cellsWithIndex { width, height, cells } =
-    cells
+tilesWithIndex : Board -> List ( Int, Int, Tile )
+tilesWithIndex { width, height, tiles } =
+    tiles
         |> Array.indexedMap
-            (\i cell ->
-                ( modBy width i, height - 1 - i // width, cell )
+            (\i tile ->
+                ( modBy width i, height - 1 - i // width, tile )
             )
         |> Array.toList
 
 
-viewCell : ( Int, Int ) -> Maybe Direction -> Cell -> Collage Msg
-viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
+viewTile : ( Int, Int ) -> Maybe Direction -> Tile -> Collage Msg
+viewTile ( x, y ) playerOrientation { tileType, left, top, bottom, right } =
     let
         wallStyle wall =
             case wall of
                 Wall  -> solid thin (uniform Color.black)
                 Alley -> invisible
 
-        cell =
-            case cellType of
+        tile =
+            case tileType of
                 Empty -> []
 
                 Start ->
@@ -556,7 +556,7 @@ viewCell ( x, y ) playerOrientation { cellType, left, top, bottom, right } =
             , group
                 player
             , group
-                cell
+                tile
             , square 50
                 |> filled (uniform Color.lightYellow)
             ]

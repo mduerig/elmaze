@@ -28,6 +28,7 @@ type alias Animation =
     , playerX : Float -> Float
     , playerY : Float -> Float
     , playerOrientation : Float -> Float
+    , onDelta : (Float -> Msg) -> Sub Msg
     }
 
 type alias Configuration solver =
@@ -80,6 +81,7 @@ type alias Executor solver =
 type alias Executing a solver =
     { a
     | board : Board
+    , animation : Animation
     , executor : Executor solver
     }
 
@@ -121,10 +123,13 @@ type Msg
     = KeyArrow Direction
     | KeyShift Bool
     | SwitchMode Mode
+    | EnterMode
     | KeyOtherDown String
     | KeyOtherUp String
-    | Tick Time.Posix
     | AnimationFrame Float
+    | AnimationStart
+    | AnimationStep
+    | AnimationEnd
     | ProgramChanged String
 
 initGame : Configuration solver -> ( Game solver, Cmd msg )
@@ -134,7 +139,7 @@ initGame { board, init, update } =
             { board = board
                 |> playerAtStart
             , mode = Edit
-            , animation = { startAnimation | t = 1 }
+            , animation = noAnimation
             , editor =
                 { drawStyle = Alley
                 }
@@ -158,6 +163,13 @@ startAnimation =
     , playerX = always 0
     , playerY = always 0
     , playerOrientation = always 0
+    , onDelta = onAnimationFrameDelta
+    }
+
+noAnimation : Animation
+noAnimation =
+    { startAnimation
+    | onDelta = always Sub.none
     }
 
 newBoard : Int -> Int -> Board
@@ -194,20 +206,29 @@ updateGame msg game =
         updateProgrammer mode = if mode == Program
             then { programmer | moves = [] }
             else programmer
+    in
+        case msg of
+            AnimationFrame dt ->
+                let
+                    nextStep =
+                        { game
+                        | animation = { animation | t = animation.t + animation.v * dt / 1000 }
+                        }
+                in
+                    if animation.t == 0 then
+                        updateGame AnimationStart nextStep
+                    else if nextStep.animation.t < 1 then
+                        updateGame AnimationStep nextStep
+                    else
+                        updateGame AnimationEnd { game | animation = noAnimation }
 
-        updatedGame =
-            case msg of
-                AnimationFrame dt ->
-                    { game
-                    | animation = { animation | t = animation.t + animation.v * dt / 1000 }
-                    }
+            ProgramChanged newProgram ->
+                ( { game | programmer = { programmer | program = newProgram } }
+                , Cmd.none
+                )
 
-                ProgramChanged newProgram ->
-                    { game
-                    | programmer = { programmer | program = newProgram }
-                    }
-
-                SwitchMode mode ->
+            SwitchMode mode ->
+                updateGame EnterMode
                     { game
                     | mode = mode
                     , board = updatePlayerPos mode
@@ -215,13 +236,11 @@ updateGame msg game =
                     , programmer = updateProgrammer mode
                     }
 
-                _ ->
-                    case game.mode of
-                        Program -> updateGameProgramMode msg game
-                        Edit    -> updateGameEditMode msg game
-                        Execute -> updateGameExecuteMode msg game
-    in
-        ( updatedGame, Cmd.none )
+            _ ->
+                case game.mode of
+                    Program -> ( updateGameProgramMode msg game, Cmd.none )
+                    Edit    -> ( updateGameEditMode msg game, Cmd.none )
+                    Execute -> ( updateGameExecuteMode msg game, Cmd.none)
 
 updateGameExecuteMode : Msg -> Executing a s -> Executing a s
 updateGameExecuteMode msg game =
@@ -239,27 +258,37 @@ updateGameExecuteMode msg game =
         isFree direction =
             queryTile ( x, y ) board ( hasBoundary direction Alley )
 
-        movedPlayer = case move of
+        ( movedPlayer, animation ) = case move of
             Forward
                 -> if isFree orientation
-                    then updatePlayer ( movePlayer orientation )
-                    else identity
+                    then
+                        ( updatePlayer ( movePlayer orientation )
+                        , movePlayerAnimation orientation
+                        )
+                    else
+                        ( identity, noAnimation )
 
             TurnLeft
-                -> updatePlayer (turnPlayer Left)
+                -> ( updatePlayer (turnPlayer Left)
+                   , turnPlayerAnimation Left
+                   )
 
             TurnRight
-                -> updatePlayer (turnPlayer Right)
+                -> ( updatePlayer (turnPlayer Right)
+                   , turnPlayerAnimation Right
+                   )
 
             _
-                -> identity
+                -> ( identity, noAnimation )
     in
-        case msg of
-          Tick _ -> { game
-                    | board = movedPlayer board
-                    , executor = { executor | solver = updatedSolver }
-                    }
-          _      -> game
+        if msg == EnterMode || msg == AnimationEnd then
+            { game
+            | board = movedPlayer board
+            , animation = animation
+            , executor = { executor | solver = updatedSolver }
+            }
+        else
+            game
 
 updateGameProgramMode : Msg -> Programming a -> Programming a
 updateGameProgramMode msg game =
@@ -625,18 +654,10 @@ play : Configuration solver -> Program () (Game solver) Msg
 play configuration =
     Browser.document
         { subscriptions =
-            \game -> Sub.batch
+            \{ animation } -> Sub.batch
                 [ onKeyDown keyDownDecoder
                 , onKeyUp keyUpDecoder
-                , case game.mode of
-                    Execute
-                        -> Time.every 400 Tick
-                    Program
-                        -> if game.animation.t < 1
-                                then onAnimationFrameDelta AnimationFrame
-                                else Sub.none
-                    _
-                        -> Sub.none
+                , animation.onDelta AnimationFrame
                 ]
         , init = \_ -> initGame configuration
         , update = updateGame

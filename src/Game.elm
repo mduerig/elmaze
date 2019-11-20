@@ -479,20 +479,22 @@ viewGame game =
         { player } = board
 
         angle = case player.orientation of
-            Left  -> -pi / 2
-            Up    -> pi
-            Right -> pi / 2
-            Down  -> 0
+            Left  -> pi / 2
+            Up    -> 0
+            Right -> -pi / 2
+            Down  -> pi
 
         renderPlayer =
-            Text.fromString "T"
-                |> Text.color Color.blue
-                |> Text.weight Text.Bold
-                |> Text.size Text.huge
+            [ Text.fromString "🐞"
+                |> Text.size 30
                 |> rendered
                 |> rotate ( angle + animation.playerOrientation animation.t )
-                |> shiftX ( 50 * ( toFloat player.x + animation.playerX animation.t ) )
-                |> shiftY ( 50 * ( toFloat player.y + animation.playerY animation.t ) )
+            , circle 20
+                |> filled transparent
+            ]
+            |> group
+            |> shiftX ( 50 * ( toFloat player.x + animation.playerX animation.t ) )
+            |> shiftY ( 50 * ( toFloat player.y + animation.playerY animation.t ) )
 
         renderTile ( x, y, tile ) = viewTile ( x, y ) tile
     in
@@ -586,24 +588,14 @@ viewTile ( x, y ) { tileType, left, top, bottom, right } =
 
         tile =
             case tileType of
-                Empty ->
-                    []
-
-                Start ->
-                    [ Text.fromString "S"
-                        |> Text.color Color.red
-                        |> Text.weight Text.Bold
-                        |> Text.size Text.huge
-                        |> rendered
-                    ]
-
                 Goal ->
-                    [ Text.fromString "G"
-                        |> Text.color Color.green
-                        |> Text.weight Text.Bold
-                        |> Text.size Text.huge
+                    [ Text.fromString "🌺"
+                        |> Text.size 30
                         |> rendered
                     ]
+
+                _ ->
+                    []
     in
         group
             [ line 50

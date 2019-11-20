@@ -44,35 +44,35 @@ update board ( Interpreter ( program ) bindings ) =
 
     in
         case program of
-            []
-                -> ( Interpreter [] bindings, G.Nop )
+            [] ->
+                ( Interpreter [] bindings, G.Nop )
 
-            (P.Command move) :: stmts
-                -> case move of
-                    P.Do []
-                        ->  update board ( Interpreter stmts bindings )
+            (P.Command move) :: stmts ->
+                case move of
+                    P.Do [] ->
+                        update board ( Interpreter stmts bindings )
 
-                    P.Do ( P.Move moveId :: moves)
-                        ->  let
-                                stmt : List P.Statement
-                                stmt = Dict.get moveId bindings
-                                    |> Maybe.map (P.Command >> List.singleton)
-                                    |> Maybe.withDefault []
-                            in
-                                update board
-                                    ( Interpreter (stmt ++ ( P.Command <| P.Do moves ) :: stmts) bindings )
+                    P.Do ( P.Move moveId :: moves) ->
+                        let
+                            stmt : List P.Statement
+                            stmt = Dict.get moveId bindings
+                                |> Maybe.map (P.Command >> List.singleton)
+                                |> Maybe.withDefault []
+                        in
+                            update board
+                                ( Interpreter (stmt ++ ( P.Command <| P.Do moves ) :: stmts) bindings )
 
-                    P.Do ( atomicMove :: moves)
-                        ->  ( Interpreter ( ( P.Command <| P.Do <| moves ) :: stmts ) bindings
-                            , case atomicMove of
-                                P.Left     -> G.TurnLeft
-                                P.Right    -> G.TurnRight
-                                P.Forward  -> G.Forward
-                                P.Move _   -> G.Nop
-                            )
+                    P.Do ( atomicMove :: moves) ->
+                        ( Interpreter ( ( P.Command <| P.Do <| moves ) :: stmts ) bindings
+                        , case atomicMove of
+                            P.Left     -> G.TurnLeft
+                            P.Right    -> G.TurnRight
+                            P.Forward  -> G.Forward
+                            P.Move _   -> G.Nop
+                        )
 
-                    P.If condition trueMoves falseMoves
-                        -> let
+                    P.If condition trueMoves falseMoves ->
+                        let
                             nextMoves : List P.Statement
                             nextMoves =
                                 ( if evalCondition condition
@@ -81,11 +81,11 @@ update board ( Interpreter ( program ) bindings ) =
                                 )
                                 |> Maybe.map ( P.Do >> P.Command >> List.singleton )
                                 |> Maybe.withDefault []
-                            in
-                                update board ( Interpreter ( nextMoves ++ stmts ) bindings )
+                        in
+                            update board ( Interpreter ( nextMoves ++ stmts ) bindings )
 
-                    P.While condition moves
-                        -> let
+                    P.While condition moves ->
+                        let
                             nextMoves : List P.Statement
                             nextMoves =
                                 if evalCondition condition
@@ -95,11 +95,11 @@ update board ( Interpreter ( program ) bindings ) =
                                         ]
                                     else
                                         []
-                            in
-                                update board ( Interpreter ( nextMoves ++ stmts ) bindings )
+                        in
+                            update board ( Interpreter ( nextMoves ++ stmts ) bindings )
 
-                    P.Repeat count moves
-                        -> let
+                    P.Repeat count moves ->
+                        let
                             nextMoves : List P.Statement
                             nextMoves =
                                 if count > 0
@@ -109,9 +109,9 @@ update board ( Interpreter ( program ) bindings ) =
                                         ]
                                     else
                                         []
-                            in
-                                update board ( Interpreter ( nextMoves ++ stmts ) bindings )
+                        in
+                            update board ( Interpreter ( nextMoves ++ stmts ) bindings )
 
-            (P.Binding (P.Let moveId move)) :: stmts
-                ->  update board
-                        ( Interpreter stmts ( Dict.insert moveId move bindings ) )
+            (P.Binding (P.Let moveId move)) :: stmts ->
+                update board
+                    ( Interpreter stmts ( Dict.insert moveId move bindings ) )

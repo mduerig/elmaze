@@ -11,7 +11,6 @@ import Html exposing ( Html )
 import Html.Attributes as Atts
 import Html.Events exposing ( onClick, onInput )
 import Json.Decode as Decode
-import Time
 
 type alias Game solver =
     { board : Board
@@ -249,18 +248,19 @@ updateGameExecuteMode msg game =
         { x, y, orientation } = board.player
 
         ( updatedSolver, move ) = case executor.solver of
-           Just solver
-                -> executor.update board solver
+            Just solver ->
+                executor.update board solver
                     |> Tuple.mapFirst Just
-           _
-                -> ( Nothing, Nop )
+
+            _ ->
+                ( Nothing, Nop )
 
         isFree direction =
             queryTile ( x, y ) board ( hasBoundary direction Alley )
 
         ( movedPlayer, animation ) = case move of
-            Forward
-                -> if isFree orientation
+            Forward ->
+                if isFree orientation
                     then
                         ( updatePlayer ( movePlayer orientation )
                         , movePlayerAnimation orientation
@@ -268,20 +268,21 @@ updateGameExecuteMode msg game =
                     else
                         ( identity, noAnimation )
 
-            TurnLeft
-                -> ( updatePlayer (turnPlayer Left)
-                   , turnPlayerAnimation Left
-                   )
+            TurnLeft ->
+                ( updatePlayer (turnPlayer Left)
+                , turnPlayerAnimation Left
+                )
 
-            TurnRight
-                -> ( updatePlayer (turnPlayer Right)
-                   , turnPlayerAnimation Right
-                   )
+            TurnRight ->
+                ( updatePlayer (turnPlayer Right)
+                , turnPlayerAnimation Right
+                )
 
-            _
-                -> ( identity, noAnimation )
+            _ ->
+                ( identity, noAnimation )
     in
-        if msg == EnterMode || msg == AnimationEnd then
+        if msg == EnterMode || msg == AnimationEnd
+        then
             { game
             | board = movedPlayer board
             , animation = animation
@@ -301,7 +302,8 @@ updateGameProgramMode msg game =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
     in
         case msg of
-            KeyArrow Down -> game
+            KeyArrow Down ->
+                game
 
             KeyArrow Up ->
                 if isBlocked orientation then
@@ -356,10 +358,10 @@ updateGameEditMode msg game =
         restoreWall direction = updateTileBoundary ( x, y ) direction Wall
     in
         case msg of
-            KeyShift True    ->
+            KeyShift True ->
                 { game | editor = { editor | drawStyle = Wall }}
 
-            KeyShift False   ->
+            KeyShift False ->
                 { game | editor = { editor | drawStyle = Alley }}
 
             KeyArrow direction ->
@@ -584,7 +586,8 @@ viewTile ( x, y ) { tileType, left, top, bottom, right } =
 
         tile =
             case tileType of
-                Empty -> []
+                Empty ->
+                    []
 
                 Start ->
                     [ Text.fromString "S"

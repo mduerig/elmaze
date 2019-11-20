@@ -28,19 +28,20 @@ testBoard = newBoard 5 4
 updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
 updateGame board interpreter =
     case interpreter of
-        Just interp
-            -> I.update board interp
+        Just interp ->
+            I.update board interp
                 |> Tuple.mapFirst Just
-        _
-            ->  ( Nothing, Nop )
+        _ ->
+            ( Nothing, Nop )
 
 initGame : Board -> String -> Maybe I.Interpreter
 initGame board program =
     case P.parse program of
-        Ok ast
-            -> Just <| I.init ast
-        Err error
-            -> Debug.log (Debug.toString error) Nothing
+        Ok ast ->
+            Just <| I.init ast
+
+        Err error ->
+            Debug.log (Debug.toString error) Nothing
 
 main : Program () (Game ( Maybe I.Interpreter )) Msg
 main =

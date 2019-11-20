@@ -11,6 +11,7 @@ import Html exposing ( Html )
 import Html.Attributes as Atts
 import Html.Events exposing ( onClick, onInput )
 import Json.Decode as Decode
+import Ease
 
 type alias Game solver =
     { board : Board
@@ -327,16 +328,16 @@ updateGameProgramMode msg game =
 movePlayerAnimation : Direction -> Animation
 movePlayerAnimation direction =
     case direction of
-        Left  -> { startAnimation | playerX = \t -> 1 - t }
-        Right -> { startAnimation | playerX = \t -> t - 1 }
-        Up    -> { startAnimation | playerY = \t -> t - 1 }
-        Down  -> { startAnimation | playerY = \t -> 1 - t }
+        Left  -> { startAnimation | playerX = Ease.inOutBack >> \t -> 1 - t }
+        Right -> { startAnimation | playerX = Ease.inOutBack >> \t -> t - 1 }
+        Up    -> { startAnimation | playerY = Ease.inOutBack >> \t -> t - 1 }
+        Down  -> { startAnimation | playerY = Ease.inOutBack >> \t -> 1 - t }
 
 turnPlayerAnimation : Direction -> Animation
 turnPlayerAnimation direction =
     case direction of
-        Left  -> { startAnimation | playerOrientation = \t -> pi/2 * (t - 1) }
-        Right -> { startAnimation | playerOrientation = \t -> pi/2 * (1 - t) }
+        Left  -> { startAnimation | playerOrientation = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
+        Right -> { startAnimation | playerOrientation = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
         _     ->   startAnimation
 
 updateGameEditMode : Msg -> Editing a -> Editing a

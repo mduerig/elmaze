@@ -519,7 +519,7 @@ viewGame game =
                 [ Grid.col [] []
                 , Grid.col []
                     [ Html.div
-                        [ Flex.block, Flex.justifyBetween, Size.w75 ]
+                        [ Flex.block ]
                         [ Textarea.textarea
                             [ Textarea.rows 5
                             , Textarea.value <| programmer.program
@@ -537,11 +537,13 @@ viewGame game =
                         [ if mode == Execute
                             then Button.button
                                 [ Button.danger
+                                , Button.block
                                 , Button.onClick <| SwitchMode Record
                                 ]
                                 [ Html.text "stop" ]
                             else Button.button
                                 [ Button.outlineSuccess
+                                , Button.block
                                 , Button.disabled <| mode /= Record
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "run" ]
@@ -555,11 +557,13 @@ viewGame game =
                     [ if mode == Edit
                         then Button.button
                             [ Button.secondary
+                            , Button.block
                             , Button.onClick
                                 <| SwitchMode Record ]
                             [ Html.text "edit" ]
                         else Button.button
                             [ Button.outlineSecondary
+                            , Button.block
                             , Button.onClick
                                 <| SwitchMode Edit ]
                             [ Html.text "edit" ]

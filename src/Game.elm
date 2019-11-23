@@ -542,6 +542,7 @@ viewGame game =
                                 [ Html.text "stop" ]
                             else Button.button
                                 [ Button.outlineSuccess
+                                , Button.disabled <| mode /= Record
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "run" ]
                         ]
@@ -551,11 +552,17 @@ viewGame game =
             , Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
-                    [ Button.button
-                        [ Button.outlineSecondary
-                        , Button.onClick
-                            <| SwitchMode Edit ]
-                        [ Html.text "edit" ]
+                    [ if mode == Edit
+                        then Button.button
+                            [ Button.secondary
+                            , Button.onClick
+                                <| SwitchMode Record ]
+                            [ Html.text "edit" ]
+                        else Button.button
+                            [ Button.outlineSecondary
+                            , Button.onClick
+                                <| SwitchMode Edit ]
+                            [ Html.text "edit" ]
                     ]
                 , Grid.col [] []
                 ]

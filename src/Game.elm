@@ -65,8 +65,7 @@ type alias Editing a =
     }
 
 type alias Programmer =
-    { moves : List Msg
-    , program : String
+    { program : String
     }
 
 type alias Programming a =
@@ -148,8 +147,7 @@ initGame { board, init, update } =
                 { drawStyle = Alley
                 }
             , programmer =
-                { moves = []
-                , program = ""
+                { program = ""
                 }
             , executor =
                 { solver = Nothing
@@ -196,9 +194,9 @@ updateGame msg game =
     let
         { board, programmer, executor, animation } = game
 
-        updatePlayerPos mode = if mode == Edit
-            then board
-            else playerAtStart board
+        updatePlayerPos mode = if mode == Execute
+            then playerAtStart board
+            else board
 
         updateExecutor mode = if mode == Execute
             then { executor
@@ -206,10 +204,6 @@ updateGame msg game =
                      <| executor.init board programmer.program
                  }
             else { executor | solver = Nothing }
-
-        updateProgrammer mode = if mode == Program
-            then { programmer | moves = [] }
-            else programmer
     in
         case msg of
             AnimationFrame dt ->
@@ -237,7 +231,6 @@ updateGame msg game =
                     | mode = mode
                     , board = updatePlayerPos mode
                     , executor = updateExecutor mode
-                    , programmer = updateProgrammer mode
                     }
 
             _ ->
@@ -301,7 +294,7 @@ updateGameProgramMode msg game =
     let
         { board, programmer } = game
         { x, y, orientation } = board.player
-        { moves } = programmer
+        { program } = programmer
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
@@ -317,14 +310,14 @@ updateGameProgramMode msg game =
                     { game
                     | board = updatePlayer ( movePlayer orientation ) board
                     , animation = movePlayerAnimation orientation
-                    , programmer = { programmer | moves = moves ++ [ msg ] }
+                    , programmer = { programmer | program = appendMove program Up }
                     }
 
             KeyArrow direction ->
                 { game
                 | board = updatePlayer ( turnPlayer direction ) board
                 , animation = turnPlayerAnimation direction
-                , programmer = { programmer | moves = moves ++ [ msg ] }
+                , programmer = { programmer | program = appendMove program direction }
                 }
 
             _ -> game
@@ -516,8 +509,7 @@ viewGame game =
             , Html.div []
                 [ Textarea.textarea
                     [ Textarea.rows 5
-                    -- , Textarea.value <| toProgram programmer.moves
-                    -- , Textarea.value <| programmer.program
+                    , Textarea.value <| programmer.program
                     , Textarea.onInput ProgramChanged
                     ]
                 ]
@@ -535,18 +527,16 @@ viewGame game =
             ]
         ]
 
-toProgram : List Msg -> String
-toProgram messages =
+appendMove : String -> Direction -> String
+appendMove program direction =
     let
-        toCommand msg = case msg of
-           KeyArrow Up    -> "forward"
-           KeyArrow Left  -> "left"
-           KeyArrow Right -> "right"
-           _              -> ""
+        command = case direction of
+            Up    -> "forward\n"
+            Left  -> "left\n"
+            Right -> "right\n"
+            _     -> ""
     in
-        messages
-            |> List.map toCommand
-            |> String.join "\n"
+        program ++ command
 
 oppositeDirection : Direction -> Direction
 oppositeDirection direction =

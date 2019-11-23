@@ -8,7 +8,6 @@ import Collage.Render exposing ( svg )
 import Collage.Text as Text
 import Color
 import Html exposing ( Html )
-import Html.Attributes as Atts
 import Html.Events exposing ( onClick, onInput )
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Button as Button

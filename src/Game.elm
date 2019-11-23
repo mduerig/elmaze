@@ -9,11 +9,11 @@ import Collage.Text as Text
 import Color
 import Html exposing ( Html )
 import Html.Events exposing ( onClick, onInput )
-import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Button as Button
-import Bootstrap.Utilities.Border as Border
 import Bootstrap.CDN as CDN
+import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Grid as Grid
+import Bootstrap.Utilities.Border as Border
 import Json.Decode as Decode
 import Ease
 
@@ -499,30 +499,47 @@ viewGame game =
         [ CDN.stylesheet
         , Grid.container
             [ Border.all, Border.rounded ]
-            [ Html.h1 [] [ Html.text "Elmaze" ]
-            , renderPlayer ::
-                ( tilesWithIndex board
-                    |> List.map renderTile
-                )
-                |> group
-                |> svg
-            , Html.div []
-                [ Textarea.textarea
-                    [ Textarea.rows 5
-                    , Textarea.value <| programmer.program
-                    , Textarea.onInput ProgramChanged
+            [ Grid.row []
+                [ Grid.col [] []
+                , Grid.col []
+                    [ renderPlayer ::
+                        ( tilesWithIndex board
+                            |> List.map renderTile
+                        )
+                        |> group
+                        |> svg
                     ]
+                , Grid.col [] []
                 ]
-            , Html.div []
-                [ Button.button
-                    [ Button.onClick <| SwitchMode Edit ]
-                    [ Html.text "edit" ]
-                , Button.button
-                    [ Button.onClick <| SwitchMode Program ]
-                    [ Html.text "record" ]
-                , Button.button
-                    [ Button.onClick <| SwitchMode Execute ]
-                    [ Html.text "run" ]
+            , Grid.row []
+                [ Grid.col [] []
+                , Grid.col []
+                    [ Html.div []
+                        [ Textarea.textarea
+                            [ Textarea.rows 5
+                            , Textarea.value <| programmer.program
+                            , Textarea.onInput ProgramChanged
+                            ]
+                        ]
+                    ]
+                , Grid.col [] []
+                ]
+            , Grid.row []
+                [ Grid.col [] []
+                , Grid.col []
+                    [ Html.div []
+                        [ Button.button
+                            [ Button.onClick <| SwitchMode Edit ]
+                            [ Html.text "edit" ]
+                        , Button.button
+                            [ Button.onClick <| SwitchMode Program ]
+                            [ Html.text "record" ]
+                        , Button.button
+                            [ Button.onClick <| SwitchMode Execute ]
+                            [ Html.text "run" ]
+                        ]
+                    ]
+                , Grid.col [] []
                 ]
             ]
         ]

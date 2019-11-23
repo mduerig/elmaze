@@ -86,6 +86,7 @@ type alias Executor solver =
 type alias Executing a solver =
     { a
     | board : Board
+    , mode : Mode
     , animation : Animation
     , executor : Executor solver
     }
@@ -285,6 +286,9 @@ updateGameExecuteMode msg game =
         then
             { game
             | board = movedPlayer board
+            , mode = if move == Nop
+                then Record
+                else Execute
             , animation = animation
             , executor = { executor | solver = updatedSolver }
             }
@@ -475,7 +479,7 @@ hasBoundary direction boundary tile =
 viewGame : Game solver -> List (Html Msg)
 viewGame game =
     let
-        { board, programmer, animation } = game
+        { board, programmer, animation, mode } = game
         { player } = board
 
         angle = case player.orientation of
@@ -532,16 +536,19 @@ viewGame game =
                         [ Flex.block, Flex.justifyBetween, Size.w75 ]
                         [ Button.button
                             [ Button.outlineSecondary
-                            , Button.onClick <| SwitchMode Edit ]
+                            , Button.onClick
+                                <| SwitchMode Edit ]
                             [ Html.text "edit" ]
-                        , Button.button
-                            [ Button.outlineSecondary
-                            , Button.onClick <| SwitchMode Record ]
-                            [ Html.text "record" ]
-                        , Button.button
-                            [ Button.outlineSecondary
-                            , Button.onClick <| SwitchMode Execute ]
-                            [ Html.text "run" ]
+                        , if mode == Execute
+                            then Button.button
+                                [ Button.danger
+                                , Button.onClick <| SwitchMode Record
+                                ]
+                                [ Html.text "stop" ]
+                            else Button.button
+                                [ Button.outlineSuccess
+                                , Button.onClick <| SwitchMode Execute ]
+                                [ Html.text "run" ]
                         ]
                     ]
                 , Grid.col [] []

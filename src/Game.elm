@@ -10,6 +10,11 @@ import Color
 import Html exposing ( Html )
 import Html.Attributes as Atts
 import Html.Events exposing ( onClick, onInput )
+import Bootstrap.Form.Textarea as Textarea
+import Bootstrap.Button as Button
+import Bootstrap.Utilities.Border as Border
+import Bootstrap.CDN as CDN
+import Bootstrap.Grid as Grid
 import Json.Decode as Decode
 import Ease
 
@@ -499,36 +504,35 @@ viewGame game =
 
         renderTile ( x, y, tile ) = viewTile ( x, y ) tile
     in
-        [ renderPlayer ::
-            ( tilesWithIndex board
-                |> List.map renderTile
-            )
-            |> group
-            |> svg
-        , Html.div []
-            [ Html.button
-                [ onClick <| SwitchMode Edit ]
-                [ Html.text "edit" ]
-            , Html.button
-                [ onClick <| SwitchMode Program ]
-                [ Html.text "record" ]
-            , Html.button
-                [ onClick <| SwitchMode Execute ]
-                [ Html.text "run" ]
-            ]
-        , Html.div []
-            [ Html.textarea
-                [ Atts.cols 40
-                , Atts.rows 30
-                , Atts.value <| toProgram programmer.moves
+        [ CDN.stylesheet
+        , Grid.container
+            [ Border.all, Border.rounded ]
+            [ Html.h1 [] [ Html.text "Elmaze" ]
+            , renderPlayer ::
+                ( tilesWithIndex board
+                    |> List.map renderTile
+                )
+                |> group
+                |> svg
+            , Html.div []
+                [ Button.button
+                    [ Button.onClick <| SwitchMode Edit ]
+                    [ Html.text "edit" ]
+                , Button.button
+                    [ Button.onClick <| SwitchMode Program ]
+                    [ Html.text "record" ]
+                , Button.button
+                    [ Button.onClick <| SwitchMode Execute ]
+                    [ Html.text "run" ]
                 ]
-                [ ]
-            , Html.textarea
-                [ Atts.cols 40
-                , Atts.rows 30
-                , onInput ProgramChanged
+            , Html.div []
+                [ Textarea.textarea
+                    [ Textarea.rows 5
+                    -- , Textarea.value <| toProgram programmer.moves
+                    -- , Textarea.value <| programmer.program
+                    , Textarea.onInput ProgramChanged
+                    ]
                 ]
-                [ Html.text programmer.program ]
             ]
         ]
 
@@ -659,7 +663,7 @@ play configuration =
         , update = updateGame
         , view =
             \game ->
-                { title = "ElMaze"
+                { title = "Elmaze"
                 , body = viewGame game
                 }
         }

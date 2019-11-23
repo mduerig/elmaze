@@ -8,7 +8,7 @@ import Parse as P
 import Interpreter as I
 
 testBoard : Board
-testBoard = newBoard 5 4
+testBoard = newBoard 8 6
     |> updateTileBoundary (0, 0) Up Alley
     |> updateTileBoundary (0, 1) Up Alley
     |> updateTileBoundary (0, 2) Up Alley

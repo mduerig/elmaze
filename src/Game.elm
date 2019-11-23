@@ -495,8 +495,6 @@ viewGame game =
             |> group
             |> shiftX ( 50 * ( toFloat player.x + animation.playerX animation.t ) )
             |> shiftY ( 50 * ( toFloat player.y + animation.playerY animation.t ) )
-
-        renderTile ( x, y, tile ) = viewTile ( x, y ) tile
     in
         [ CDN.stylesheet
         , Grid.container
@@ -506,7 +504,7 @@ viewGame game =
                 , Grid.col []
                     [ renderPlayer ::
                         ( tilesWithIndex board
-                            |> List.map renderTile
+                            |> List.map viewTile
                         )
                         |> group
                         |> svg
@@ -596,8 +594,8 @@ tilesWithIndex { width, height, tiles } =
         |> Array.toList
 
 
-viewTile : ( Int, Int ) -> Tile -> Collage Msg
-viewTile ( x, y ) { tileType, left, top, bottom, right } =
+viewTile : ( Int, Int, Tile ) -> Collage Msg
+viewTile ( x, y, { tileType, left, top, bottom, right } )=
     let
         wallStyle wall =
             case wall of

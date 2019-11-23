@@ -511,10 +511,10 @@ viewGame game =
                 [ Html.text "edit" ]
             , Html.button
                 [ onClick <| SwitchMode Program ]
-                [ Html.text "program" ]
+                [ Html.text "record" ]
             , Html.button
                 [ onClick <| SwitchMode Execute ]
-                [ Html.text "execute" ]
+                [ Html.text "run" ]
             ]
         , Html.div []
             [ Html.textarea

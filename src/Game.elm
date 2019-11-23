@@ -92,7 +92,7 @@ type alias Executing a solver =
 
 type Mode
     = Edit
-    | Program
+    | Record
     | Execute
 
 type alias Tile =
@@ -143,7 +143,7 @@ initGame { board, init, update } =
         game =
             { board = board
                 |> playerAtStart
-            , mode = Edit
+            , mode = Record
             , animation = noAnimation
             , editor =
                 { drawStyle = Alley
@@ -237,7 +237,7 @@ updateGame msg game =
 
             _ ->
                 case game.mode of
-                    Program -> ( updateGameProgramMode msg game, Cmd.none )
+                    Record -> ( updateGameProgramMode msg game, Cmd.none )
                     Edit    -> ( updateGameEditMode msg game, Cmd.none )
                     Execute -> ( updateGameExecuteMode msg game, Cmd.none)
 
@@ -538,7 +538,7 @@ viewGame game =
                             [ Html.text "edit" ]
                         , Button.button
                             [ Button.outlineSecondary
-                            , Button.onClick <| SwitchMode Program ]
+                            , Button.onClick <| SwitchMode Record ]
                             [ Html.text "record" ]
                         , Button.button
                             [ Button.outlineSecondary

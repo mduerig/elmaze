@@ -11,8 +11,10 @@ import Html exposing ( Html )
 import Html.Events exposing ( onClick, onInput )
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
+import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Grid as Grid
+import Bootstrap.Utilities.Size as Size
 import Bootstrap.Utilities.Border as Border
 import Json.Decode as Decode
 import Ease
@@ -514,7 +516,8 @@ viewGame game =
             , Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
-                    [ Html.div []
+                    [ Html.div
+                        [ Flex.block, Flex.justifyBetween, Size.w75 ]
                         [ Textarea.textarea
                             [ Textarea.rows 5
                             , Textarea.value <| programmer.program
@@ -527,15 +530,19 @@ viewGame game =
             , Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
-                    [ Html.div []
+                    [ Html.div
+                        [ Flex.block, Flex.justifyBetween, Size.w75 ]
                         [ Button.button
-                            [ Button.onClick <| SwitchMode Edit ]
+                            [ Button.outlineSecondary
+                            , Button.onClick <| SwitchMode Edit ]
                             [ Html.text "edit" ]
                         , Button.button
-                            [ Button.onClick <| SwitchMode Program ]
+                            [ Button.outlineSecondary
+                            , Button.onClick <| SwitchMode Program ]
                             [ Html.text "record" ]
                         , Button.button
-                            [ Button.onClick <| SwitchMode Execute ]
+                            [ Button.outlineSecondary
+                            , Button.onClick <| SwitchMode Execute ]
                             [ Html.text "run" ]
                         ]
                     ]

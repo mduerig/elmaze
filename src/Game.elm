@@ -501,8 +501,8 @@ viewGame game =
             |> shiftY ( 50 * ( toFloat player.y + animation.playerY animation.t ) )
     in
         [ CDN.stylesheet
-        , Grid.container
-            [ Border.all, Border.rounded ]
+        , Grid.containerFluid
+            [ ]
             [ Grid.row []
                 [ Grid.col [] []
                 , Grid.col []

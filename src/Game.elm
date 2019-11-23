@@ -515,6 +515,14 @@ viewGame game =
                 |> group
                 |> svg
             , Html.div []
+                [ Textarea.textarea
+                    [ Textarea.rows 5
+                    -- , Textarea.value <| toProgram programmer.moves
+                    -- , Textarea.value <| programmer.program
+                    , Textarea.onInput ProgramChanged
+                    ]
+                ]
+            , Html.div []
                 [ Button.button
                     [ Button.onClick <| SwitchMode Edit ]
                     [ Html.text "edit" ]
@@ -524,14 +532,6 @@ viewGame game =
                 , Button.button
                     [ Button.onClick <| SwitchMode Execute ]
                     [ Html.text "run" ]
-                ]
-            , Html.div []
-                [ Textarea.textarea
-                    [ Textarea.rows 5
-                    -- , Textarea.value <| toProgram programmer.moves
-                    -- , Textarea.value <| programmer.program
-                    , Textarea.onInput ProgramChanged
-                    ]
                 ]
             ]
         ]

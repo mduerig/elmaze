@@ -533,13 +533,8 @@ viewGame game =
                 [ Grid.col [] []
                 , Grid.col []
                     [ Html.div
-                        [ Flex.block, Flex.justifyBetween, Size.w75 ]
-                        [ Button.button
-                            [ Button.outlineSecondary
-                            , Button.onClick
-                                <| SwitchMode Edit ]
-                            [ Html.text "edit" ]
-                        , if mode == Execute
+                        []
+                        [ if mode == Execute
                             then Button.button
                                 [ Button.danger
                                 , Button.onClick <| SwitchMode Record
@@ -550,6 +545,17 @@ viewGame game =
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "run" ]
                         ]
+                    ]
+                , Grid.col [] []
+                ]
+            , Grid.row []
+                [ Grid.col [] []
+                , Grid.col []
+                    [ Button.button
+                        [ Button.outlineSecondary
+                        , Button.onClick
+                            <| SwitchMode Edit ]
+                        [ Html.text "edit" ]
                     ]
                 , Grid.col [] []
                 ]

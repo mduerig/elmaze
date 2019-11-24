@@ -14,6 +14,7 @@ import Bootstrap.CDN as CDN
 import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Col as Col
 import Json.Decode as Decode
 import Ease
 
@@ -526,11 +527,11 @@ viewGame game =
                 ]
             , Grid.row []
                 [ Grid.col [] []
-                , Grid.col []
+                , Grid.col [ Col.xs6 ]
                     [ Html.div
                         [ Flex.block ]
                         [ Textarea.textarea
-                            [ Textarea.rows 5
+                            [ Textarea.rows 6
                             , Textarea.value <| programmer.program
                             , Textarea.onInput ProgramChanged
                             ]
@@ -540,7 +541,7 @@ viewGame game =
                 ]
             , Grid.row []
                 [ Grid.col [] []
-                , Grid.col []
+                , Grid.col [ Col.xs6 ]
                     [ Html.div
                         []
                         [ if mode == Execute
@@ -557,13 +558,7 @@ viewGame game =
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "run" ]
                         ]
-                    ]
-                , Grid.col [] []
-                ]
-            , Grid.row []
-                [ Grid.col [] []
-                , Grid.col []
-                    [ if mode == Edit
+                    , if mode == Edit
                         then Button.button
                             [ Button.secondary
                             , Button.block

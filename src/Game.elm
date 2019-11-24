@@ -2,7 +2,7 @@ module Game exposing (..)
 
 import Array exposing ( Array )
 import Browser
-import Browser.Events exposing ( onKeyDown, onKeyUp, onAnimationFrameDelta )
+import Browser.Events exposing ( onKeyDown, onKeyUp, onAnimationFrameDelta, onResize )
 import Collage exposing ( .. )
 import Collage.Render exposing ( svg )
 import Collage.Text as Text
@@ -18,7 +18,8 @@ import Json.Decode as Decode
 import Ease
 
 type alias Game solver =
-    { board : Board
+    { size : Float
+    , board : Board
     , mode : Mode
     , animation : Animation
     , editor : Editor
@@ -130,6 +131,7 @@ type Msg
     | EnterMode
     | KeyOtherDown String
     | KeyOtherUp String
+    | Resize Int Int
     | AnimationFrame Float
     | AnimationStart
     | AnimationStep
@@ -140,7 +142,8 @@ initGame : Configuration solver -> ( Game solver, Cmd msg )
 initGame { board, init, update } =
     let
         game =
-            { board = board
+            { size = 500
+            , board = board
                 |> playerAtStart
             , mode = Record
             , animation = noAnimation
@@ -209,6 +212,11 @@ updateGame msg game =
             else { executor | solver = Nothing }
     in
         case msg of
+            Resize x y ->
+                ( { game | size = min (toFloat x) (toFloat y) }
+                , Cmd.none
+                )
+
             AnimationFrame dt ->
                 let
                     nextStep =
@@ -481,24 +489,25 @@ viewGame game =
     let
         { board, programmer, animation, mode } = game
         { player } = board
+        cellSize = game.size/10
 
         angle = case player.orientation of
-            Left  -> pi / 2
+            Left  -> pi/2
             Up    -> 0
-            Right -> -pi / 2
+            Right -> -pi/2
             Down  -> pi
 
         renderPlayer =
             [ Text.fromString "🐞"
-                |> Text.size 30
+                |> Text.size (round (cellSize/5*3))
                 |> rendered
                 |> rotate ( angle + animation.playerOrientation animation.t )
-            , circle 20
+            , circle (cellSize/5*2)
                 |> filled transparent
             ]
             |> group
-            |> shiftX ( 50 * ( toFloat player.x + animation.playerX animation.t ) )
-            |> shiftY ( 50 * ( toFloat player.y + animation.playerY animation.t ) )
+            |> shiftX ( cellSize * ( toFloat player.x + animation.playerX animation.t ) )
+            |> shiftY ( cellSize * ( toFloat player.y + animation.playerY animation.t ) )
     in
         [ CDN.stylesheet
         , Grid.containerFluid
@@ -508,7 +517,7 @@ viewGame game =
                 , Grid.col []
                     [ renderPlayer ::
                         ( tilesWithIndex board
-                            |> List.map viewTile
+                            |> List.map  ( viewTile cellSize )
                         )
                         |> group
                         |> svg
@@ -623,9 +632,8 @@ tilesWithIndex { width, height, tiles } =
             )
         |> Array.toList
 
-
-viewTile : ( Int, Int, Tile ) -> Collage Msg
-viewTile ( x, y, { tileType, left, top, bottom, right } )=
+viewTile : Float -> ( Int, Int, Tile ) -> Collage Msg
+viewTile size ( x, y, { tileType, left, top, bottom, right } )=
     let
         wallStyle wall =
             case wall of
@@ -636,7 +644,7 @@ viewTile ( x, y, { tileType, left, top, bottom, right } )=
             case tileType of
                 Goal ->
                     [ Text.fromString "🌺"
-                        |> Text.size 30
+                        |> Text.size (round (size/5*3))
                         |> rendered
                     ]
 
@@ -644,26 +652,26 @@ viewTile ( x, y, { tileType, left, top, bottom, right } )=
                     []
     in
         group
-            [ line 50
+            [ line size
                 |> traced (wallStyle bottom)
-                |> shiftY -25
-            , line 50
+                |> shiftY -(size/2)
+            , line size
                 |> traced (wallStyle top)
-                |> shiftY 25
-            , line 50
+                |> shiftY (size/2)
+            , line size
                 |> traced (wallStyle right)
-                |> rotate (pi / 2)
-                |> shiftX 25
-            , line 50
+                |> rotate (pi/2)
+                |> shiftX (size/2)
+            , line size
                 |> traced (wallStyle left)
-                |> rotate (pi / 2)
-                |> shiftX -25
+                |> rotate (pi/2)
+                |> shiftX -(size/2)
             , group
                 tile
-            , square 50
+            , square size
                 |> filled (uniform Color.lightYellow)
             ]
-            |> shift ( 50 * toFloat x, 50 * toFloat y )
+            |> shift ( size * toFloat x, size * toFloat y )
 
 keyDownDecoder : Decode.Decoder Msg
 keyDownDecoder =
@@ -699,6 +707,7 @@ play configuration =
                 [ onKeyDown keyDownDecoder
                 , onKeyUp keyUpDecoder
                 , animation.onDelta AnimationFrame
+                , onResize Resize
                 ]
         , init = \_ -> initGame configuration
         , update = updateGame

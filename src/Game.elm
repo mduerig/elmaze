@@ -619,7 +619,7 @@ leftOfDirection direction =
 
 ensureTrailingLF : String -> String
 ensureTrailingLF s =
-    if String.endsWith "\n" s
+    if String.endsWith "\n" s || s == ""
         then s
         else s ++ "\n"
 

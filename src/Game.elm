@@ -14,8 +14,6 @@ import Bootstrap.CDN as CDN
 import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Grid as Grid
-import Bootstrap.Utilities.Size as Size
-import Bootstrap.Utilities.Border as Border
 import Json.Decode as Decode
 import Ease
 
@@ -204,7 +202,9 @@ updateGame msg game =
         updateExecutor mode = if mode == Execute
             then { executor
                  | solver = Just
-                     <| executor.init board programmer.program
+                     <| executor.init board
+                     <| ensureTrailingLF
+                     <| programmer.program
                  }
             else { executor | solver = Nothing }
     in
@@ -582,7 +582,7 @@ appendMove program direction =
             Right -> "right\n"
             _     -> ""
     in
-        program ++ command
+        ensureTrailingLF program ++ command
 
 oppositeDirection : Direction -> Direction
 oppositeDirection direction =
@@ -607,6 +607,12 @@ leftOfDirection direction =
         Up    -> Left
         Left  -> Down
         Down  -> Right
+
+ensureTrailingLF : String -> String
+ensureTrailingLF s =
+    if String.endsWith "\n" s
+        then s
+        else s ++ "\n"
 
 tilesWithIndex : Board -> List ( Int, Int, Tile )
 tilesWithIndex { width, height, tiles } =

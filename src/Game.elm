@@ -2,6 +2,7 @@ module Game exposing (..)
 
 import Array exposing ( Array )
 import Browser
+import Browser.Dom as Dom
 import Browser.Events exposing ( onKeyDown, onKeyUp, onAnimationFrameDelta, onResize )
 import Collage exposing ( .. )
 import Collage.Render exposing ( svg )
@@ -16,6 +17,7 @@ import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Json.Decode as Decode
+import Task as Task
 import Ease
 
 type alias Game solver =
@@ -138,8 +140,9 @@ type Msg
     | AnimationStep
     | AnimationEnd
     | ProgramChanged String
+    | GotViewport ( Result Dom.Error Dom.Viewport )
 
-initGame : Configuration solver -> ( Game solver, Cmd msg )
+initGame : Configuration solver -> ( Game solver, Cmd Msg )
 initGame { board, init, update } =
     let
         game =
@@ -161,7 +164,11 @@ initGame { board, init, update } =
                 }
             }
     in
-        ( game, Cmd.none )
+        ( game, getProgramTextareaWidth )
+
+getProgramTextareaWidth : Cmd Msg
+getProgramTextareaWidth =
+    Task.attempt GotViewport ( Dom.getViewportOf "programTextarea" )
 
 startAnimation : Animation
 startAnimation =
@@ -213,10 +220,13 @@ updateGame msg game =
             else { executor | solver = Nothing }
     in
         case msg of
-            Resize x y ->
-                ( { game | size = min (toFloat x) (toFloat y) }
+            GotViewport ( Ok { viewport } ) ->
+                ( { game | size = viewport.width }
                 , Cmd.none
                 )
+
+            Resize _ _  ->
+                ( game, getProgramTextareaWidth )
 
             AnimationFrame dt ->
                 let
@@ -490,7 +500,7 @@ viewGame game =
     let
         { board, programmer, animation, mode } = game
         { player } = board
-        cellSize = game.size/10
+        cellSize = game.size / toFloat board.width
 
         angle = case player.orientation of
             Left  -> pi/2
@@ -532,6 +542,7 @@ viewGame game =
                         [ Flex.block ]
                         [ Textarea.textarea
                             [ Textarea.rows 6
+                            , Textarea.id "programTextarea"
                             , Textarea.value <| programmer.program
                             , Textarea.onInput ProgramChanged
                             ]

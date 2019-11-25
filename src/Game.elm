@@ -9,6 +9,7 @@ import Collage.Render exposing ( svg )
 import Collage.Text as Text
 import Color
 import Html exposing ( Html )
+import Html.Attributes as Attr
 import Html.Events exposing ( onClick, onInput )
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
@@ -168,7 +169,7 @@ initGame { board, init, update } =
 
 getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
-    Task.attempt GotViewport ( Dom.getViewportOf "programTextarea" )
+    Task.attempt GotViewport ( Dom.getViewportOf "boardWidth" )
 
 startAnimation : Animation
 startAnimation =
@@ -538,11 +539,16 @@ viewGame game =
             , Grid.row []
                 [ Grid.col [] []
                 , Grid.col [ Col.xs6 ]
+                    [ Html.div [ Attr.id "boardWidth" ] [] ]
+                , Grid.col [] []
+                ]
+            , Grid.row []
+                [ Grid.col [] []
+                , Grid.col [ Col.xs6 ]
                     [ Html.div
                         [ Flex.block ]
                         [ Textarea.textarea
                             [ Textarea.rows 6
-                            , Textarea.id "programTextarea"
                             , Textarea.value <| programmer.program
                             , Textarea.onInput ProgramChanged
                             ]

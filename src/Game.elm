@@ -522,8 +522,7 @@ viewGame game =
             |> shiftY ( cellSize * ( toFloat player.y + animation.playerY animation.t ) )
     in
         [ CDN.stylesheet
-        , Grid.containerFluid
-            [ ]
+        , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
@@ -534,34 +533,14 @@ viewGame game =
                         |> group
                         |> svg
                     ]
-                , Grid.col [] []
-                ]
-            , Grid.row []
-                [ Grid.col [] []
-                , Grid.col [ Col.xs6 ]
-                    [ Html.div [ Attr.id "boardWidth" ] [] ]
-                , Grid.col [] []
-                ]
-            , Grid.row []
-                [ Grid.col [] []
-                , Grid.col [ Col.xs6 ]
-                    [ Html.div
-                        [ Flex.block ]
+                , Grid.col []
+                    [ Html.div []
                         [ Textarea.textarea
-                            [ Textarea.rows 6
+                            [ Textarea.rows 15
                             , Textarea.value <| programmer.program
                             , Textarea.onInput ProgramChanged
                             ]
-                        ]
-                    ]
-                , Grid.col [] []
-                ]
-            , Grid.row []
-                [ Grid.col [] []
-                , Grid.col [ Col.xs6 ]
-                    [ Html.div
-                        []
-                        [ if mode == Execute
+                        , if mode == Execute
                             then Button.button
                                 [ Button.danger
                                 , Button.block
@@ -574,21 +553,26 @@ viewGame game =
                                 , Button.disabled <| mode /= Record
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "run" ]
+                        , if mode == Edit
+                            then Button.button
+                                [ Button.secondary
+                                , Button.block
+                                , Button.onClick
+                                    <| SwitchMode Record ]
+                                [ Html.text "edit" ]
+                            else Button.button
+                                [ Button.outlineSecondary
+                                , Button.block
+                                , Button.onClick
+                                    <| SwitchMode Edit ]
+                                [ Html.text "edit" ]
                         ]
-                    , if mode == Edit
-                        then Button.button
-                            [ Button.secondary
-                            , Button.block
-                            , Button.onClick
-                                <| SwitchMode Record ]
-                            [ Html.text "edit" ]
-                        else Button.button
-                            [ Button.outlineSecondary
-                            , Button.block
-                            , Button.onClick
-                                <| SwitchMode Edit ]
-                            [ Html.text "edit" ]
                     ]
+                ]
+            , Grid.row []
+                [ Grid.col [] []
+                , Grid.col [ Col.xs6 ]
+                    [ Html.div [ Attr.id "boardWidth" ] [] ]
                 , Grid.col [] []
                 ]
             ]

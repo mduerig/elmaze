@@ -583,6 +583,11 @@ viewGame game =
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []
+                , Grid.col [] [ Html.h1 [] [ Html.text "Elmaze"] ]
+                , Grid.col [] []
+                ]
+            , Grid.row []
+                [ Grid.col [] []
                 , Grid.col []
                     [ viewPlayer ::
                         ( tilesWithIndex board

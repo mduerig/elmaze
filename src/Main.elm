@@ -55,17 +55,13 @@ testBoard = newBoard 8 6
     |> updateTileBoundary (0, 4) Right Alley
     |> updateTileBoundary (1, 4) Up Alley
     |> updateTileBoundary (1, 5) Left Alley
+    |> updateTileBoundary (7, 4) Up Alley
+    |> updateTileBoundary (7, 4) Left Wall
+    |> updateTileBoundary (7, 4) Down Wall
     |> updateTile ( 0, 0 ) (updateTileType Start)
-    |> updateTile ( 7, 5 ) (updateTileType Goal)
+    |> updateTile ( 7, 4 ) (updateTileType Goal)
     -- |> updateTile ( 0, 0 ) ( updateTileBackground "vert.png")
     -- |> updateTile ( 1, 1 ) ( updateTileBackground "hor.png")
-    -- |> updateTile ( 2, 1 ) ( updateTileBackground "hor.png")
-    -- |> updateTile ( 3, 1 ) ( updateTileBackground "hor.png")
-    -- |> updateTile ( 1, 3 ) ( updateTileBackground "hor.png")
-    -- |> updateTile ( 2, 3 ) ( updateTileBackground "hor.png")
-    -- |> updateTile ( 3, 3 ) ( updateTileBackground "hor.png")
-    -- |> updateTile ( 0, 2 ) ( updateTileBackground "vert.png")
-    -- |> updateTile ( 4, 2 ) ( updateTileBackground "vert.png")
 
 updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
 updateGame board interpreter =

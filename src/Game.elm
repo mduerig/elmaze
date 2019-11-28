@@ -131,6 +131,7 @@ type Direction
 type Msg
     = KeyArrow Direction
     | KeyShift Bool
+    | ResetGame
     | SwitchMode Mode
     | EnterMode
     | KeyOtherDown String
@@ -223,6 +224,15 @@ updateGame msg game =
             else { executor | solver = Nothing }
     in
         case msg of
+            ResetGame ->
+                ( { game
+                  | board = board |> playerAtStart
+                  , programmer = { programmer | program = "" }
+                }
+                , Cmd.none
+                )
+
+
             EnableRecording recordingOn ->
                 ( { game | programmer = { programmer | recordingEnabled = recordingOn } }
                 , Cmd.none
@@ -566,6 +576,12 @@ viewGame game =
                                 , Button.disabled <| mode /= Record
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "run" ]
+                        , Button.button
+                            [ Button.outlineWarning
+                            , Button.block
+                            , Button.onClick ResetGame
+                            ]
+                            [ Html.text "reset game"]
                         , if mode == Edit
                             then Button.button
                                 [ Button.secondary

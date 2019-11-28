@@ -59,7 +59,7 @@ type alias Board =
     }
 
 type alias Editor =
-    { drawStyle : Boundary
+    { forgePath : Bool
     }
 
 type alias Editing a =
@@ -130,6 +130,7 @@ type Direction
 
 type Msg
     = KeyArrow Direction
+    | KeyEscape
     | KeyShift Bool
     | ResetGame
     | SwitchMode Mode
@@ -154,7 +155,7 @@ initGame { board, init, update } =
             , mode = Record
             , animation = noAnimation
             , editor =
-                { drawStyle = Alley
+                { forgePath = False
                 }
             , programmer =
                 { recordingEnabled = True
@@ -388,7 +389,7 @@ updateGameEditMode msg game =
         { board, editor } = game
         { width, height } = board
         { x, y } = board.player
-        { drawStyle } = editor
+        { forgePath } = editor
 
         offBoard direction =
             case direction of
@@ -398,29 +399,35 @@ updateGameEditMode msg game =
                 Down  -> y <= 0
 
         removeWall direction = updateTileBoundary ( x, y ) direction Alley
-        restoreWall direction = updateTileBoundary ( x, y ) direction Wall
+
+        addWalls =
+            updateTileBoundary ( x, y ) Up Wall
+         << updateTileBoundary ( x, y ) Down Wall
+         << updateTileBoundary ( x, y ) Left Wall
+         << updateTileBoundary ( x, y ) Right Wall
     in
         case msg of
             KeyShift True ->
-                { game | editor = { editor | drawStyle = Wall }}
+                { game | editor = { editor | forgePath = True }}
 
             KeyShift False ->
-                { game | editor = { editor | drawStyle = Alley }}
+                { game | editor = { editor | forgePath = False }}
+
+            KeyEscape ->
+                let
+                    updatedBoard = board
+                        |> addWalls
+                in
+                    { game | board = updatedBoard }
+
 
             KeyArrow direction ->
                 let
-                    updatedBoard =
-                        if drawStyle == Wall then
-                            board
-                                |> updatePlayer ( movePlayer direction )
-                                |> restoreWall Up
-                                |> restoreWall Down
-                                |> restoreWall Left
-                                |> restoreWall Right
-
-                        else board
-                                |> updatePlayer ( movePlayer direction )
-                                |> removeWall direction
+                    updatedBoard = board
+                        |> updatePlayer ( movePlayer direction )
+                        |> if forgePath
+                                then removeWall direction
+                                else identity
                 in
                     { game | board =
                         if offBoard direction
@@ -709,6 +716,7 @@ keyDownDecoder =
                 "ArrowRight" -> KeyArrow Right
                 "ArrowUp"    -> KeyArrow Up
                 "ArrowDown"  -> KeyArrow Down
+                "Escape"     -> KeyEscape
                 "Shift"      -> KeyShift True
                 _            -> KeyOtherDown string
     in

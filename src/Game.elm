@@ -229,6 +229,7 @@ updateGame msg game =
                 ( { game
                   | board = board |> playerAtStart
                   , programmer = { programmer | program = "" }
+                  , mode = Record
                 }
                 , Cmd.none
                 )
@@ -587,6 +588,7 @@ viewGame game =
                             [ Button.outlineWarning
                             , Button.block
                             , Button.onClick ResetGame
+                            , Button.disabled <| mode == Edit
                             ]
                             [ Html.text "reset game"]
                         , if mode == Edit

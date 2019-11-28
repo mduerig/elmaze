@@ -508,7 +508,7 @@ viewGame game =
             Right -> -pi/2
             Down  -> pi
 
-        renderPlayer =
+        viewPlayer =
             [ Text.fromString "🐞"
                 |> Text.size (round (cellSize/5*3))
                 |> rendered
@@ -525,7 +525,7 @@ viewGame game =
             [ Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
-                    [ renderPlayer ::
+                    [ viewPlayer ::
                         ( tilesWithIndex board
                             |> List.map  ( viewTile cellSize )
                         )

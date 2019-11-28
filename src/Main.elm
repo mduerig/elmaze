@@ -22,17 +22,50 @@ testBoard = newBoard 8 6
     |> updateTileBoundary (3, 1) Left Alley
     |> updateTileBoundary (2, 1) Left Alley
     |> updateTileBoundary (1, 1) Left Alley
+    |> updateTileBoundary (1, 2) Right Alley
+    |> updateTileBoundary (2, 2) Right Alley
+    |> updateTileBoundary (4, 2) Right Alley
+    |> updateTileBoundary (5, 2) Right Alley
+    |> updateTileBoundary (6, 2) Down Alley
+    |> updateTileBoundary (6, 1) Down Alley
+    |> updateTileBoundary (6, 0) Left Alley
+    |> updateTileBoundary (5, 0) Left Alley
+    |> updateTileBoundary (4, 0) Up Alley
+    |> updateTileBoundary (4, 3) Up Alley
+    |> updateTileBoundary (4, 4) Right Alley
+    |> updateTileBoundary (5, 4) Up Alley
+    |> updateTileBoundary (5, 5) Left Alley
+    |> updateTileBoundary (4, 5) Left Alley
+    |> updateTileBoundary (3, 5) Left Alley
+    |> updateTileBoundary (2, 5) Down Alley
+    |> updateTileBoundary (2, 4) Down Alley
+    |> updateTileBoundary (5, 5) Right Alley
+    |> updateTileBoundary (6, 5) Right Alley
+    |> updateTileBoundary (1, 0) Right Alley
+    |> updateTileBoundary (2, 0) Right Alley
+    |> updateTileBoundary (7, 0) Up Alley
+    |> updateTileBoundary (7, 1) Up Alley
+    |> updateTileBoundary (7, 2) Up Alley
+    |> updateTileBoundary (7, 3) Up Alley
+    |> updateTileBoundary (7, 3) Left Alley
+    |> updateTileBoundary (6, 3) Up Alley
+    |> updateTileBoundary (6, 3) Left Alley
+    |> updateTileBoundary (7, 4) Left Alley
+    |> updateTileBoundary (0, 4) Up Alley
+    |> updateTileBoundary (0, 4) Right Alley
+    |> updateTileBoundary (1, 4) Up Alley
+    |> updateTileBoundary (1, 5) Left Alley
     |> updateTile ( 0, 0 ) (updateTileType Start)
-    |> updateTile ( 3, 3 ) (updateTileType Goal)
-    |> updateTile ( 0, 0 ) ( updateTileBackground "vert.png")
-    |> updateTile ( 1, 1 ) ( updateTileBackground "hor.png")
-    |> updateTile ( 2, 1 ) ( updateTileBackground "hor.png")
-    |> updateTile ( 3, 1 ) ( updateTileBackground "hor.png")
-    |> updateTile ( 1, 3 ) ( updateTileBackground "hor.png")
-    |> updateTile ( 2, 3 ) ( updateTileBackground "hor.png")
-    |> updateTile ( 3, 3 ) ( updateTileBackground "hor.png")
-    |> updateTile ( 0, 2 ) ( updateTileBackground "vert.png")
-    |> updateTile ( 4, 2 ) ( updateTileBackground "vert.png")
+    |> updateTile ( 7, 5 ) (updateTileType Goal)
+    -- |> updateTile ( 0, 0 ) ( updateTileBackground "vert.png")
+    -- |> updateTile ( 1, 1 ) ( updateTileBackground "hor.png")
+    -- |> updateTile ( 2, 1 ) ( updateTileBackground "hor.png")
+    -- |> updateTile ( 3, 1 ) ( updateTileBackground "hor.png")
+    -- |> updateTile ( 1, 3 ) ( updateTileBackground "hor.png")
+    -- |> updateTile ( 2, 3 ) ( updateTileBackground "hor.png")
+    -- |> updateTile ( 3, 3 ) ( updateTileBackground "hor.png")
+    -- |> updateTile ( 0, 2 ) ( updateTileBackground "vert.png")
+    -- |> updateTile ( 4, 2 ) ( updateTileBackground "vert.png")
 
 updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
 updateGame board interpreter =

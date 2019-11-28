@@ -285,7 +285,8 @@ updateGameExecuteMode : Msg -> Executing a s -> Executing a s
 updateGameExecuteMode msg game =
     let
         { board, executor } = game
-        { x, y, orientation } = board.player
+        { player } = board
+        { x, y, orientation } = player
 
         ( updatedSolver, move ) = case executor.solver of
             Just solver ->
@@ -298,34 +299,55 @@ updateGameExecuteMode msg game =
         isFree direction =
             queryTile ( x, y ) board ( hasBoundary direction Alley )
 
-        ( movedPlayer, animation ) = case move of
+        atGoal = isPlayerAtGoal player board
+        winAnimation = { startAnimation
+                        | v = 1
+                        , playerY = Ease.outBack >> \t -> t
+                        , playerOrientation = \t -> 4 * pi * t
+                        }
+
+        loseAnimation = { startAnimation
+                        | v = 1
+                        , playerY = Ease.inBack >> \t -> -10 * t
+                        , playerOrientation = \t -> 4 * pi * t
+                        }
+
+        ( movedPlayer, animation, done ) = case move of
             Forward ->
                 if isFree orientation
                     then
                         ( updatePlayer ( movePlayer orientation )
                         , movePlayerAnimation orientation
+                        , False
                         )
                     else
-                        ( identity, noAnimation )
+                        ( identity, loseAnimation, True )
 
             TurnLeft ->
                 ( updatePlayer (turnPlayer Left)
                 , turnPlayerAnimation Left
+                , False
                 )
 
             TurnRight ->
                 ( updatePlayer (turnPlayer Right)
                 , turnPlayerAnimation Right
+                , False
                 )
 
-            _ ->
-                ( identity, noAnimation )
+            Nop ->
+                ( identity
+                , if atGoal
+                    then winAnimation
+                    else noAnimation
+                , True
+                )
     in
         if msg == EnterMode || msg == AnimationEnd
         then
             { game
             | board = movedPlayer board
-            , mode = if move == Nop
+            , mode = if done
                 then Record
                 else Execute
             , animation = animation
@@ -438,6 +460,10 @@ updateGameEditMode msg game =
 
             _ ->
                 game
+
+isPlayerAtGoal : Player -> Board -> Bool
+isPlayerAtGoal player board =
+    queryTile (player.x, player.y) board (\tile -> tile.tileType == Goal)
 
 playerAtStart : Board -> Board
 playerAtStart board =

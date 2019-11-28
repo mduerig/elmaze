@@ -101,6 +101,7 @@ type Mode
 
 type alias Tile =
     { tileType : TileType
+    , background : Maybe String
     , top : Boundary
     , left : Boundary
     , bottom : Boundary
@@ -198,6 +199,7 @@ newBoard width height =
     , tiles =
         Array.repeat (width * height)
             { tileType = Empty
+            , background = Nothing
             , top = Wall
             , left = Wall
             , bottom = Wall
@@ -520,6 +522,9 @@ updateTile ( x, y ) update board =
 updateTileType : TileType -> Tile -> Tile
 updateTileType tileType tile = { tile | tileType = tileType }
 
+updateTileBackground : String -> Tile -> Tile
+updateTileBackground background tile = { tile | background = Just background }
+
 updateTileBoundary : ( Int, Int ) -> Direction -> Boundary -> Board -> Board
 updateTileBoundary ( x, y ) direction boundary board =
     let
@@ -695,7 +700,7 @@ tilesWithIndex { width, height, tiles } =
         |> Array.toList
 
 viewTile : Float -> ( Int, Int, Tile ) -> Collage Msg
-viewTile size ( x, y, { tileType, left, top, bottom, right } )=
+viewTile size ( x, y, { tileType, background, left, top, bottom, right } )=
     let
         wallStyle wall =
             case wall of
@@ -730,8 +735,11 @@ viewTile size ( x, y, { tileType, left, top, bottom, right } )=
                 |> shiftX -(size/2)
             , group
                 tile
-            , square size
-                |> filled (uniform Color.lightYellow)
+            , background
+                |> Maybe.map
+                     ( image (size, size) )
+                |> Maybe.withDefault
+                     ( square size |> filled (uniform Color.lightYellow) )
             ]
             |> shift ( size * toFloat x, size * toFloat y )
 

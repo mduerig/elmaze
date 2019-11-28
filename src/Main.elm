@@ -2,7 +2,7 @@ module Main exposing ( main )
 
 import Game exposing
     ( Game, Board, newBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
-    , TileType(..), Msg, Direction(..), Move(..)
+    , TileType(..), Msg, Direction(..), Move(..), updateTileBackground
     )
 import Parse as P
 import Interpreter as I
@@ -24,6 +24,15 @@ testBoard = newBoard 8 6
     |> updateTileBoundary (1, 1) Left Alley
     |> updateTile ( 0, 0 ) (updateTileType Start)
     |> updateTile ( 3, 3 ) (updateTileType Goal)
+    |> updateTile ( 0, 0 ) ( updateTileBackground "vert.png")
+    |> updateTile ( 1, 1 ) ( updateTileBackground "hor.png")
+    |> updateTile ( 2, 1 ) ( updateTileBackground "hor.png")
+    |> updateTile ( 3, 1 ) ( updateTileBackground "hor.png")
+    |> updateTile ( 1, 3 ) ( updateTileBackground "hor.png")
+    |> updateTile ( 2, 3 ) ( updateTileBackground "hor.png")
+    |> updateTile ( 3, 3 ) ( updateTileBackground "hor.png")
+    |> updateTile ( 0, 2 ) ( updateTileBackground "vert.png")
+    |> updateTile ( 4, 2 ) ( updateTileBackground "vert.png")
 
 updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
 updateGame board interpreter =

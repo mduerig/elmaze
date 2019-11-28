@@ -21,8 +21,7 @@ import Task as Task
 import Ease
 
 type alias Game solver =
-    { size : Float
-    , board : Board
+    { board : Board
     , mode : Mode
     , animation : Animation
     , editor : Editor
@@ -52,7 +51,8 @@ type Move
     | Nop
 
 type alias Board =
-    { width : Int
+    { size : Float
+    , width : Int
     , height : Int
     , player : Player
     , tiles : Array Tile
@@ -146,8 +146,7 @@ initGame : Configuration solver -> ( Game solver, Cmd Msg )
 initGame { board, init, update } =
     let
         game =
-            { size = 500
-            , board = board
+            { board = board
                 |> playerAtStart
             , mode = Record
             , animation = noAnimation
@@ -188,7 +187,8 @@ noAnimation =
 
 newBoard : Int -> Int -> Board
 newBoard width height =
-    { width = width
+    { size = 500
+    , width = width
     , height = height
     , tiles =
         Array.repeat (width * height)
@@ -221,7 +221,7 @@ updateGame msg game =
     in
         case msg of
             GotViewport ( Ok { viewport } ) ->
-                ( { game | size = viewport.width }
+                ( { game | board = { board | size = viewport.width } }
                 , Cmd.none
                 )
 
@@ -500,7 +500,7 @@ viewGame game =
     let
         { board, programmer, animation, mode } = game
         { player } = board
-        cellSize = game.size / toFloat board.width
+        cellSize = board.size / toFloat board.width
 
         angle = case player.orientation of
             Left  -> pi/2

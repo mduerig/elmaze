@@ -10,7 +10,6 @@ import Collage.Text as Text
 import Color
 import Html exposing ( Html )
 import Html.Attributes as Attr
-import Html.Events exposing ( onClick, onInput )
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
 import Bootstrap.Form.Textarea as Textarea

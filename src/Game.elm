@@ -724,21 +724,7 @@ viewTile size ( x, y, { tileType, background, left, top, bottom, right } )=
                     []
     in
         group
-            [ line size
-                |> traced (wallStyle bottom)
-                |> shiftY -(size/2)
-            , line size
-                |> traced (wallStyle top)
-                |> shiftY (size/2)
-            , line size
-                |> traced (wallStyle right)
-                |> rotate (pi/2)
-                |> shiftX (size/2)
-            , line size
-                |> traced (wallStyle left)
-                |> rotate (pi/2)
-                |> shiftX -(size/2)
-            , group
+            [ group
                 tile
             , background
                 |> Maybe.map

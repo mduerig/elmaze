@@ -10,6 +10,7 @@ import Collage.Text as Text
 import Color
 import Html exposing ( Html )
 import Html.Attributes as Attr
+import Html.Events as Events
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
 import Bootstrap.Form.Textarea as Textarea
@@ -68,7 +69,8 @@ type alias Editing a =
     }
 
 type alias Programmer =
-    { program : String
+    { recordingEnabled : Bool
+    , program : String
     }
 
 type alias Programming a =
@@ -140,6 +142,7 @@ type Msg
     | AnimationEnd
     | ProgramChanged String
     | GotViewport ( Result Dom.Error Dom.Viewport )
+    | EnableRecording Bool
 
 initGame : Configuration solver -> ( Game solver, Cmd Msg )
 initGame { board, init, update } =
@@ -153,7 +156,8 @@ initGame { board, init, update } =
                 { drawStyle = Alley
                 }
             , programmer =
-                { program = ""
+                { recordingEnabled = True
+                , program = ""
                 }
             , executor =
                 { solver = Nothing
@@ -219,6 +223,11 @@ updateGame msg game =
             else { executor | solver = Nothing }
     in
         case msg of
+            EnableRecording recordingOn ->
+                ( { game | programmer = { programmer | recordingEnabled = recordingOn } }
+                , Cmd.none
+                )
+
             GotViewport ( Ok { viewport } ) ->
                 ( { game | board = { board | size = viewport.width } }
                 , Cmd.none
@@ -318,33 +327,35 @@ updateGameProgramMode msg game =
     let
         { board, programmer } = game
         { x, y, orientation } = board.player
-        { program } = programmer
+        { program, recordingEnabled } = programmer
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
     in
-        case msg of
-            KeyArrow Down ->
-                game
-
-            KeyArrow Up ->
-                if isBlocked orientation then
+        if not recordingEnabled
+            then game
+            else case msg of
+                KeyArrow Down ->
                     game
-                else
+
+                KeyArrow Up ->
+                    if isBlocked orientation then
+                        game
+                    else
+                        { game
+                        | board = updatePlayer ( movePlayer orientation ) board
+                        , animation = movePlayerAnimation orientation
+                        , programmer = { programmer | program = appendMove program Up }
+                        }
+
+                KeyArrow direction ->
                     { game
-                    | board = updatePlayer ( movePlayer orientation ) board
-                    , animation = movePlayerAnimation orientation
-                    , programmer = { programmer | program = appendMove program Up }
+                    | board = updatePlayer ( turnPlayer direction ) board
+                    , animation = turnPlayerAnimation direction
+                    , programmer = { programmer | program = appendMove program direction }
                     }
 
-            KeyArrow direction ->
-                { game
-                | board = updatePlayer ( turnPlayer direction ) board
-                , animation = turnPlayerAnimation direction
-                , programmer = { programmer | program = appendMove program direction }
-                }
-
-            _ -> game
+                _ -> game
 
 movePlayerAnimation : Direction -> Animation
 movePlayerAnimation direction =
@@ -537,6 +548,10 @@ viewGame game =
                             [ Textarea.rows 15
                             , Textarea.value <| programmer.program
                             , Textarea.onInput ProgramChanged
+                            , Textarea.attrs
+                                [ Events.onFocus <| EnableRecording False
+                                , Events.onBlur <| EnableRecording True
+                                ]
                             ]
                         , if mode == Execute
                             then Button.button

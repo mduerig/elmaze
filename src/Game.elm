@@ -13,7 +13,6 @@ import Html.Attributes as Attr
 import Html.Events exposing ( onClick, onInput )
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
-import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col

@@ -21,12 +21,12 @@ init program = Interpreter program Dict.empty
 update : G.Board -> Interpreter -> ( Interpreter, G.Move )
 update board ( Interpreter ( program ) bindings ) =
     let
-        player = board.player
+        hero = board.hero
 
         isAtGoal tile = tile.tileType == G.Goal
 
-        queryPlayer : (G.Tile -> Bool) -> Bool
-        queryPlayer = G.queryTile (player.x, player.y) board
+        queryHero : (G.Tile -> Bool) -> Bool
+        queryHero = G.queryTile (hero.x, hero.y) board
 
         evalCondition : P.Condition -> Bool
         evalCondition condition = case condition of
@@ -34,13 +34,13 @@ update board ( Interpreter ( program ) bindings ) =
                 -> not <| evalCondition notCondition
 
             P.Free
-                -> queryPlayer ( G.hasBoundary player.orientation G.Path )
+                -> queryHero ( G.hasBoundary hero.orientation G.Path )
 
             P.Blocked
-                -> queryPlayer ( G.hasBoundary player.orientation G.Wall )
+                -> queryHero ( G.hasBoundary hero.orientation G.Wall )
 
             P.Goal
-                -> queryPlayer isAtGoal
+                -> queryHero isAtGoal
 
     in
         case program of

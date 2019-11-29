@@ -38,9 +38,9 @@ type alias Game solver =
 type alias Animation =
     { v : Float
     , t : Float
-    , playerX : Float -> Float
-    , playerY : Float -> Float
-    , playerOrientation : Float -> Float
+    , heroX : Float -> Float
+    , heroY : Float -> Float
+    , heroOrientation : Float -> Float
     , onDelta : (Float -> Msg) -> Sub Msg
     }
 
@@ -60,7 +60,7 @@ type alias Board =
     { size : Float
     , width : Int
     , height : Int
-    , player : Player
+    , hero : Hero
     , tiles : Array Tile
     }
 
@@ -86,7 +86,7 @@ type Boundary
     = Wall
     | Path
 
-type alias Player =
+type alias Hero =
     { x : Int
     , y : Int
     , orientation : Direction
@@ -121,7 +121,7 @@ initGame { board, init, update } =
     let
         game =
             { board = board
-                |> playerAtStart
+                |> heroAtStart
             , mode = Program
             , animation = noAnimation
             , program =
@@ -145,9 +145,9 @@ startAnimation : Animation
 startAnimation =
     { v = 1.5
     , t = 0
-    , playerX = always 0
-    , playerY = always 0
-    , playerOrientation = always 0
+    , heroY = always 0
+    , heroX = always 0
+    , heroOrientation = always 0
     , onDelta = onAnimationFrameDelta
     }
 
@@ -171,7 +171,7 @@ newBoard width height =
             , bottom = Wall
             , right = Wall
             }
-    , player = Player 0 0 Up
+    , hero = Hero 0 0 Up
     }
 
 updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
@@ -179,8 +179,8 @@ updateGame msg game =
     let
         { board, program, executor, animation } = game
 
-        updatePlayerPos mode = if mode == Execute
-            then playerAtStart board
+        updateHeroPos mode = if mode == Execute
+            then heroAtStart board
             else board
 
         updateExecutor mode = if mode == Execute
@@ -195,7 +195,7 @@ updateGame msg game =
         case msg of
             ResetGame ->
                 ( { game
-                  | board = board |> playerAtStart
+                  | board = board |> heroAtStart
                   , program = { program | text = "" }
                   , mode = Program
                 }
@@ -239,7 +239,7 @@ updateGame msg game =
                 updateGame EnterMode
                     { game
                     | mode = mode
-                    , board = updatePlayerPos mode
+                    , board = updateHeroPos mode
                     , executor = updateExecutor mode
                     }
 
@@ -252,8 +252,8 @@ updateGameExecuteMode : Msg -> Game s -> Game s
 updateGameExecuteMode msg game =
     let
         { board, executor } = game
-        { player } = board
-        { x, y, orientation } = player
+        { hero } = board
+        { x, y, orientation } = hero
 
         ( updatedSolver, move ) = case executor.solver of
             Just solver ->
@@ -266,39 +266,39 @@ updateGameExecuteMode msg game =
         isFree direction =
             queryTile ( x, y ) board ( hasBoundary direction Path )
 
-        atGoal = isPlayerAtGoal player board
+        atGoal = isHeroAtGoal hero board
         winAnimation = { startAnimation
                         | v = 1
-                        , playerY = Ease.outBack >> \t -> t
-                        , playerOrientation = \t -> 4 * pi * t
+                        , heroY = Ease.outBack >> \t -> t
+                        , heroOrientation = \t -> 4 * pi * t
                         }
 
         loseAnimation = { startAnimation
                         | v = 1
-                        , playerY = Ease.inBack >> \t -> -10 * t
-                        , playerOrientation = \t -> 4 * pi * t
+                        , heroY = Ease.inBack >> \t -> -10 * t
+                        , heroOrientation = \t -> 4 * pi * t
                         }
 
-        ( movedPlayer, animation, done ) = case move of
+        ( movedHero, animation, done ) = case move of
             Forward ->
                 if isFree orientation
                     then
-                        ( updatePlayer ( movePlayer orientation )
-                        , movePlayerAnimation orientation
+                        ( updateHero ( moveHero orientation )
+                        , moveHeroAnimation orientation
                         , False
                         )
                     else
                         ( identity, loseAnimation, True )
 
             TurnLeft ->
-                ( updatePlayer (turnPlayer Left)
-                , turnPlayerAnimation Left
+                ( updateHero (turnHero Left)
+                , turnHeroAnimation Left
                 , False
                 )
 
             TurnRight ->
-                ( updatePlayer (turnPlayer Right)
-                , turnPlayerAnimation Right
+                ( updateHero (turnHero Right)
+                , turnHeroAnimation Right
                 , False
                 )
 
@@ -313,7 +313,7 @@ updateGameExecuteMode msg game =
         if msg == EnterMode || msg == AnimationEnd
         then
             { game
-            | board = movedPlayer board
+            | board = movedHero board
             , mode = if done
                 then Program
                 else Execute
@@ -327,7 +327,7 @@ updateGameProgramMode : Msg -> Game a -> Game a
 updateGameProgramMode msg game =
     let
         { board, program } = game
-        { x, y, orientation } = board.player
+        { x, y, orientation } = board.hero
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
@@ -343,73 +343,73 @@ updateGameProgramMode msg game =
                         game
                     else
                         { game
-                        | board = updatePlayer ( movePlayer orientation ) board
-                        , animation = movePlayerAnimation orientation
+                        | board = updateHero ( moveHero orientation ) board
+                        , animation = moveHeroAnimation orientation
                         , program = { program | text = appendMove program.text Up }
                         }
 
                 KeyArrow direction ->
                     { game
-                    | board = updatePlayer ( turnPlayer direction ) board
-                    , animation = turnPlayerAnimation direction
+                    | board = updateHero ( turnHero direction ) board
+                    , animation = turnHeroAnimation direction
                     , program = { program | text = appendMove program.text direction }
                     }
 
                 _ -> game
 
-movePlayerAnimation : Direction -> Animation
-movePlayerAnimation direction =
+moveHeroAnimation : Direction -> Animation
+moveHeroAnimation direction =
     case direction of
-        Left  -> { startAnimation | playerX = Ease.inOutBack >> \t -> 1 - t }
-        Right -> { startAnimation | playerX = Ease.inOutBack >> \t -> t - 1 }
-        Up    -> { startAnimation | playerY = Ease.inOutBack >> \t -> t - 1 }
-        Down  -> { startAnimation | playerY = Ease.inOutBack >> \t -> 1 - t }
+        Left  -> { startAnimation | heroX = Ease.inOutBack >> \t -> 1 - t }
+        Right -> { startAnimation | heroX = Ease.inOutBack >> \t -> t - 1 }
+        Up    -> { startAnimation | heroY = Ease.inOutBack >> \t -> t - 1 }
+        Down  -> { startAnimation | heroY = Ease.inOutBack >> \t -> 1 - t }
 
-turnPlayerAnimation : Direction -> Animation
-turnPlayerAnimation direction =
+turnHeroAnimation : Direction -> Animation
+turnHeroAnimation direction =
     case direction of
-        Left  -> { startAnimation | playerOrientation = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
-        Right -> { startAnimation | playerOrientation = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
+        Left  -> { startAnimation | heroOrientation = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
+        Right -> { startAnimation | heroOrientation = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
         _     ->   startAnimation
 
-isPlayerAtGoal : Player -> Board -> Bool
-isPlayerAtGoal player board =
-    queryTile (player.x, player.y) board (\tile -> tile.tileType == Goal)
+isHeroAtGoal : Hero -> Board -> Bool
+isHeroAtGoal hero board =
+    queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
-playerAtStart : Board -> Board
-playerAtStart board =
+heroAtStart : Board -> Board
+heroAtStart board =
     let
-        startTileToPlayer (x, y, tile) = if tile.tileType == Start
-            then Just (Player x y Up)
+        startTileToHero (x, y, tile) = if tile.tileType == Start
+            then Just (Hero x y Up)
             else Nothing
 
-        player = tilesWithIndex board
-            |> List.filterMap startTileToPlayer
+        hero = tilesWithIndex board
+            |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault (Player 0 0 Up)
+            |> Maybe.withDefault (Hero 0 0 Up)
     in
-        { board | player = player }
+        { board | hero = hero }
 
-movePlayer : Direction -> Player -> Player
-movePlayer direction player =
+moveHero : Direction -> Hero -> Hero
+moveHero direction hero =
     case direction of
-        Right -> { player | x = player.x + 1 }
-        Left  -> { player | x = player.x - 1 }
-        Up    -> { player | y = player.y + 1 }
-        Down  -> { player | y = player.y - 1 }
+        Right -> { hero | x = hero.x + 1 }
+        Left  -> { hero | x = hero.x - 1 }
+        Up    -> { hero | y = hero.y + 1 }
+        Down  -> { hero | y = hero.y - 1 }
 
-turnPlayer : Direction -> Player -> Player
-turnPlayer direction player =
-    { player | orientation =
+turnHero : Direction -> Hero -> Hero
+turnHero direction hero =
+    { hero | orientation =
         case direction of
-            Right -> rightOfDirection player.orientation
-            Left  -> leftOfDirection player.orientation
-            _     -> player.orientation
+            Right -> rightOfDirection hero.orientation
+            Left  -> leftOfDirection hero.orientation
+            _     -> hero.orientation
         }
 
-updatePlayer : ( Player -> Player ) -> Board -> Board
-updatePlayer update board =
-    { board | player = update board.player}
+updateHero : ( Hero -> Hero ) -> Board -> Board
+updateHero update board =
+    { board | hero = update board.hero}
 
 queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
@@ -467,26 +467,26 @@ viewGame : Game solver -> List (Html Msg)
 viewGame game =
     let
         { board, program, animation, mode } = game
-        { player } = board
+        { hero } = board
         cellSize = board.size / toFloat board.width
 
-        angle = case player.orientation of
+        angle = case hero.orientation of
             Left  -> pi/2
             Up    -> 0
             Right -> -pi/2
             Down  -> pi
 
-        viewPlayer =
+        viewHero =
             [ Text.fromString "🐞"
                 |> Text.size (round (cellSize/5*3))
                 |> rendered
-                |> rotate ( angle + animation.playerOrientation animation.t )
+                |> rotate ( angle + animation.heroOrientation animation.t )
             , circle (cellSize/5*2)
                 |> filled transparent
             ]
             |> group
-            |> shiftX ( cellSize * ( toFloat player.x + animation.playerX animation.t ) )
-            |> shiftY ( cellSize * ( toFloat player.y + animation.playerY animation.t ) )
+            |> shiftX ( cellSize * ( toFloat hero.x + animation.heroX animation.t ) )
+            |> shiftY ( cellSize * ( toFloat hero.y + animation.heroY animation.t ) )
     in
         [ CDN.stylesheet
         , Grid.containerFluid []
@@ -498,7 +498,7 @@ viewGame game =
             , Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
-                    [ viewPlayer ::
+                    [ viewHero ::
                         ( tilesWithIndex board
                             |> List.map  ( viewTile cellSize )
                         )

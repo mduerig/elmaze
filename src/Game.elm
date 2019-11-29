@@ -552,6 +552,7 @@ viewGame game =
                         , Button.button
                             [ Button.outlineWarning
                             , Button.block
+                            , Button.disabled <| mode == Execute
                             , Button.onClick ResetGame
                             ]
                             [ Html.text "Reset"]

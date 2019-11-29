@@ -34,7 +34,7 @@ update board ( Interpreter ( program ) bindings ) =
                 -> not <| evalCondition notCondition
 
             P.Free
-                -> queryPlayer ( G.hasBoundary player.orientation G.Alley )
+                -> queryPlayer ( G.hasBoundary player.orientation G.Path )
 
             P.Blocked
                 -> queryPlayer ( G.hasBoundary player.orientation G.Wall )

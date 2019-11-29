@@ -84,7 +84,7 @@ type TileType
 
 type Boundary
     = Wall
-    | Alley
+    | Path
 
 type alias Player =
     { x : Int
@@ -264,7 +264,7 @@ updateGameExecuteMode msg game =
                 ( Nothing, Nop )
 
         isFree direction =
-            queryTile ( x, y ) board ( hasBoundary direction Alley )
+            queryTile ( x, y ) board ( hasBoundary direction Path )
 
         atGoal = isPlayerAtGoal player board
         winAnimation = { startAnimation
@@ -607,7 +607,7 @@ viewTile size ( x, y, { tileType, background, left, top, bottom, right } )=
         wallStyle wall =
             case wall of
                 Wall  -> solid thin (uniform Color.black)
-                Alley -> invisible
+                Path -> invisible
 
         tile =
             case tileType of

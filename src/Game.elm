@@ -24,7 +24,6 @@ type alias Game solver =
     { board : Board
     , mode : Mode
     , animation : Animation
-    , editor : Editor
     , programmer : Programmer
     , executor : Executor solver
     }
@@ -58,16 +57,6 @@ type alias Board =
     , tiles : Array Tile
     }
 
-type alias Editor =
-    { forgePath : Bool
-    }
-
-type alias Editing a =
-    { a
-    | board : Board
-    , editor : Editor
-    }
-
 type alias Programmer =
     { recordingEnabled : Bool
     , program : String
@@ -95,8 +84,7 @@ type alias Executing a solver =
     }
 
 type Mode
-    = Edit
-    | Record
+    = Record
     | Execute
 
 type alias Tile =
@@ -155,9 +143,6 @@ initGame { board, init, update } =
                 |> playerAtStart
             , mode = Record
             , animation = noAnimation
-            , editor =
-                { forgePath = False
-                }
             , programmer =
                 { recordingEnabled = True
                 , program = ""
@@ -280,7 +265,6 @@ updateGame msg game =
             _ ->
                 case game.mode of
                     Record -> ( updateGameProgramMode msg game, Cmd.none )
-                    Edit    -> ( updateGameEditMode msg game, Cmd.none )
                     Execute -> ( updateGameExecuteMode msg game, Cmd.none)
 
 updateGameExecuteMode : Msg -> Executing a s -> Executing a s
@@ -407,61 +391,6 @@ turnPlayerAnimation direction =
         Left  -> { startAnimation | playerOrientation = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
         Right -> { startAnimation | playerOrientation = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
         _     ->   startAnimation
-
-updateGameEditMode : Msg -> Editing a -> Editing a
-updateGameEditMode msg game =
-    let
-        { board, editor } = game
-        { width, height } = board
-        { x, y } = board.player
-        { forgePath } = editor
-
-        offBoard direction =
-            case direction of
-                Right -> x + 1 >= width
-                Left  -> x <= 0
-                Up    -> y + 1 >= height
-                Down  -> y <= 0
-
-        removeWall direction = updateTileBoundary ( x, y ) direction Alley
-
-        addWalls =
-            updateTileBoundary ( x, y ) Up Wall
-         << updateTileBoundary ( x, y ) Down Wall
-         << updateTileBoundary ( x, y ) Left Wall
-         << updateTileBoundary ( x, y ) Right Wall
-    in
-        case msg of
-            KeyShift True ->
-                { game | editor = { editor | forgePath = True }}
-
-            KeyShift False ->
-                { game | editor = { editor | forgePath = False }}
-
-            KeyEscape ->
-                let
-                    updatedBoard = board
-                        |> addWalls
-                in
-                    { game | board = updatedBoard }
-
-
-            KeyArrow direction ->
-                let
-                    updatedBoard = board
-                        |> updatePlayer ( movePlayer direction )
-                        |> if forgePath
-                                then removeWall direction
-                                else identity
-                in
-                    { game | board =
-                        if offBoard direction
-                            then board
-                            else updatedBoard
-                    }
-
-            _ ->
-                game
 
 isPlayerAtGoal : Player -> Board -> Bool
 isPlayerAtGoal player board =
@@ -624,22 +553,8 @@ viewGame game =
                             [ Button.outlineWarning
                             , Button.block
                             , Button.onClick ResetGame
-                            , Button.disabled <| mode == Edit
                             ]
                             [ Html.text "reset game"]
-                        , if mode == Edit
-                            then Button.button
-                                [ Button.secondary
-                                , Button.block
-                                , Button.onClick
-                                    <| SwitchMode Record ]
-                                [ Html.text "edit" ]
-                            else Button.button
-                                [ Button.outlineSecondary
-                                , Button.block
-                                , Button.onClick
-                                    <| SwitchMode Edit ]
-                                [ Html.text "edit" ]
                         ]
                     ]
                 , Grid.col [] []

@@ -62,25 +62,10 @@ type alias Programmer =
     , program : String
     }
 
-type alias Programming a =
-    { a
-    | board : Board
-    , animation : Animation
-    , programmer : Programmer
-    }
-
 type alias Executor solver =
     { solver : Maybe solver
     , init : Board -> String -> solver
     , update : Board -> solver -> ( solver, Move )
-    }
-
-type alias Executing a solver =
-    { a
-    | board : Board
-    , mode : Mode
-    , animation : Animation
-    , executor : Executor solver
     }
 
 type Mode
@@ -267,7 +252,7 @@ updateGame msg game =
                     Record -> ( updateGameProgramMode msg game, Cmd.none )
                     Execute -> ( updateGameExecuteMode msg game, Cmd.none)
 
-updateGameExecuteMode : Msg -> Executing a s -> Executing a s
+updateGameExecuteMode : Msg -> Game s -> Game s
 updateGameExecuteMode msg game =
     let
         { board, executor } = game
@@ -342,7 +327,7 @@ updateGameExecuteMode msg game =
         else
             game
 
-updateGameProgramMode : Msg -> Programming a -> Programming a
+updateGameProgramMode : Msg -> Game a -> Game a
 updateGameProgramMode msg game =
     let
         { board, programmer } = game

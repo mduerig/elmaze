@@ -34,10 +34,10 @@ update board ( Interpreter ( program ) bindings ) =
                 -> not <| evalCondition notCondition
 
             P.Free
-                -> queryHero ( G.hasBoundary hero.orientation G.Path )
+                -> queryHero ( G.hasBoundary hero.phi G.Path )
 
             P.Blocked
-                -> queryHero ( G.hasBoundary hero.orientation G.Wall )
+                -> queryHero ( G.hasBoundary hero.phi G.Wall )
 
             P.Goal
                 -> queryHero isAtGoal

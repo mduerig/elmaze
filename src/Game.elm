@@ -328,12 +328,11 @@ updateGameProgramMode msg game =
     let
         { board, program } = game
         { x, y, orientation } = board.player
-        { recordingEnabled } = program
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
     in
-        if not recordingEnabled
+        if not program.recordingEnabled
             then game
             else case msg of
                 KeyArrow Down ->
@@ -604,11 +603,6 @@ tilesWithIndex { width, height, tiles } =
 viewTile : Float -> ( Int, Int, Tile ) -> Collage Msg
 viewTile size ( x, y, { tileType, background, left, top, bottom, right } )=
     let
-        wallStyle wall =
-            case wall of
-                Wall  -> solid thin (uniform Color.black)
-                Path -> invisible
-
         tile =
             case tileType of
                 Goal ->

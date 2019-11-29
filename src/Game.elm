@@ -24,8 +24,15 @@ type alias Game solver =
     { board : Board
     , mode : Mode
     , animation : Animation
-    , programmer : Programmer
-    , executor : Executor solver
+    , program :
+        { recordingEnabled : Bool
+        , text : String
+        }
+    , executor :
+        { solver : Maybe solver
+        , init : Board -> String -> solver
+        , update : Board -> solver -> ( solver, Move )
+        }
     }
 
 type alias Animation =
@@ -57,19 +64,8 @@ type alias Board =
     , tiles : Array Tile
     }
 
-type alias Programmer =
-    { recordingEnabled : Bool
-    , program : String
-    }
-
-type alias Executor solver =
-    { solver : Maybe solver
-    , init : Board -> String -> solver
-    , update : Board -> solver -> ( solver, Move )
-    }
-
 type Mode
-    = Record
+    = Program
     | Execute
 
 type alias Tile =
@@ -126,11 +122,11 @@ initGame { board, init, update } =
         game =
             { board = board
                 |> playerAtStart
-            , mode = Record
+            , mode = Program
             , animation = noAnimation
-            , programmer =
+            , program =
                 { recordingEnabled = True
-                , program = ""
+                , text = ""
                 }
             , executor =
                 { solver = Nothing
@@ -181,7 +177,7 @@ newBoard width height =
 updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
 updateGame msg game =
     let
-        { board, programmer, executor, animation } = game
+        { board, program, executor, animation } = game
 
         updatePlayerPos mode = if mode == Execute
             then playerAtStart board
@@ -192,7 +188,7 @@ updateGame msg game =
                  | solver = Just
                      <| executor.init board
                      <| ensureTrailingLF
-                     <| programmer.program
+                     <| program.text
                  }
             else { executor | solver = Nothing }
     in
@@ -200,15 +196,15 @@ updateGame msg game =
             ResetGame ->
                 ( { game
                   | board = board |> playerAtStart
-                  , programmer = { programmer | program = "" }
-                  , mode = Record
+                  , program = { program | text = "" }
+                  , mode = Program
                 }
                 , Cmd.none
                 )
 
 
             EnableRecording recordingOn ->
-                ( { game | programmer = { programmer | recordingEnabled = recordingOn } }
+                ( { game | program = { program | recordingEnabled = recordingOn } }
                 , Cmd.none
                 )
 
@@ -235,7 +231,7 @@ updateGame msg game =
                         updateGame AnimationEnd { game | animation = noAnimation }
 
             ProgramChanged newProgram ->
-                ( { game | programmer = { programmer | program = newProgram } }
+                ( { game | program = { program | text = newProgram } }
                 , Cmd.none
                 )
 
@@ -249,7 +245,7 @@ updateGame msg game =
 
             _ ->
                 case game.mode of
-                    Record -> ( updateGameProgramMode msg game, Cmd.none )
+                    Program -> ( updateGameProgramMode msg game, Cmd.none )
                     Execute -> ( updateGameExecuteMode msg game, Cmd.none)
 
 updateGameExecuteMode : Msg -> Game s -> Game s
@@ -319,7 +315,7 @@ updateGameExecuteMode msg game =
             { game
             | board = movedPlayer board
             , mode = if done
-                then Record
+                then Program
                 else Execute
             , animation = animation
             , executor = { executor | solver = updatedSolver }
@@ -330,9 +326,9 @@ updateGameExecuteMode msg game =
 updateGameProgramMode : Msg -> Game a -> Game a
 updateGameProgramMode msg game =
     let
-        { board, programmer } = game
+        { board, program } = game
         { x, y, orientation } = board.player
-        { program, recordingEnabled } = programmer
+        { recordingEnabled } = program
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
@@ -350,14 +346,14 @@ updateGameProgramMode msg game =
                         { game
                         | board = updatePlayer ( movePlayer orientation ) board
                         , animation = movePlayerAnimation orientation
-                        , programmer = { programmer | program = appendMove program Up }
+                        , program = { program | text = appendMove program.text Up }
                         }
 
                 KeyArrow direction ->
                     { game
                     | board = updatePlayer ( turnPlayer direction ) board
                     , animation = turnPlayerAnimation direction
-                    , programmer = { programmer | program = appendMove program direction }
+                    , program = { program | text = appendMove program.text direction }
                     }
 
                 _ -> game
@@ -471,7 +467,7 @@ hasBoundary direction boundary tile =
 viewGame : Game solver -> List (Html Msg)
 viewGame game =
     let
-        { board, programmer, animation, mode } = game
+        { board, program, animation, mode } = game
         { player } = board
         cellSize = board.size / toFloat board.width
 
@@ -514,7 +510,7 @@ viewGame game =
                     [ Html.div []
                         [ Textarea.textarea
                             [ Textarea.rows 15
-                            , Textarea.value <| programmer.program
+                            , Textarea.value <| program.text
                             , Textarea.onInput ProgramChanged
                             , Textarea.attrs
                                 [ Events.onFocus <| EnableRecording False
@@ -525,13 +521,13 @@ viewGame game =
                             then Button.button
                                 [ Button.danger
                                 , Button.block
-                                , Button.onClick <| SwitchMode Record
+                                , Button.onClick <| SwitchMode Program
                                 ]
                                 [ Html.text "Stop" ]
                             else Button.button
                                 [ Button.outlineSuccess
                                 , Button.block
-                                , Button.disabled <| mode /= Record
+                                , Button.disabled <| mode /= Program
                                 , Button.onClick <| SwitchMode Execute ]
                                 [ Html.text "Go!" ]
                         , Button.button

@@ -542,19 +542,19 @@ viewGame game =
                                 , Button.block
                                 , Button.onClick <| SwitchMode Record
                                 ]
-                                [ Html.text "stop" ]
+                                [ Html.text "Stop" ]
                             else Button.button
                                 [ Button.outlineSuccess
                                 , Button.block
                                 , Button.disabled <| mode /= Record
                                 , Button.onClick <| SwitchMode Execute ]
-                                [ Html.text "run" ]
+                                [ Html.text "Go!" ]
                         , Button.button
                             [ Button.outlineWarning
                             , Button.block
                             , Button.onClick ResetGame
                             ]
-                            [ Html.text "reset game"]
+                            [ Html.text "Reset"]
                         ]
                     ]
                 , Grid.col [] []

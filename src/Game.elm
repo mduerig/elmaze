@@ -172,10 +172,8 @@ newBoard width height =
     }
 
 updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
-updateGame msg game =
+updateGame msg  ( { board, program, executor } as game ) =
     let
-        { board, program, executor } = game
-
         initHero mode = if mode == Execute
             then resetHero board
             else board
@@ -214,17 +212,16 @@ updateGame msg game =
 
             AnimationFrame dt ->
                 let
-                    animation = board.animation
-                    nextFrame = { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
+                    { v, t } = board.animation
                 in
-                    if animation.v == 0 then
+                    if v == 0 then
                         ( game, Cmd.none )
-                    else if animation.t == 0 then
-                        updateGame AnimationStart { game | board = nextFrame }
-                    else if animation.t < 1 then
-                        updateGame AnimationStep { game | board = nextFrame }
+                    else if t == 0 then
+                        updateGame AnimationStart { game | board = board |> advanceAnimation dt }
+                    else if t < 1 then
+                        updateGame AnimationStep  { game | board = board |> advanceAnimation dt }
                     else
-                        updateGame AnimationEnd { game | board = stopAnimation board }
+                        updateGame AnimationEnd   { game | board = board |> stopAnimation }
 
             ProgramChanged newProgram ->
                 ( { game | program = { program | text = newProgram } }
@@ -245,11 +242,9 @@ updateGame msg game =
                     Execute -> ( updateGameExecuteMode msg game, Cmd.none)
 
 updateGameExecuteMode : Msg -> Game s -> Game s
-updateGameExecuteMode msg game =
+updateGameExecuteMode msg ( { board, executor } as game ) =
     let
-        { board, executor } = game
-        { hero } = board
-        { x, y, phi } = hero
+        { x, y, phi } = board.hero
 
         ( updatedSolver, move ) = case executor.solver of
             Just solver ->
@@ -262,7 +257,7 @@ updateGameExecuteMode msg game =
         isFree direction =
             queryTile ( x, y ) board ( hasBoundary direction Path )
 
-        atGoal = isHeroAtGoal hero board
+        atGoal = isHeroAtGoal board.hero board
         winAnimation =
             { noHeroAnimation
             | dY = Ease.outBack >> \t -> t
@@ -275,7 +270,7 @@ updateGameExecuteMode msg game =
             , dPhi = \t -> 4 * pi * t
             }
 
-        ( movedHero, mode ) = case move of
+        ( heroAction, mode ) = case move of
             Forward ->
                 if isFree phi
                     then
@@ -306,14 +301,17 @@ updateGameExecuteMode msg game =
 
             Nop ->
                 ( updateHero
-                    <| animateHero (if atGoal then winAnimation else noHeroAnimation)
+                    <| if atGoal
+                        then animateHero winAnimation
+                        else animateHero noHeroAnimation
                 , Program
                 )
     in
         if msg == EnterMode || msg == AnimationEnd
         then
             { game
-            | board = board |> startAnimation >> movedHero
+            | board = board
+                |> startAnimation >> heroAction
             , mode = mode
             , executor = { executor | solver = updatedSolver }
             }
@@ -321,9 +319,8 @@ updateGameExecuteMode msg game =
             game
 
 updateGameProgramMode : Msg -> Game a -> Game a
-updateGameProgramMode msg game =
+updateGameProgramMode msg ( { board, program } as game ) =
     let
-        { board, program } = game
         { x, y, phi } = board.hero
 
         isBlocked direction =
@@ -335,7 +332,8 @@ updateGameProgramMode msg game =
             else case msg of
                 AnimationEnd ->
                         { game
-                        | board = board |> stopAnimation
+                        | board = board
+                            |> stopAnimation
                             |> updateHero ( animateHero noHeroAnimation )
                         }
 
@@ -344,21 +342,23 @@ updateGameProgramMode msg game =
                         game
                     else
                         { game
-                        | board = (board |> startAnimation) |>
-                            ( updateHero
-                                <| moveHero phi
-                                << animateHero (moveHeroAnimation phi)
-                            )
+                        | board = board
+                            |> startAnimation
+                            |> ( updateHero
+                                   <| moveHero phi
+                                   << animateHero ( moveHeroAnimation phi )
+                               )
                         , program = { program | text = appendMove program.text Up }
                         }
 
                 KeyArrow direction ->
                     { game
-                    | board = (board |> startAnimation) |>
-                        ( updateHero
-                            <| turnHero direction
-                            << animateHero (turnHeroAnimation direction)
-                        )
+                    | board = board
+                        |> startAnimation
+                        |> ( updateHero
+                               <| turnHero direction
+                               << animateHero ( turnHeroAnimation direction )
+                           )
                     , program = { program | text = appendMove program.text direction }
                     }
 
@@ -366,17 +366,18 @@ updateGameProgramMode msg game =
 
 stopAnimation : Board -> Board
 stopAnimation board =
-    let
-        animation = board.animation
-    in
-        { board | animation = { animation | t = 0, onDelta = always Sub.none }}
+    let animation = board.animation
+    in  { board | animation = { animation | t = 0, onDelta = always Sub.none }}
 
 startAnimation : Board -> Board
 startAnimation board =
-    let
-        animation = board.animation
-    in
-        { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
+    let animation = board.animation
+    in { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
+
+advanceAnimation : Float -> Board -> Board
+advanceAnimation dt board =
+    let animation = board.animation
+    in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
 moveHeroAnimation : Direction -> HeroAnimation
 moveHeroAnimation direction =
@@ -426,7 +427,7 @@ turnHero direction hero =
             Right -> rightOfDirection hero.phi
             Left  -> leftOfDirection hero.phi
             _     -> hero.phi
-        }
+    }
 
 animateHero : HeroAnimation -> Hero -> Hero
 animateHero animation hero =
@@ -443,9 +444,8 @@ queryTile ( x, y ) { width, height, tiles } query =
         |> Maybe.withDefault True
 
 updateTile : ( Int, Int ) -> (Tile -> Tile) -> Board -> Board
-updateTile ( x, y ) update board =
+updateTile ( x, y ) update ( { width, height, tiles } as board ) =
     let
-        { width, height, tiles } = board
         i = (height - 1 - y) * width + x
         set tile = { board | tiles = Array.set i tile tiles }
     in
@@ -476,9 +476,9 @@ updateTileBoundary ( x, y ) direction boundary board =
                 Left  -> ( x - 1, y )
                 Right -> ( x + 1, y )
     in
-    board
-        |> updateTile ( x, y ) (update direction)
-        |> updateTile neighbour (update <| oppositeDirection direction)
+        board
+            |> updateTile ( x, y ) (update direction)
+            |> updateTile neighbour (update <| oppositeDirection direction)
 
 hasBoundary : Direction -> Boundary -> Tile -> Bool
 hasBoundary direction boundary tile =
@@ -489,9 +489,8 @@ hasBoundary direction boundary tile =
         Down  -> tile.bottom
 
 viewGame : Game solver -> List (Html Msg)
-viewGame game =
+viewGame { board, program, mode } =
     let
-        { board, program, mode } = game
         { hero, animation } = board
         cellSize = board.size / toFloat board.width
 

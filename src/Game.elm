@@ -639,6 +639,13 @@ viewTile size ( x, y, { tileType, background } )=
                         |> rendered
                     ]
 
+                Start ->
+                    [ Text.fromString "🌟"
+                        |> Text.size (round (size/5*4))
+                        |> rendered
+                        |> shiftY (-size/5)
+                    ]
+
                 _ ->
                     []
     in

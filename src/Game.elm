@@ -23,10 +23,8 @@ import Ease
 type alias Game solver =
     { board : Board
     , mode : Mode
-    , program :
-        { recordingEnabled : Bool
-        , text : String
-        }
+    , recordingEnabled : Bool
+    , programText : String
     , executor :
         { solver : Maybe solver
         , init : Board -> String -> solver
@@ -51,12 +49,14 @@ type alias Board =
     , width : Int
     , height : Int
     , tiles : Array Tile
-    , hero : Hero
-    , animation :
-        { v : Float
-        , t : Float
-        , onDelta : (Float -> Msg) -> Sub Msg
-        }
+    , actors : List Actor
+    , animation : Animation
+    }
+
+type alias Animation =
+    { v : Float
+    , t : Float
+    , onDelta : (Float -> Msg) -> Sub Msg
     }
 
 type Mode
@@ -81,17 +81,31 @@ type Boundary
     = Wall
     | Path
 
-type alias HeroAnimation =
-    { dX : Float -> Float
-    , dY : Float -> Float
-    , dPhi : Float -> Float
-    }
+type Actor
+    = Hero HeroData
 
-type alias Hero =
+type ActorReaction solver
+    = None
+    | ExecutionResult MoveResult ( Maybe solver )
+    | Record Move
+
+type MoveResult
+    = Moving
+    | Stalled
+    | Won
+    | Lost
+
+type alias HeroData =
     { x : Int
     , y : Int
     , phi : Direction
     , animation : HeroAnimation
+    }
+
+type alias HeroAnimation =
+    { dX : Float -> Float
+    , dY : Float -> Float
+    , dPhi : Float -> Float
     }
 
 type Direction
@@ -125,10 +139,8 @@ initGame { board, init, update } =
             { board = board
                 |> resetHero
             , mode = Program
-            , program =
-                { recordingEnabled = True
-                , text = ""
-                }
+            , recordingEnabled = True
+            , programText = ""
             , executor =
                 { solver = Nothing
                 , init = init
@@ -163,7 +175,14 @@ newBoard width height =
             , bottom = Wall
             , right = Wall
             }
-    , hero = Hero 0 0 Up noHeroAnimation
+    , actors =
+        [ Hero
+            { x = 0
+            , y = 0
+            , phi = Up
+            , animation = noHeroAnimation
+            }
+        ]
     , animation =
         { v = 1.5
         , t = 0
@@ -172,7 +191,7 @@ newBoard width height =
     }
 
 updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
-updateGame msg  ( { board, program, executor } as game ) =
+updateGame msg  ( { board, programText, executor } as game ) =
     let
         initHero mode = if mode == Execute
             then resetHero board
@@ -183,7 +202,7 @@ updateGame msg  ( { board, program, executor } as game ) =
                  | solver = Just
                      <| executor.init board
                      <| ensureTrailingLF
-                     <| program.text
+                     <| programText
                  }
             else { executor | solver = Nothing }
     in
@@ -191,14 +210,14 @@ updateGame msg  ( { board, program, executor } as game ) =
             ResetGame ->
                 ( { game
                   | board = board |> resetHero
-                  , program = { program | text = "" }
+                  , programText = ""
                   , mode = Program
                 }
                 , Cmd.none
                 )
 
             EnableRecording recordingOn ->
-                ( { game | program = { program | recordingEnabled = recordingOn } }
+                ( { game | recordingEnabled = recordingOn }
                 , Cmd.none
                 )
 
@@ -212,11 +231,9 @@ updateGame msg  ( { board, program, executor } as game ) =
 
             AnimationFrame dt ->
                 let
-                    { v, t } = board.animation
+                    t = board.animation.t
                 in
-                    if v == 0 then
-                        ( game, Cmd.none )
-                    else if t == 0 then
+                    if t == 0 then
                         updateGame AnimationStart { game | board = board |> advanceAnimation dt }
                     else if t < 1 then
                         updateGame AnimationStep  { game | board = board |> advanceAnimation dt }
@@ -224,7 +241,7 @@ updateGame msg  ( { board, program, executor } as game ) =
                         updateGame AnimationEnd   { game | board = board |> stopAnimation }
 
             ProgramChanged newProgram ->
-                ( { game | program = { program | text = newProgram } }
+                ( { game | programText = newProgram }
                 , Cmd.none
                 )
 
@@ -237,14 +254,109 @@ updateGame msg  ( { board, program, executor } as game ) =
                     }
 
             _ ->
-                case game.mode of
-                    Program -> ( updateGameProgramMode msg game, Cmd.none )
-                    Execute -> ( updateGameExecuteMode msg game, Cmd.none)
+                ( updateActors msg game, Cmd.none )
 
-updateGameExecuteMode : Msg -> Game s -> Game s
-updateGameExecuteMode msg ( { board, executor } as game ) =
+updateActors : Msg -> Game s -> Game s
+updateActors msg game =
     let
-        { x, y, phi } = board.hero
+        reactions = game.board.actors
+            |> List.map (updateActor msg game)
+
+        gameWithReactions = List.map Tuple.second reactions
+            |> List.foldl applyReaction game
+
+        setActors board =
+            { board | actors = List.map Tuple.first reactions }
+    in
+        { gameWithReactions
+        | board = setActors gameWithReactions.board
+        }
+
+applyReaction : ActorReaction s -> Game s -> Game s
+applyReaction reaction ( { board, executor } as game ) =
+    case reaction of
+        ExecutionResult result solver ->
+            { game
+            | mode = if result == Moving
+                then Execute
+                else Program
+            , executor = { executor | solver = solver }
+            , board = startAnimation board
+            }
+
+        Record move ->
+            { game
+            | programText = appendMove game.programText move
+            , board = board
+                |> if move == Nop
+                      then identity
+                      else startAnimation
+            }
+
+        None ->
+            game
+
+updateActor : Msg -> Game s -> Actor -> ( Actor, ActorReaction s )
+updateActor msg game actor =
+    case actor of
+        Hero heroData ->
+            updateHeroData msg game heroData
+
+updateHeroData : Msg -> Game s -> HeroData -> ( Actor, ActorReaction s )
+updateHeroData msg game hero =
+    case game.mode of
+        Program ->
+            updateHeroDataProgramMode msg game hero
+
+        Execute ->
+            updateHeroDataExecuteMode msg game hero
+
+updateHeroDataProgramMode : Msg -> Game s ->  HeroData -> ( Actor, ActorReaction s )
+updateHeroDataProgramMode msg { board, recordingEnabled } hero =
+    let
+        { x, y, phi } = hero
+
+        isBlocked direction =
+            queryTile ( x, y ) board ( hasBoundary direction Wall )
+    in
+        if not recordingEnabled
+            then
+                ( Hero hero, None )
+            else
+                case msg of
+                    AnimationEnd ->
+                        ( Hero
+                            <| animateHero noHeroAnimation hero
+                        , Record Nop
+                        )
+
+                    KeyArrow Up ->
+                        if isBlocked phi then
+                            ( Hero hero, None )
+                        else
+                            ( Hero
+                                <| moveHero phi
+                                    << animateHero ( moveHeroAnimation phi )
+                                <| hero
+                            , Record
+                                <| directionToMove Up
+                            )
+
+                    KeyArrow direction ->
+                        ( Hero
+                            <| turnHero direction
+                                << animateHero ( turnHeroAnimation direction )
+                            <| hero
+                        , Record
+                            <| directionToMove direction
+                        )
+
+                    _ -> ( Hero hero, None )
+
+updateHeroDataExecuteMode : Msg -> Game s -> HeroData -> ( Actor, ActorReaction s )
+updateHeroDataExecuteMode msg { executor, board } hero =
+    let
+        { x, y, phi } = hero
 
         ( updatedSolver, move ) = case executor.solver of
             Just solver ->
@@ -257,7 +369,7 @@ updateGameExecuteMode msg ( { board, executor } as game ) =
         isFree direction =
             queryTile ( x, y ) board ( hasBoundary direction Path )
 
-        atGoal = isHeroAtGoal board.hero board
+        atGoal = isHeroAtGoal hero board
         winAnimation =
             { noHeroAnimation
             | dY = Ease.outBack >> \t -> t
@@ -269,100 +381,57 @@ updateGameExecuteMode msg ( { board, executor } as game ) =
             | dY = Ease.inBack >> \t -> -10 * t
             , dPhi = \t -> 4 * pi * t
             }
-
-        ( heroAction, mode ) = case move of
-            Forward ->
-                if isFree phi
-                    then
-                        ( updateHero
-                            <| moveHero phi
-                            << animateHero (moveHeroAnimation phi)
-                        , Execute
-                        )
-                    else
-                        ( updateHero
-                            <| animateHero loseAnimation
-                        , Program
-                        )
-
-            TurnLeft ->
-                ( updateHero
-                    <| turnHero Left
-                    << animateHero (turnHeroAnimation Left)
-                , Execute
-                )
-
-            TurnRight ->
-                ( updateHero
-                    <| turnHero Right
-                    << animateHero (turnHeroAnimation Right)
-                , Execute
-                )
-
-            Nop ->
-                ( updateHero
-                    <| if atGoal
-                        then animateHero winAnimation
-                        else animateHero noHeroAnimation
-                , Program
-                )
     in
-        if msg == EnterMode || msg == AnimationEnd
+        if msg /= EnterMode && msg /= AnimationEnd
         then
-            { game
-            | board = board
-                |> startAnimation >> heroAction
-            , mode = mode
-            , executor = { executor | solver = updatedSolver }
-            }
+            ( Hero hero, None )
         else
-            game
+            case move of
+                Forward ->
+                    if isFree phi
+                        then
+                            ( Hero
+                                <| moveHero phi
+                                    << animateHero (moveHeroAnimation phi)
+                                <| hero
+                            , ExecutionResult Moving updatedSolver
+                            )
+                        else
+                            ( Hero
+                                <| animateHero loseAnimation
+                                <| hero
+                            , ExecutionResult Lost updatedSolver
+                            )
 
-updateGameProgramMode : Msg -> Game a -> Game a
-updateGameProgramMode msg ( { board, program } as game ) =
-    let
-        { x, y, phi } = board.hero
+                TurnLeft ->
+                    ( Hero
+                        <| turnHero Left
+                            << animateHero (turnHeroAnimation Left)
+                        <| hero
+                    , ExecutionResult Moving updatedSolver
+                    )
 
-        isBlocked direction =
-            queryTile ( x, y ) board ( hasBoundary direction Wall )
+                TurnRight ->
+                    ( Hero
+                        <| turnHero Right
+                            << animateHero (turnHeroAnimation Right)
+                        <| hero
+                    , ExecutionResult Moving updatedSolver
+                    )
 
-    in
-        if not program.recordingEnabled
-            then game
-            else case msg of
-                AnimationEnd ->
-                        { game
-                        | board = board
-                            |> stopAnimation
-                            |> updateHero ( animateHero noHeroAnimation )
-                        }
-
-                KeyArrow Up ->
-                    if isBlocked phi then
-                        game
+                Nop ->
+                    if atGoal then
+                        ( Hero
+                            <| animateHero winAnimation
+                            <| hero
+                        , ExecutionResult Won updatedSolver
+                        )
                     else
-                        { game
-                        | board = board
-                            |> startAnimation
-                            |> ( updateHero
-                                   <| moveHero phi
-                                   << animateHero ( moveHeroAnimation phi )
-                               )
-                        , program = { program | text = appendMove program.text Up }
-                        }
-
-                KeyArrow direction ->
-                    { game
-                    | board = board
-                        |> startAnimation
-                        |> ( updateHero
-                               <| turnHero direction
-                               << animateHero ( turnHeroAnimation direction )
-                           )
-                    , program = { program | text = appendMove program.text direction }
-                    }
-
-                _ -> game
+                        ( Hero
+                            <| animateHero noHeroAnimation
+                            <| hero
+                        , ExecutionResult Stalled updatedSolver
+                        )
 
 stopAnimation : Board -> Board
 stopAnimation board =
@@ -394,25 +463,35 @@ turnHeroAnimation direction =
         Right -> { noHeroAnimation | dPhi = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
         _     ->   noHeroAnimation
 
-isHeroAtGoal : Hero -> Board -> Bool
+isHeroAtGoal : HeroData -> Board -> Bool
 isHeroAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
 resetHero : Board -> Board
-resetHero board =
+resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( Hero x y Up noHeroAnimation )
+            then Just ( HeroData x y Up noHeroAnimation )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( Hero 0 0 Up noHeroAnimation )
+            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation )
     in
-        { board | hero = hero }
+        { board | actors = setHero hero actors }
 
-moveHero : Direction -> Hero -> Hero
+setHero : HeroData -> List Actor -> List Actor
+setHero heroData actors =
+    let
+        replaceHero actor =
+            case actor of
+                Hero _ -> Hero heroData
+    in
+        actors
+            |> List.map replaceHero
+
+moveHero : Direction -> HeroData -> HeroData
 moveHero direction hero =
     case direction of
         Right -> { hero | x = hero.x + 1 }
@@ -420,7 +499,7 @@ moveHero direction hero =
         Up    -> { hero | y = hero.y + 1 }
         Down  -> { hero | y = hero.y - 1 }
 
-turnHero : Direction -> Hero -> Hero
+turnHero : Direction -> HeroData -> HeroData
 turnHero direction hero =
     { hero | phi =
         case direction of
@@ -429,13 +508,9 @@ turnHero direction hero =
             _     -> hero.phi
     }
 
-animateHero : HeroAnimation -> Hero -> Hero
+animateHero : HeroAnimation -> HeroData -> HeroData
 animateHero animation hero =
     { hero | animation = animation }
-
-updateHero : ( Hero -> Hero ) -> Board -> Board
-updateHero update board =
-    { board | hero = update board.hero}
 
 queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
@@ -488,33 +563,57 @@ hasBoundary direction boundary tile =
         Up    -> tile.top
         Down  -> tile.bottom
 
-viewGame : Game solver -> List (Html Msg)
-viewGame { board, program, mode } =
+getHero : Board -> HeroData
+getHero board =
     let
-        { hero, animation } = board
-        cellSize = board.size / toFloat board.width
+        hero actor =
+            case actor of
+                Hero heroData -> Just heroData
 
+        errorHero = HeroData 50 50 Up noHeroAnimation
+    in
+        board.actors
+            |> List.filterMap hero
+            |> List.head
+            |> Maybe.withDefault errorHero
+
+viewActor : Float -> Float -> Actor -> Collage Msg
+viewActor t cellSize actor =
+    case actor of
+        Hero hero -> viewHero t cellSize hero
+
+viewHero : Float -> Float -> HeroData -> Collage Msg
+viewHero t cellSize hero =
+    let
         angle = case hero.phi of
             Left  -> pi/2
             Up    -> 0
             Right -> -pi/2
             Down  -> pi
 
-        dPhi = hero.animation.dPhi animation.t
-        dX = hero.animation.dX animation.t
-        dY = hero.animation.dY animation.t
+        dPhi = hero.animation.dPhi t
+        dX = hero.animation.dX t
+        dY = hero.animation.dY t
+    in
+        [ Text.fromString "🐞"
+            |> Text.size (round (cellSize/5*3))
+            |> rendered
+            |> rotate ( angle + dPhi)
+        , circle (cellSize/5*2)
+            |> filled transparent
+        ]
+        |> group
+        |> shiftX ( cellSize * ( toFloat hero.x + dX ) )
+        |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
 
-        viewHero =
-            [ Text.fromString "🐞"
-                |> Text.size (round (cellSize/5*3))
-                |> rendered
-                |> rotate ( angle + dPhi )
-            , circle (cellSize/5*2)
-                |> filled transparent
-            ]
-            |> group
-            |> shiftX ( cellSize * ( toFloat hero.x + dX ) )
-            |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
+viewGame : Game solver -> List (Html Msg)
+viewGame { board, programText, mode } =
+    let
+        { actors, animation } = board
+        cellSize = board.size / toFloat board.width
+
+        viewActors = actors
+            |> List.map ( viewActor animation.t cellSize )
     in
         [ CDN.stylesheet
         , Grid.containerFluid []
@@ -526,7 +625,7 @@ viewGame { board, program, mode } =
             , Grid.row []
                 [ Grid.col [] []
                 , Grid.col []
-                    [ viewHero ::
+                    [ viewActors ++
                         ( tilesWithIndex board
                             |> List.map  ( viewTile cellSize )
                         )
@@ -537,7 +636,7 @@ viewGame { board, program, mode } =
                     [ Html.div []
                         [ Textarea.textarea
                             [ Textarea.rows 15
-                            , Textarea.value <| program.text
+                            , Textarea.value <| programText
                             , Textarea.onInput ProgramChanged
                             , Textarea.attrs
                                 [ Events.onFocus <| EnableRecording False
@@ -578,14 +677,22 @@ viewGame { board, program, mode } =
             ]
         ]
 
-appendMove : String -> Direction -> String
+directionToMove : Direction -> Move
+directionToMove direction =
+    case direction of
+        Up    -> Forward
+        Left  -> TurnLeft
+        Right -> TurnRight
+        _     -> Nop
+
+appendMove : String -> Move -> String
 appendMove program direction =
     let
         command = case direction of
-            Up    -> "forward\n"
-            Left  -> "left\n"
-            Right -> "right\n"
-            _     -> ""
+            Forward   -> "forward\n"
+            TurnLeft  -> "left\n"
+            TurnRight -> "right\n"
+            _         -> ""
     in
         ensureTrailingLF program ++ command
 

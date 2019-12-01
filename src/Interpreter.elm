@@ -21,7 +21,7 @@ init program = Interpreter program Dict.empty
 update : G.Board -> Interpreter -> ( Interpreter, G.Move )
 update board ( Interpreter ( program ) bindings ) =
     let
-        hero = board.hero
+        hero = G.getHero board
 
         isAtGoal tile = tile.tileType == G.Goal
 

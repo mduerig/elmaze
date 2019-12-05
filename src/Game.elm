@@ -83,6 +83,7 @@ type Boundary
 
 type Actor
     = Hero HeroData
+    | InputController Move
 
 type ActorReaction solver
     = None
@@ -182,6 +183,7 @@ newBoard width height =
             , phi = Up
             , animation = noHeroAnimation
             }
+        , InputController Nop
         ]
     , animation =
         { v = 1.5
@@ -267,6 +269,9 @@ updateActor msg actor game =
                 Hero heroData ->
                     updateHeroData msg game heroData
 
+                InputController _ ->
+                    updateInputController msg
+
         updatedGame = applyReaction reaction game
     in
         { updatedGame | board = setActor updatedActor updatedGame.board }
@@ -277,6 +282,8 @@ setActor actor board =
         modifyActor currentActor =
             case ( currentActor, actor ) of
                 ( Hero _, Hero _ ) -> actor
+                ( InputController _, InputController _ ) -> actor
+                ( _, _ ) -> currentActor
     in
         { board
         | actors = board.actors
@@ -308,6 +315,14 @@ applyReaction reaction ( { board, executor } as game ) =
         None ->
             game
 
+updateInputController : Msg -> ( Actor, ActorReaction s)
+updateInputController msg =
+    case msg of
+       KeyArrow Up    -> ( InputController Forward, None )
+       KeyArrow Left  -> ( InputController TurnLeft, None )
+       KeyArrow Right -> ( InputController TurnRight, None )
+       _              -> ( InputController Nop, None )
+
 updateHeroData : Msg -> Game s -> HeroData -> ( Actor, ActorReaction s )
 updateHeroData msg game hero =
     case game.mode of
@@ -328,36 +343,43 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
         if not recordingEnabled
             then
                 ( Hero hero, None )
-            else
-                case msg of
-                    AnimationEnd ->
+            else if msg == AnimationEnd then
+                ( Hero
+                    <| animateHero noHeroAnimation hero
+                , Record Nop
+                )
+            else case getInput board.actors of
+                Forward ->
+                    if isBlocked phi then
+                        ( Hero hero, None )
+                    else
                         ( Hero
-                            <| animateHero noHeroAnimation hero
-                        , Record Nop
-                        )
-
-                    KeyArrow Up ->
-                        if isBlocked phi then
-                            ( Hero hero, None )
-                        else
-                            ( Hero
-                                <| moveHero phi
-                                    << animateHero ( moveHeroAnimation phi )
-                                <| hero
-                            , Record
-                                <| directionToMove Up
-                            )
-
-                    KeyArrow direction ->
-                        ( Hero
-                            <| turnHero direction
-                                << animateHero ( turnHeroAnimation direction )
+                            <| moveHero phi
+                                << animateHero ( moveHeroAnimation phi )
                             <| hero
                         , Record
-                            <| directionToMove direction
+                            <| directionToMove Up
                         )
 
-                    _ -> ( Hero hero, None )
+                TurnLeft ->
+                    ( Hero
+                        <| turnHero Left
+                            << animateHero ( turnHeroAnimation Left )
+                        <| hero
+                    , Record
+                        <| directionToMove Left
+                    )
+
+                TurnRight ->
+                    ( Hero
+                        <| turnHero Right
+                            << animateHero ( turnHeroAnimation Right )
+                        <| hero
+                    , Record
+                        <| directionToMove Right
+                    )
+
+                _ -> ( Hero hero, None )
 
 updateHeroDataExecuteMode : Msg -> Game s -> HeroData -> ( Actor, ActorReaction s )
 updateHeroDataExecuteMode msg { executor, board } hero =
@@ -493,6 +515,7 @@ setHero heroData actors =
         replaceHero actor =
             case actor of
                 Hero _ -> Hero heroData
+                _ -> actor
     in
         actors
             |> List.map replaceHero
@@ -569,16 +592,32 @@ hasBoundary direction boundary tile =
         Up    -> tile.top
         Down  -> tile.bottom
 
-getHero : Board -> HeroData
-getHero board =
+getInput : List Actor -> Move
+getInput actors =
+    let
+        inputController actor =
+            case actor of
+                InputController move -> Just move
+                _ -> Nothing
+
+    in
+        actors
+            |> List.filterMap inputController
+            |> List.head
+            |> Maybe.withDefault Nop
+
+
+getHero : List Actor -> HeroData
+getHero actors =
     let
         hero actor =
             case actor of
                 Hero heroData -> Just heroData
+                _ -> Nothing
 
         errorHero = HeroData 50 50 Up noHeroAnimation
     in
-        board.actors
+        actors
             |> List.filterMap hero
             |> List.head
             |> Maybe.withDefault errorHero
@@ -587,6 +626,8 @@ viewActor : Float -> Float -> Actor -> Collage Msg
 viewActor t cellSize actor =
     case actor of
         Hero hero -> viewHero t cellSize hero
+        InputController _ -> Collage.group []
+
 
 viewHero : Float -> Float -> HeroData -> Collage Msg
 viewHero t cellSize hero =

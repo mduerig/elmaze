@@ -254,22 +254,34 @@ updateGame msg  ( { board, programText, executor } as game ) =
                     }
 
             _ ->
-                ( updateActors msg game, Cmd.none )
+                ( game.board.actors
+                    |> List.foldl ( updateActor msg ) game
+                , Cmd.none
+                )
 
-updateActors : Msg -> Game s -> Game s
-updateActors msg game =
+updateActor : Msg -> Actor -> Game s -> Game s
+updateActor msg actor game =
     let
-        reactions = game.board.actors
-            |> List.map (updateActor msg game)
+        ( updatedActor, reaction ) =
+            case actor of
+                Hero heroData ->
+                    updateHeroData msg game heroData
 
-        gameWithReactions = List.map Tuple.second reactions
-            |> List.foldl applyReaction game
-
-        setActors board =
-            { board | actors = List.map Tuple.first reactions }
+        updatedGame = applyReaction reaction game
     in
-        { gameWithReactions
-        | board = setActors gameWithReactions.board
+        { updatedGame | board = setActor updatedActor updatedGame.board }
+
+setActor : Actor -> Board -> Board
+setActor actor board =
+    let
+        modifyActor currentActor =
+            case ( currentActor, actor ) of
+                ( Hero _, Hero _ ) -> actor
+    in
+        { board
+        | actors = board.actors
+            |> List.map modifyActor
+
         }
 
 applyReaction : ActorReaction s -> Game s -> Game s
@@ -295,12 +307,6 @@ applyReaction reaction ( { board, executor } as game ) =
 
         None ->
             game
-
-updateActor : Msg -> Game s -> Actor -> ( Actor, ActorReaction s )
-updateActor msg game actor =
-    case actor of
-        Hero heroData ->
-            updateHeroData msg game heroData
 
 updateHeroData : Msg -> Game s -> HeroData -> ( Actor, ActorReaction s )
 updateHeroData msg game hero =

@@ -281,20 +281,22 @@ addActor : Actor -> Board -> Board
 addActor actor ( {actors } as board ) =
     { board | actors = actor :: actors }
 
+modifyActor : ( Actor -> Actor ) -> Board -> Board
+modifyActor update board =
+    { board
+    | actors = board.actors
+        |> List.map update
+    }
+
 setActor : Actor -> Board -> Board
 setActor actor board =
-    let
-        modifyActor currentActor =
+    board |> modifyActor
+        ( \currentActor ->
             case ( currentActor, actor ) of
                 ( Hero _, Hero _ ) -> actor
                 ( InputController _, InputController _ ) -> actor
                 ( _, _ ) -> currentActor
-    in
-        { board
-        | actors = board.actors
-            |> List.map modifyActor
-
-        }
+        )
 
 applyReaction : ActorReaction s -> Game s -> Game s
 applyReaction reaction ( { board, executor } as game ) =
@@ -354,7 +356,7 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
                 , Record Nop
                 )
             else case getInput board.actors of
-                Forward ->
+                Just Forward ->
                     if isBlocked phi then
                         ( Hero hero, None )
                     else
@@ -366,7 +368,7 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
                             <| directionToMove Up
                         )
 
-                TurnLeft ->
+                Just TurnLeft ->
                     ( Hero
                         <| turnHero Left
                             << animateHero ( turnHeroAnimation Left )
@@ -375,7 +377,7 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
                         <| directionToMove Left
                     )
 
-                TurnRight ->
+                Just TurnRight ->
                     ( Hero
                         <| turnHero Right
                             << animateHero ( turnHeroAnimation Right )
@@ -597,7 +599,13 @@ hasBoundary direction boundary tile =
         Up    -> tile.top
         Down  -> tile.bottom
 
-getInput : List Actor -> Move
+getActor : ( Actor -> Maybe a ) -> List Actor -> Maybe a
+getActor get actors =
+    actors
+        |> List.filterMap get
+        |> List.head
+
+getInput : List Actor -> Maybe Move
 getInput actors =
     let
         inputController actor =
@@ -606,13 +614,9 @@ getInput actors =
                 _ -> Nothing
 
     in
-        actors
-            |> List.filterMap inputController
-            |> List.head
-            |> Maybe.withDefault Nop
+        actors |> getActor inputController
 
-
-getHero : List Actor -> HeroData
+getHero : List Actor -> Maybe HeroData
 getHero actors =
     let
         hero actor =
@@ -620,12 +624,8 @@ getHero actors =
                 Hero heroData -> Just heroData
                 _ -> Nothing
 
-        errorHero = HeroData 50 50 Up noHeroAnimation
     in
-        actors
-            |> List.filterMap hero
-            |> List.head
-            |> Maybe.withDefault errorHero
+        actors |> getActor hero
 
 viewActor : Float -> Float -> Actor -> Collage Msg
 viewActor t cellSize actor =

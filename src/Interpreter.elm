@@ -18,7 +18,7 @@ type alias Bindings
 init : P.Program -> Interpreter
 init program = Interpreter program Dict.empty
 
-update : G.Board -> Interpreter -> ( Interpreter, G.Move )
+update : G.Board s -> Interpreter -> ( Interpreter, G.Move )
 update board ( Interpreter ( program ) bindings ) =
     let
         hero = G.getHero board.actors

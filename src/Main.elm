@@ -7,7 +7,7 @@ import Game exposing
 import Parse as P
 import Interpreter as I
 
-testBoard : Board
+testBoard : Board s
 testBoard = newBoard 8 6
     |> updateTileBoundary (0, 0) Up Path
     |> updateTileBoundary (0, 1) Up Path
@@ -109,7 +109,7 @@ testBoard = newBoard 8 6
     |> updateTile ( 1, 5 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 3, 4 ) ( updateTileBackground "tiles/0.png")
 
-updateGame : Board -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
+updateGame : Board s -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
 updateGame board interpreter =
     case interpreter of
         Just interp ->
@@ -118,7 +118,7 @@ updateGame board interpreter =
         _ ->
             ( Nothing, Nop )
 
-initGame : Board -> String -> Maybe I.Interpreter
+initGame : Board s -> String -> Maybe I.Interpreter
 initGame board program =
     case P.parse program of
         Ok ast ->

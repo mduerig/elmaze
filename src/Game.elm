@@ -138,6 +138,15 @@ initGame { board, init, update } =
     let
         game =
             { board = board
+                |> addActor
+                    ( Hero
+                        { x = 0
+                        , y = 0
+                        , phi = Up
+                        , animation = noHeroAnimation
+                        }
+                    )
+                |> addActor ( InputController Nop )
                 |> resetHero
             , mode = Program
             , recordingEnabled = True
@@ -176,15 +185,7 @@ newBoard width height =
             , bottom = Wall
             , right = Wall
             }
-    , actors =
-        [ Hero
-            { x = 0
-            , y = 0
-            , phi = Up
-            , animation = noHeroAnimation
-            }
-        , InputController Nop
-        ]
+    , actors = []
     , animation =
         { v = 1.5
         , t = 0
@@ -275,6 +276,10 @@ updateActor msg actor game =
         updatedGame = applyReaction reaction game
     in
         { updatedGame | board = setActor updatedActor updatedGame.board }
+
+addActor : Actor -> Board -> Board
+addActor actor ( {actors } as board ) =
+    { board | actors = actor :: actors }
 
 setActor : Actor -> Board -> Board
 setActor actor board =

@@ -300,8 +300,13 @@ updateActor msg actor game =
     let
         updatedActor =
             case actor of
-                Hero heroData ->
-                    updateHeroData msg game heroData
+                Hero hero ->
+                    case game.mode of
+                        Program ->
+                            updateHeroProgramMode msg game hero
+
+                        Execute ->
+                            updateHeroExecuteMode msg game hero
 
                 InputController _ ->
                     updateInputController msg
@@ -359,17 +364,8 @@ updateInputController msg =
        KeyArrow Right -> InputController TurnRight
        _              -> InputController Nop
 
-updateHeroData : Msg -> Game s -> HeroData -> Actor s
-updateHeroData msg game hero =
-    case game.mode of
-        Program ->
-            updateHeroDataProgramMode msg game hero
-
-        Execute ->
-            updateHeroDataExecuteMode msg game hero
-
-updateHeroDataProgramMode : Msg -> Game s -> HeroData -> Actor s
-updateHeroDataProgramMode msg { board, recordingEnabled } hero =
+updateHeroProgramMode : Msg -> Game s -> HeroData -> Actor s
+updateHeroProgramMode msg { board, recordingEnabled } hero =
     let
         { x, y, phi } = hero
 
@@ -432,8 +428,8 @@ updateExecutor msg board executor =
         else
             Executor { executor | move = Nop }
 
-updateHeroDataExecuteMode : Msg -> Game s -> HeroData -> Actor s
-updateHeroDataExecuteMode msg { board } hero =
+updateHeroExecuteMode : Msg -> Game s -> HeroData -> Actor s
+updateHeroExecuteMode msg { board } hero =
     let
         { x, y, phi } = hero
 

@@ -22,7 +22,7 @@ update : G.Board s -> Interpreter -> ( Interpreter, G.Move )
 update board ( Interpreter ( program ) bindings ) =
     let
         hero = G.getHero board.actors
-            |> Maybe.withDefault ( G.HeroData 50 50 G.Up G.noHeroAnimation )
+            |> Maybe.withDefault ( G.HeroData 50 50 G.Up G.noHeroAnimation G.Idle)
 
         isAtGoal tile = tile.tileType == G.Goal
 

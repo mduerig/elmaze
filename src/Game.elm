@@ -90,12 +90,11 @@ type alias ExecutionData s =
 
 type ActorReaction solver
     = None
-    | ExecutionResult MoveResult
     | Record Move
 
-type MoveResult
+type HeroState
     = Moving
-    | Stalled
+    | Idle
     | Won
     | Lost
 
@@ -104,6 +103,7 @@ type alias HeroData =
     , y : Int
     , phi : Direction
     , animation : HeroAnimation
+    , state : HeroState
     }
 
 type alias HeroAnimation =
@@ -147,6 +147,7 @@ initGame { board, init, update } =
                         , y = 0
                         , phi = Up
                         , animation = noHeroAnimation
+                        , state = Idle
                         }
                     )
                 |> addActor
@@ -158,7 +159,6 @@ initGame { board, init, update } =
                         }
                     )
                 |> addActor ( InputController Nop )
-                |> resetHero
             , mode = Program
             , recordingEnabled = True
             , programText = ""
@@ -274,8 +274,25 @@ updateGame msg  ( { board, programText } as game ) =
             _ ->
                 ( game.board.actors
                     |> List.foldl ( updateActor msg ) game
+                    |> applyStateAndAnimation
                 , Cmd.none
                 )
+
+applyStateAndAnimation : Game s -> Game s
+applyStateAndAnimation ( { board } as game ) =
+    let
+        state = getHero board.actors
+            |> Maybe.map .state
+    in
+        { game
+        | mode = if state == Just Moving
+            then Execute
+            else Program
+        , board = board
+            |> if state == Just Idle
+                then identity
+                else startAnimation False
+        }
 
 updateActor : Msg -> Actor s -> Game s -> Game s
 updateActor msg actor game =
@@ -290,10 +307,9 @@ updateActor msg actor game =
 
                 Executor executor ->
                     updateExecutor msg game.board executor
-
-        updatedGame = applyReaction reaction game
     in
-        { updatedGame | board = setActor updatedActor updatedGame.board }
+        { game | board = setActor updatedActor game.board }
+            |> applyReaction reaction
 
 addActor : Actor s -> Board s -> Board s
 addActor actor ( {actors } as board ) =
@@ -320,22 +336,13 @@ setActor actor board =
 applyReaction : ActorReaction s -> Game s -> Game s
 applyReaction reaction ( { board } as game ) =
     case reaction of
-        ExecutionResult result ->
-            { game
-            | mode = if result == Moving
-                then Execute
-                else Program
-            , board = board
-                |> startAnimation
-            }
-
         Record move ->
             { game
             | programText = appendMove game.programText move
             , board = board
                 |> if move == Nop
                       then identity
-                      else startAnimation
+                      else startAnimation True
             }
 
         None ->
@@ -455,61 +462,76 @@ updateHeroDataExecuteMode msg { board } hero =
             Just Forward ->
                 if isFree phi
                     then
-                        ( Hero
-                            <| moveHero phi
-                                << animateHero (moveHeroAnimation phi)
-                            <| hero
-                        , ExecutionResult Moving
+                        ( hero
+                            |> moveHero phi
+                            >> animateHero ( moveHeroAnimation phi )
+                            |> setHeroState Moving
+                            |> Hero
+                        , None
                         )
                     else
-                        ( Hero
-                            <| animateHero loseAnimation
-                            <| hero
-                        , ExecutionResult Lost
+                        ( hero
+                            |> animateHero loseAnimation
+                            |> setHeroState Lost
+                            |> Hero
+                        , None
                         )
 
             Just TurnLeft ->
-                ( Hero
-                    <| turnHero Left
-                        << animateHero (turnHeroAnimation Left)
-                    <| hero
-                , ExecutionResult Moving
+                ( hero
+                    |> turnHero Left
+                    >> animateHero (turnHeroAnimation Left)
+                    |> setHeroState Moving
+                    |> Hero
+                , None
                 )
 
             Just TurnRight ->
-                ( Hero
-                    <| turnHero Right
-                        << animateHero (turnHeroAnimation Right)
-                    <| hero
-                , ExecutionResult Moving
+                ( hero
+                    |> turnHero Right
+                        >> animateHero (turnHeroAnimation Right)
+                    |> setHeroState Moving
+                    |> Hero
+                , None
                 )
 
             _ ->
                 if msg == AnimationEnd then
                     if atGoal then
-                        ( Hero
-                            <| animateHero winAnimation
-                            <| hero
-                        , ExecutionResult Won
+                        ( hero
+                            |> animateHero winAnimation
+                            |> setHeroState Won
+                            |> Hero
+                        , None
                         )
                     else
-                        ( Hero
-                            <| animateHero noHeroAnimation
-                            <| hero
-                        , ExecutionResult Stalled
+                        ( hero
+                            |> animateHero noHeroAnimation
+                            |> setHeroState Idle
+                            |> Hero
+                        , None
                         )
                 else
                     ( Hero hero, None )
+
+setHeroState : HeroState -> HeroData -> HeroData
+setHeroState state hero =
+    { hero | state = state }
 
 stopAnimation : Board s -> Board s
 stopAnimation board =
     let animation = board.animation
     in  { board | animation = { animation | t = 0, onDelta = always Sub.none }}
 
-startAnimation : Board s -> Board s
-startAnimation board =
-    let animation = board.animation
-    in { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
+startAnimation : Bool -> Board s -> Board s
+startAnimation restart board =
+    let
+        animation = board.animation
+    in
+        if restart || animation.onDelta AnimationFrame == Sub.none then
+            { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
+        else
+            board
 
 advanceAnimation : Float -> Board s -> Board s
 advanceAnimation dt board =
@@ -539,13 +561,13 @@ resetHero : Board s -> Board s
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( HeroData x y Up noHeroAnimation )
+            then Just ( HeroData x y Up noHeroAnimation Idle )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation )
+            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation Idle )
     in
         { board | actors = setHero hero actors }
 

@@ -301,12 +301,7 @@ updateActor msg actor game =
         updatedActor =
             case actor of
                 Hero hero ->
-                    case game.mode of
-                        Program ->
-                            updateHeroProgramMode msg game hero
-
-                        Execute ->
-                            updateHeroExecuteMode msg game hero
+                    updateHero msg game hero
 
                 InputController _ ->
                     updateInputController msg
@@ -349,11 +344,13 @@ getProgramText actors =
                 _         -> ""
     in
         getHero actors
-            |> Maybe.map .moves
-            |> Maybe.map List.reverse
-            |> Maybe.map ( List.map toString )
-            |> Maybe.map (String.join "\n")
-            |> Maybe.map ensureTrailingLF
+            |> Maybe.map
+                ( .moves
+                >> List.reverse
+                >> List.map toString
+                >> String.join "\n"
+                >> ensureTrailingLF
+                )
             |> Maybe.withDefault ""
 
 updateInputController : Msg -> Actor s
@@ -363,46 +360,6 @@ updateInputController msg =
        KeyArrow Left  -> InputController TurnLeft
        KeyArrow Right -> InputController TurnRight
        _              -> InputController Nop
-
-updateHeroProgramMode : Msg -> Game s -> HeroData -> Actor s
-updateHeroProgramMode msg { board, recordingEnabled } hero =
-    let
-        { x, y, phi } = hero
-
-        isBlocked direction =
-            queryTile ( x, y ) board ( hasBoundary direction Wall )
-    in
-        if not recordingEnabled
-            then
-                Hero hero
-            else if msg == AnimationEnd then
-                Hero <| animateHero noHeroAnimation hero
-            else case getInput board.actors of
-                Just Forward ->
-                    if isBlocked phi then
-                        Hero hero
-                    else
-                        Hero
-                            <| moveHero phi
-                                << animateHero ( moveHeroAnimation phi )
-                            <| recordMove Up
-                            <| hero
-
-                Just TurnLeft ->
-                    Hero
-                        <| turnHero Left
-                            << animateHero ( turnHeroAnimation Left )
-                        <| recordMove Left
-                        <| hero
-
-                Just TurnRight ->
-                    Hero
-                        <| turnHero Right
-                            << animateHero ( turnHeroAnimation Right )
-                        <| recordMove Right
-                        <| hero
-
-                _ -> Hero hero
 
 recordMove : Direction -> HeroData -> HeroData
 recordMove direction hero =
@@ -428,13 +385,13 @@ updateExecutor msg board executor =
         else
             Executor { executor | move = Nop }
 
-updateHeroExecuteMode : Msg -> Game s -> HeroData -> Actor s
-updateHeroExecuteMode msg { board } hero =
+updateHero : Msg -> Game s -> HeroData -> Actor s
+updateHero msg { board, mode, recordingEnabled } hero =
     let
         { x, y, phi } = hero
 
-        isFree direction =
-            queryTile ( x, y ) board ( hasBoundary direction Path )
+        isBlocked direction =
+            queryTile ( x, y ) board ( hasBoundary direction Wall )
 
         atGoal = isHeroAtGoal hero board
         winAnimation =
@@ -448,50 +405,61 @@ updateHeroExecuteMode msg { board } hero =
             | dY = Ease.inBack >> \t -> -10 * t
             , dPhi = \t -> 4 * pi * t
             }
+
+        move =
+            if mode == Program then
+                getInput board.actors
+            else
+                getMove board.actors
     in
-        case getMove board.actors of
-            Just Forward ->
-                if isFree phi
-                    then
-                        hero
-                            |> moveHero phi
-                            >> animateHero ( moveHeroAnimation phi )
-                            |> setHeroState Moving
-                            |> Hero
-                    else
+        if not recordingEnabled
+            then
+                Hero hero
+            else case move of
+                Just Forward ->
+                    if isBlocked phi then
                         hero
                             |> animateHero loseAnimation
                             |> setHeroState Lost
                             |> Hero
-
-            Just TurnLeft ->
-                hero
-                    |> turnHero Left
-                    >> animateHero (turnHeroAnimation Left)
-                    |> setHeroState Moving
-                    |> Hero
-
-            Just TurnRight ->
-                hero
-                    |> turnHero Right
-                        >> animateHero (turnHeroAnimation Right)
-                    |> setHeroState Moving
-                    |> Hero
-
-            _ ->
-                if msg == AnimationEnd then
-                    if atGoal then
-                        hero
-                            |> animateHero winAnimation
-                            |> setHeroState Won
-                            |> Hero
                     else
                         hero
-                            |> animateHero noHeroAnimation
-                            |> setHeroState Idle
+                            |> moveHero phi
+                            |> animateHero ( moveHeroAnimation phi )
+                            |> setHeroState Moving
+                            |> recordMove Up
                             |> Hero
-                else
-                    Hero hero
+
+                Just TurnLeft ->
+                    hero
+                        |> turnHero Left
+                        |> animateHero ( turnHeroAnimation Left )
+                        |> setHeroState Moving
+                        |> recordMove Left
+                        |> Hero
+
+                Just TurnRight ->
+                    hero
+                        |> turnHero Right
+                        |> animateHero ( turnHeroAnimation Right )
+                        |> setHeroState Moving
+                        |> recordMove Right
+                        |> Hero
+
+                _ ->
+                    if msg == AnimationEnd then
+                        if atGoal then
+                            hero
+                                |> animateHero winAnimation
+                                |> setHeroState Won
+                                |> Hero
+                        else
+                            hero
+                                |> animateHero noHeroAnimation
+                                |> setHeroState Idle
+                                |> Hero
+                    else
+                        Hero hero
 
 setHeroState : HeroState -> HeroData -> HeroData
 setHeroState state hero =

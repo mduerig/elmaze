@@ -90,7 +90,7 @@ type alias ExecutionData s =
 
 type ActorReaction solver
     = None
-    | Record Move
+    | Record
 
 type HeroState
     = Moving
@@ -104,6 +104,7 @@ type alias HeroData =
     , phi : Direction
     , animation : HeroAnimation
     , state : HeroState
+    , moves : List Move
     }
 
 type alias HeroAnimation =
@@ -148,6 +149,7 @@ initGame { board, init, update } =
                         , phi = Up
                         , animation = noHeroAnimation
                         , state = Idle
+                        , moves = []
                         }
                     )
                 |> addActor
@@ -283,15 +285,18 @@ applyStateAndAnimation ( { board } as game ) =
     let
         state = getHero board.actors
             |> Maybe.map .state
+
+        programText = getProgramText board.actors
     in
         { game
         | mode = if state == Just Moving
             then Execute
             else Program
         , board = board
-            |> if state == Just Idle
+            |> if state == Just Idle && game.mode == Execute
                 then identity
                 else startAnimation False
+        , programText = programText
         }
 
 updateActor : Msg -> Actor s -> Game s -> Game s
@@ -333,20 +338,27 @@ setActor actor board =
                 ( _, _ ) -> currentActor
         )
 
+getProgramText : List ( Actor s ) -> String
+getProgramText actors =
+    let
+        toString direction =
+            case direction of
+                Forward   -> "forward"
+                TurnLeft  -> "left"
+                TurnRight -> "right"
+                _         -> ""
+    in
+        getHero actors
+            |> Maybe.map .moves
+            |> Maybe.map List.reverse
+            |> Maybe.map ( List.map toString )
+            |> Maybe.map (String.join "\n")
+            |> Maybe.map ensureTrailingLF
+            |> Maybe.withDefault ""
+
 applyReaction : ActorReaction s -> Game s -> Game s
 applyReaction reaction ( { board } as game ) =
-    case reaction of
-        Record move ->
-            { game
-            | programText = appendMove game.programText move
-            , board = board
-                |> if move == Nop
-                      then identity
-                      else startAnimation True
-            }
-
-        None ->
-            game
+    game
 
 updateInputController : Msg -> ( Actor s, ActorReaction s)
 updateInputController msg =
@@ -379,7 +391,7 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
             else if msg == AnimationEnd then
                 ( Hero
                     <| animateHero noHeroAnimation hero
-                , Record Nop
+                , Record
                 )
             else case getInput board.actors of
                 Just Forward ->
@@ -389,30 +401,34 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
                         ( Hero
                             <| moveHero phi
                                 << animateHero ( moveHeroAnimation phi )
+                            <| recordMove Up
                             <| hero
                         , Record
-                            <| directionToMove Up
                         )
 
                 Just TurnLeft ->
                     ( Hero
                         <| turnHero Left
                             << animateHero ( turnHeroAnimation Left )
+                        <| recordMove Left
                         <| hero
                     , Record
-                        <| directionToMove Left
                     )
 
                 Just TurnRight ->
                     ( Hero
                         <| turnHero Right
                             << animateHero ( turnHeroAnimation Right )
+                        <| recordMove Right
                         <| hero
                     , Record
-                        <| directionToMove Right
                     )
 
                 _ -> ( Hero hero, None )
+
+recordMove : Direction -> HeroData -> HeroData
+recordMove direction hero =
+    { hero | moves = directionToMove direction :: hero.moves }
 
 updateExecutor : Msg -> Board s -> ExecutionData s -> ( Actor s, ActorReaction s )
 updateExecutor msg board executor =
@@ -561,13 +577,13 @@ resetHero : Board s -> Board s
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( HeroData x y Up noHeroAnimation Idle )
+            then Just ( HeroData x y Up noHeroAnimation Idle [] )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation Idle )
+            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation Idle [] )
     in
         { board | actors = setHero hero actors }
 
@@ -802,17 +818,6 @@ directionToMove direction =
         Left  -> TurnLeft
         Right -> TurnRight
         _     -> Nop
-
-appendMove : String -> Move -> String
-appendMove program direction =
-    let
-        command = case direction of
-            Forward   -> "forward\n"
-            TurnLeft  -> "left\n"
-            TurnRight -> "right\n"
-            _         -> ""
-    in
-        ensureTrailingLF program ++ command
 
 oppositeDirection : Direction -> Direction
 oppositeDirection direction =

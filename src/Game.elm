@@ -88,10 +88,6 @@ type alias ExecutionData s =
     , move : Move
     }
 
-type ActorReaction solver
-    = None
-    | Record
-
 type HeroState
     = Moving
     | Idle
@@ -302,7 +298,7 @@ applyStateAndAnimation ( { board } as game ) =
 updateActor : Msg -> Actor s -> Game s -> Game s
 updateActor msg actor game =
     let
-        ( updatedActor, reaction ) =
+        updatedActor =
             case actor of
                 Hero heroData ->
                     updateHeroData msg game heroData
@@ -314,7 +310,6 @@ updateActor msg actor game =
                     updateExecutor msg game.board executor
     in
         { game | board = setActor updatedActor game.board }
-            |> applyReaction reaction
 
 addActor : Actor s -> Board s -> Board s
 addActor actor ( {actors } as board ) =
@@ -356,19 +351,15 @@ getProgramText actors =
             |> Maybe.map ensureTrailingLF
             |> Maybe.withDefault ""
 
-applyReaction : ActorReaction s -> Game s -> Game s
-applyReaction reaction ( { board } as game ) =
-    game
-
-updateInputController : Msg -> ( Actor s, ActorReaction s)
+updateInputController : Msg -> Actor s
 updateInputController msg =
     case msg of
-       KeyArrow Up    -> ( InputController Forward, None )
-       KeyArrow Left  -> ( InputController TurnLeft, None )
-       KeyArrow Right -> ( InputController TurnRight, None )
-       _              -> ( InputController Nop, None )
+       KeyArrow Up    -> InputController Forward
+       KeyArrow Left  -> InputController TurnLeft
+       KeyArrow Right -> InputController TurnRight
+       _              -> InputController Nop
 
-updateHeroData : Msg -> Game s -> HeroData -> ( Actor s, ActorReaction s )
+updateHeroData : Msg -> Game s -> HeroData -> Actor s
 updateHeroData msg game hero =
     case game.mode of
         Program ->
@@ -377,7 +368,7 @@ updateHeroData msg game hero =
         Execute ->
             updateHeroDataExecuteMode msg game hero
 
-updateHeroDataProgramMode : Msg -> Game s ->  HeroData -> ( Actor s, ActorReaction s )
+updateHeroDataProgramMode : Msg -> Game s -> HeroData -> Actor s
 updateHeroDataProgramMode msg { board, recordingEnabled } hero =
     let
         { x, y, phi } = hero
@@ -387,50 +378,41 @@ updateHeroDataProgramMode msg { board, recordingEnabled } hero =
     in
         if not recordingEnabled
             then
-                ( Hero hero, None )
+                Hero hero
             else if msg == AnimationEnd then
-                ( Hero
-                    <| animateHero noHeroAnimation hero
-                , Record
-                )
+                Hero <| animateHero noHeroAnimation hero
             else case getInput board.actors of
                 Just Forward ->
                     if isBlocked phi then
-                        ( Hero hero, None )
+                        Hero hero
                     else
-                        ( Hero
+                        Hero
                             <| moveHero phi
                                 << animateHero ( moveHeroAnimation phi )
                             <| recordMove Up
                             <| hero
-                        , Record
-                        )
 
                 Just TurnLeft ->
-                    ( Hero
+                    Hero
                         <| turnHero Left
                             << animateHero ( turnHeroAnimation Left )
                         <| recordMove Left
                         <| hero
-                    , Record
-                    )
 
                 Just TurnRight ->
-                    ( Hero
+                    Hero
                         <| turnHero Right
                             << animateHero ( turnHeroAnimation Right )
                         <| recordMove Right
                         <| hero
-                    , Record
-                    )
 
-                _ -> ( Hero hero, None )
+                _ -> Hero hero
 
 recordMove : Direction -> HeroData -> HeroData
 recordMove direction hero =
     { hero | moves = directionToMove direction :: hero.moves }
 
-updateExecutor : Msg -> Board s -> ExecutionData s -> ( Actor s, ActorReaction s )
+updateExecutor : Msg -> Board s -> ExecutionData s -> Actor s
 updateExecutor msg board executor =
     let
         ( updatedSolver, move ) = case executor.solver of
@@ -442,18 +424,15 @@ updateExecutor msg board executor =
                 ( Nothing, Nop )
     in
         if msg == EnterMode || msg == AnimationEnd then
-            ( Executor
+            Executor
                 { executor
                 | solver = updatedSolver
                 , move = move
                 }
-            , None
-            )
         else
-            ( Executor { executor | move = Nop }
-            , None )
+            Executor { executor | move = Nop }
 
-updateHeroDataExecuteMode : Msg -> Game s -> HeroData -> ( Actor s, ActorReaction s )
+updateHeroDataExecuteMode : Msg -> Game s -> HeroData -> Actor s
 updateHeroDataExecuteMode msg { board } hero =
     let
         { x, y, phi } = hero
@@ -478,57 +457,45 @@ updateHeroDataExecuteMode msg { board } hero =
             Just Forward ->
                 if isFree phi
                     then
-                        ( hero
+                        hero
                             |> moveHero phi
                             >> animateHero ( moveHeroAnimation phi )
                             |> setHeroState Moving
                             |> Hero
-                        , None
-                        )
                     else
-                        ( hero
+                        hero
                             |> animateHero loseAnimation
                             |> setHeroState Lost
                             |> Hero
-                        , None
-                        )
 
             Just TurnLeft ->
-                ( hero
+                hero
                     |> turnHero Left
                     >> animateHero (turnHeroAnimation Left)
                     |> setHeroState Moving
                     |> Hero
-                , None
-                )
 
             Just TurnRight ->
-                ( hero
+                hero
                     |> turnHero Right
                         >> animateHero (turnHeroAnimation Right)
                     |> setHeroState Moving
                     |> Hero
-                , None
-                )
 
             _ ->
                 if msg == AnimationEnd then
                     if atGoal then
-                        ( hero
+                        hero
                             |> animateHero winAnimation
                             |> setHeroState Won
                             |> Hero
-                        , None
-                        )
                     else
-                        ( hero
+                        hero
                             |> animateHero noHeroAnimation
                             |> setHeroState Idle
                             |> Hero
-                        , None
-                        )
                 else
-                    ( Hero hero, None )
+                    Hero hero
 
 setHeroState : HeroState -> HeroData -> HeroData
 setHeroState state hero =

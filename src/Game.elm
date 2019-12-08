@@ -22,7 +22,6 @@ import Ease
 
 type alias Game s =
     { board : Board s
-    , mode : Mode
     , coding : Bool
     , programText : String
     }
@@ -53,10 +52,6 @@ type alias Animation =
     , t : Float
     , onDelta : (Float -> Msg) -> Sub Msg
     }
-
-type Mode
-    = Program
-    | Execute
 
 type alias Tile =
     { tileType : TileType
@@ -111,7 +106,8 @@ type Direction
 type Msg
     = KeyArrow Direction
     | ResetGame
-    | SwitchMode Mode
+    | RunProgram
+    | StopRunning
     | EnterMode
     | KeyOtherDown String
     | Resize Int Int
@@ -148,7 +144,6 @@ initGame { board, init, update } =
                         }
                     )
                 |> addActor ( InputController Nop )
-            , mode = Program
             , coding = False
             , programText = ""
             }
@@ -191,33 +186,16 @@ newBoard width height =
 updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
 updateGame msg  ( { board, programText } as game ) =
     let
-        initHero mode = if mode == Execute
-            then resetHero
-            else identity
-
-        initSolver executor board0 = Just
+        initSolver board0 executor = Just
             <| executor.init board0
             <| ensureTrailingLF
             <| programText
-
-        initExecutor mode board0 =
-            board0 |> mapActors
-                (\actor ->
-                    case actor of
-                        Executor executor ->
-                            if mode == Execute then
-                                Executor { executor | solver = initSolver executor board0 }
-                            else
-                                Executor { executor | solver = Nothing }
-                        _ -> actor
-                )
     in
         case msg of
             ResetGame ->
                 ( { game
                   | board = board |> resetHero
                   , programText = ""
-                  , mode = Program
                 }
                 , Cmd.none
                 )
@@ -270,19 +248,38 @@ updateGame msg  ( { board, programText } as game ) =
                 , Cmd.none
                 )
 
-            SwitchMode mode ->
+            RunProgram ->
                 updateGame EnterMode
                     { game
-                    | mode = mode
-                    , board = board
-                        |> initHero mode
-                        |> initExecutor mode
+                    | board = board
+                        |> resetHero
+                        |> initExecutor initSolver
+                    }
+
+            StopRunning ->
+                updateGame EnterMode
+                    { game
+                    | board = board
+                        |> initExecutor ( always <| always Nothing )
                     }
 
             _ ->
                 game.board.actors
                     |> List.foldl ( updateActor msg ) game
                     |> runCommands
+
+initExecutor : (Board s -> ExecutionData s -> Maybe s) -> Board s -> Board s
+initExecutor initSolver board =
+    board |>
+        mapActors
+            ( \actor ->
+                case actor of
+                    Executor executor ->
+                        Executor { executor | solver = initSolver board executor }
+
+                    _
+                        -> actor
+            )
 
 runCommands : Game s -> ( Game s , Cmd Msg )
 runCommands game =
@@ -373,7 +370,7 @@ updateExecutor msg board executor =
             Executor { executor | move = Nop }
 
 updateHero : Msg -> Game s -> HeroData -> Actor s
-updateHero msg { board, mode } hero =
+updateHero msg { board } hero =
     let
         { x, y, phi } = hero
 
@@ -393,16 +390,19 @@ updateHero msg { board, mode } hero =
             , dPhi = \t -> 4 * pi * t
             }
 
+        running = isRunning board.actors
+            |> Maybe.withDefault False
+
         recordMove direction game =
-            game |> if mode == Program
-                then sendCommand ( RecordMove ( directionToMove direction ))
-                else identity
+            game |> if running
+                then identity
+                else sendCommand ( RecordMove ( directionToMove direction ))
 
         move =
-            if mode == Program then
-                getInput board.actors
-            else
+            if running then
                 getMove board.actors
+            else
+                getInput board.actors
     in
         case move of
             Just Forward ->
@@ -410,7 +410,7 @@ updateHero msg { board, mode } hero =
                     hero
                         |> animateHero loseAnimation
                         |> sendCommand StartAnimation
-                        |> sendCommand ( SwitchMode Program )
+                        |> sendCommand StopRunning
                         |> Hero
                 else
                     hero
@@ -441,16 +441,16 @@ updateHero msg { board, mode } hero =
                     if atGoal then
                         hero
                             |> animateHero winAnimation
-                            |> ( if mode == Execute
+                            |> ( if running
                                     then sendCommand StartAnimation
                                     else identity
                                )
-                            |> sendCommand ( SwitchMode Program )
+                            |> sendCommand StopRunning
                             |> Hero
                     else
                         hero
                             |> animateHero noHeroAnimation
-                            |> sendCommand ( SwitchMode Program )
+                            |> sendCommand StopRunning
                             |> Hero
                 else
                     Hero hero
@@ -608,6 +608,16 @@ getActor get actors =
         |> List.filterMap get
         |> List.head
 
+isRunning : List ( Actor s ) -> Maybe Bool
+isRunning actors =
+    let
+        executor actor =
+            case actor of
+                Executor ex -> Just ( ex.solver /= Nothing )
+                _ -> Nothing
+    in
+        actors |> getActor executor
+
 getMove : List ( Actor s ) -> Maybe Move
 getMove actors =
     let
@@ -673,13 +683,17 @@ viewHero t cellSize hero =
         |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
 
 viewGame : Game solver -> List (Html Msg)
-viewGame { board, programText, mode } =
+viewGame { board, programText } =
     let
         { actors, animation } = board
         cellSize = board.size / toFloat board.width
 
         viewActors = actors
             |> List.map ( viewActor animation.t cellSize )
+
+        running = isRunning actors
+            |> Maybe.withDefault False
+
     in
         [ CDN.stylesheet
         , Grid.containerFluid []
@@ -709,23 +723,23 @@ viewGame { board, programText, mode } =
                                 , Events.onBlur <| Coding False
                                 ]
                             ]
-                        , if mode == Execute
+                        , if running
                             then Button.button
                                 [ Button.danger
                                 , Button.block
-                                , Button.onClick <| SwitchMode Program
+                                , Button.onClick StopRunning
                                 ]
                                 [ Html.text "Stop" ]
                             else Button.button
                                 [ Button.outlineSuccess
                                 , Button.block
-                                , Button.disabled <| mode /= Program
-                                , Button.onClick <| SwitchMode Execute ]
+                                , Button.onClick RunProgram
+                                ]
                                 [ Html.text "Go!" ]
                         , Button.button
                             [ Button.outlineWarning
                             , Button.block
-                            , Button.disabled <| mode == Execute
+                            , Button.disabled running
                             , Button.onClick ResetGame
                             ]
                             [ Html.text "Reset"]

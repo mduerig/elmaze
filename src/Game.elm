@@ -602,8 +602,8 @@ hasBoundary direction boundary tile =
         Up    -> tile.top
         Down  -> tile.bottom
 
-getActor : ( Actor s -> Maybe a ) -> List ( Actor s ) -> Maybe a
-getActor get actors =
+queryActor : ( Actor s -> Maybe a ) -> List ( Actor s ) -> Maybe a
+queryActor get actors =
     actors
         |> List.filterMap get
         |> List.head
@@ -611,33 +611,33 @@ getActor get actors =
 isRunning : List ( Actor s ) -> Maybe Bool
 isRunning actors =
     let
-        executor actor =
+        executorRunning actor =
             case actor of
-                Executor ex -> Just ( ex.solver /= Nothing )
+                Executor executor -> Just ( executor.solver /= Nothing )
                 _ -> Nothing
     in
-        actors |> getActor executor
+        actors |> queryActor executorRunning
 
 getMove : List ( Actor s ) -> Maybe Move
 getMove actors =
     let
-        executor actor =
+        move actor =
             case actor of
-                Executor ex -> Just ex.move
+                Executor executor -> Just executor.move
                 _ -> Nothing
     in
-        actors |> getActor executor
+        actors |> queryActor move
 
 getInput : List ( Actor s ) -> Maybe Move
 getInput actors =
     let
-        inputController actor =
+        input actor =
             case actor of
                 InputController move -> Just move
                 _ -> Nothing
 
     in
-        actors |> getActor inputController
+        actors |> queryActor input
 
 getHero : List ( Actor s ) -> Maybe HeroData
 getHero actors =
@@ -648,7 +648,7 @@ getHero actors =
                 _ -> Nothing
 
     in
-        actors |> getActor hero
+        actors |> queryActor hero
 
 viewActor : Float -> Float -> Actor s -> Collage Msg
 viewActor t cellSize actor =

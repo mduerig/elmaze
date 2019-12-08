@@ -23,7 +23,7 @@ import Ease
 type alias Game s =
     { board : Board s
     , mode : Mode
-    , recordingEnabled : Bool
+    , coding : Bool
     , programText : String
     }
 
@@ -123,7 +123,7 @@ type Msg
     | AnimationEnd
     | ProgramChanged String
     | GotViewport ( Result Dom.Error Dom.Viewport )
-    | EnableRecording Bool
+    | Coding Bool
 
 initGame : Configuration solver -> ( Game solver, Cmd Msg )
 initGame { board, init, update } =
@@ -149,7 +149,7 @@ initGame { board, init, update } =
                     )
                 |> addActor ( InputController Nop )
             , mode = Program
-            , recordingEnabled = True
+            , coding = False
             , programText = ""
             }
     in
@@ -222,8 +222,8 @@ updateGame msg  ( { board, programText } as game ) =
                 , Cmd.none
                 )
 
-            EnableRecording recordingOn ->
-                ( { game | recordingEnabled = recordingOn }
+            Coding coding ->
+                ( { game | coding = coding }
                 , Cmd.none
                 )
 
@@ -313,7 +313,7 @@ updateActor msg actor game =
                     updateHero msg game hero
 
                 InputController _ ->
-                    updateInputController msg
+                    updateInputController msg game
 
                 Executor executor ->
                     updateExecutor msg game.board executor
@@ -342,13 +342,16 @@ setActor actor board =
                 ( _, _ ) -> currentActor
         )
 
-updateInputController : Msg -> Actor s
-updateInputController msg =
-    case msg of
-       KeyArrow Up    -> InputController Forward
-       KeyArrow Left  -> InputController TurnLeft
-       KeyArrow Right -> InputController TurnRight
-       _              -> InputController Nop
+updateInputController : Msg -> Game s -> Actor s
+updateInputController msg { coding } =
+    if coding then
+        InputController Nop
+    else
+        case msg of
+        KeyArrow Up    -> InputController Forward
+        KeyArrow Left  -> InputController TurnLeft
+        KeyArrow Right -> InputController TurnRight
+        _              -> InputController Nop
 
 updateExecutor : Msg -> Board s -> ExecutionData s -> Actor s
 updateExecutor msg board executor =
@@ -371,7 +374,7 @@ updateExecutor msg board executor =
             Executor { executor | move = Nop }
 
 updateHero : Msg -> Game s -> HeroData -> Actor s
-updateHero msg { board, mode, recordingEnabled } hero =
+updateHero msg { board, mode } hero =
     let
         { x, y, phi } = hero
 
@@ -397,53 +400,50 @@ updateHero msg { board, mode, recordingEnabled } hero =
             else
                 getMove board.actors
     in
-        if not recordingEnabled
-            then
-                Hero hero
-            else case move of
-                Just Forward ->
-                    if isBlocked phi then
+        case move of
+            Just Forward ->
+                if isBlocked phi then
+                    hero
+                        |> animateHero loseAnimation
+                        |> sendCommand StartAnimation
+                        |> Hero
+                else
+                    hero
+                        |> moveHero phi
+                        |> animateHero ( moveHeroAnimation phi )
+                        |> sendCommand StartAnimation
+                        |> sendCommand ( RecordMove ( directionToMove Up ))
+                        |> Hero
+
+            Just TurnLeft ->
+                hero
+                    |> turnHero Left
+                    |> animateHero ( turnHeroAnimation Left )
+                    |> sendCommand StartAnimation
+                    |> sendCommand ( RecordMove ( directionToMove Left ))
+                    |> Hero
+
+            Just TurnRight ->
+                hero
+                    |> turnHero Right
+                    |> animateHero ( turnHeroAnimation Right )
+                    |> sendCommand StartAnimation
+                    |> sendCommand ( RecordMove ( directionToMove Right ))
+                    |> Hero
+
+            _ ->
+                if msg == AnimationEnd then
+                    if atGoal then
                         hero
-                            |> animateHero loseAnimation
+                            |> animateHero winAnimation
                             |> sendCommand StartAnimation
                             |> Hero
                     else
                         hero
-                            |> moveHero phi
-                            |> animateHero ( moveHeroAnimation phi )
-                            |> sendCommand StartAnimation
-                            |> sendCommand ( RecordMove ( directionToMove Up ))
+                            |> animateHero noHeroAnimation
                             |> Hero
-
-                Just TurnLeft ->
-                    hero
-                        |> turnHero Left
-                        |> animateHero ( turnHeroAnimation Left )
-                        |> sendCommand StartAnimation
-                        |> sendCommand ( RecordMove ( directionToMove Left ))
-                        |> Hero
-
-                Just TurnRight ->
-                    hero
-                        |> turnHero Right
-                        |> animateHero ( turnHeroAnimation Right )
-                        |> sendCommand StartAnimation
-                        |> sendCommand ( RecordMove ( directionToMove Right ))
-                        |> Hero
-
-                _ ->
-                    if msg == AnimationEnd then
-                        if atGoal then
-                            hero
-                                |> animateHero winAnimation
-                                |> sendCommand StartAnimation
-                                |> Hero
-                        else
-                            hero
-                                |> animateHero noHeroAnimation
-                                |> Hero
-                    else
-                        Hero hero
+                else
+                    Hero hero
 
 clearCommands : Game s -> Game s
 clearCommands ( { board } as game ) =
@@ -695,8 +695,8 @@ viewGame { board, programText, mode } =
                             , Textarea.value <| programText
                             , Textarea.onInput ProgramChanged
                             , Textarea.attrs
-                                [ Events.onFocus <| EnableRecording False
-                                , Events.onBlur <| EnableRecording True
+                                [ Events.onFocus <| Coding True
+                                , Events.onBlur <| Coding False
                                 ]
                             ]
                         , if mode == Execute

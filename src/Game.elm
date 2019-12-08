@@ -208,7 +208,7 @@ updateGame msg  ( { board, programText } as game ) =
                             if mode == Execute then
                                 Executor { executor | solver = initSolver executor board0 }
                             else
-                                    Executor { executor | solver = Nothing }
+                                Executor { executor | solver = Nothing }
                         _ -> actor
                 )
     in
@@ -441,7 +441,10 @@ updateHero msg { board, mode } hero =
                     if atGoal then
                         hero
                             |> animateHero winAnimation
-                            |> sendCommand StartAnimation
+                            |> ( if mode == Execute
+                                    then sendCommand StartAnimation
+                                    else identity
+                               )
                             |> sendCommand ( SwitchMode Program )
                             |> Hero
                     else

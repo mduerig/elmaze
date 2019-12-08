@@ -3,7 +3,7 @@ module Game exposing (..)
 import Array exposing ( Array )
 import Browser
 import Browser.Dom as Dom
-import Browser.Events exposing ( onKeyDown, onKeyUp, onAnimationFrameDelta, onResize )
+import Browser.Events exposing ( onKeyDown, onAnimationFrameDelta, onResize )
 import Collage exposing ( .. )
 import Collage.Render exposing ( svg )
 import Collage.Text as Text
@@ -88,19 +88,12 @@ type alias ExecutionData s =
     , move : Move
     }
 
-type HeroState
-    = Moving
-    | Idle
-    | Won
-    | Lost
-
 type alias HeroData =
     { x : Int
     , y : Int
     , phi : Direction
     , animation : HeroAnimation
-    , state : HeroState
-    , moves : List Move
+    , cmds : List Msg
     }
 
 type alias HeroAnimation =
@@ -122,6 +115,8 @@ type Msg
     | EnterMode
     | KeyOtherDown String
     | Resize Int Int
+    | StartAnimation
+    | RecordMove Move
     | AnimationFrame Float
     | AnimationStart
     | AnimationStep
@@ -141,8 +136,7 @@ initGame { board, init, update } =
                         , y = 0
                         , phi = Up
                         , animation = noHeroAnimation
-                        , state = Idle
-                        , moves = []
+                        , cmds = []
                         }
                     )
                 |> addActor
@@ -241,6 +235,11 @@ updateGame msg  ( { board, programText } as game ) =
             Resize _ _  ->
                 ( game, getProgramTextareaWidth )
 
+            StartAnimation ->
+                ( { game | board = startAnimation board }
+                , Cmd.none
+                )
+
             AnimationFrame dt ->
                 let
                     t = board.animation.t
@@ -251,6 +250,20 @@ updateGame msg  ( { board, programText } as game ) =
                         updateGame AnimationStep  { game | board = board |> advanceAnimation dt }
                     else
                         updateGame AnimationEnd   { game | board = board |> stopAnimation }
+
+            RecordMove move ->
+                let
+                    toString direction =
+                        case direction of
+                            Forward   -> "forward\n"
+                            TurnLeft  -> "left\n"
+                            TurnRight -> "right\n"
+                            _         -> ""
+
+                in
+                    ( { game | programText = ensureTrailingLF programText ++ toString move }
+                    , Cmd.none
+                    )
 
             ProgramChanged newProgram ->
                 ( { game | programText = newProgram }
@@ -267,30 +280,29 @@ updateGame msg  ( { board, programText } as game ) =
                     }
 
             _ ->
-                ( game.board.actors
+                game.board.actors
                     |> List.foldl ( updateActor msg ) game
-                    |> applyStateAndAnimation
-                , Cmd.none
-                )
+                    |> runCommands
+                    |> Tuple.mapFirst clearCommands
 
-applyStateAndAnimation : Game s -> Game s
-applyStateAndAnimation ( { board } as game ) =
+runCommands : Game s -> ( Game s , Cmd Msg )
+runCommands game =
+    game.board.actors
+        |> List.concatMap getCommands
+        |> List.foldl runCommand ( game, Cmd.none )
+
+getCommands : Actor s -> List Msg
+getCommands actor =
+    case actor of
+        Hero hero -> hero.cmds
+        _         -> []
+
+runCommand : Msg -> ( Game s, Cmd Msg ) -> ( Game s, Cmd Msg )
+runCommand msg ( game, cmd ) =
     let
-        state = getHero board.actors
-            |> Maybe.map .state
-
-        programText = getProgramText board.actors
+        ( newGame, newCommand ) = updateGame msg game
     in
-        { game
-        | mode = if state == Just Moving
-            then Execute
-            else Program
-        , board = board
-            |> if state == Just Idle && game.mode == Execute
-                then identity
-                else startAnimation False
-        , programText = programText
-        }
+        ( newGame, Cmd.batch [ cmd, newCommand ] )
 
 updateActor : Msg -> Actor s -> Game s -> Game s
 updateActor msg actor game =
@@ -330,26 +342,6 @@ setActor actor board =
                 ( _, _ ) -> currentActor
         )
 
-getProgramText : List ( Actor s ) -> String
-getProgramText actors =
-    let
-        toString direction =
-            case direction of
-                Forward   -> "forward"
-                TurnLeft  -> "left"
-                TurnRight -> "right"
-                _         -> ""
-    in
-        getHero actors
-            |> Maybe.map
-                ( .moves
-                >> List.reverse
-                >> List.map toString
-                >> String.join "\n"
-                >> ensureTrailingLF
-                )
-            |> Maybe.withDefault ""
-
 updateInputController : Msg -> Actor s
 updateInputController msg =
     case msg of
@@ -357,10 +349,6 @@ updateInputController msg =
        KeyArrow Left  -> InputController TurnLeft
        KeyArrow Right -> InputController TurnRight
        _              -> InputController Nop
-
-recordMove : Direction -> HeroData -> HeroData
-recordMove direction hero =
-    { hero | moves = directionToMove direction :: hero.moves }
 
 updateExecutor : Msg -> Board s -> ExecutionData s -> Actor s
 updateExecutor msg board executor =
@@ -417,30 +405,30 @@ updateHero msg { board, mode, recordingEnabled } hero =
                     if isBlocked phi then
                         hero
                             |> animateHero loseAnimation
-                            |> setHeroState Lost
+                            |> sendCommand StartAnimation
                             |> Hero
                     else
                         hero
                             |> moveHero phi
                             |> animateHero ( moveHeroAnimation phi )
-                            |> setHeroState Moving
-                            |> recordMove Up
+                            |> sendCommand StartAnimation
+                            |> sendCommand ( RecordMove ( directionToMove Up ))
                             |> Hero
 
                 Just TurnLeft ->
                     hero
                         |> turnHero Left
                         |> animateHero ( turnHeroAnimation Left )
-                        |> setHeroState Moving
-                        |> recordMove Left
+                        |> sendCommand StartAnimation
+                        |> sendCommand ( RecordMove ( directionToMove Left ))
                         |> Hero
 
                 Just TurnRight ->
                     hero
                         |> turnHero Right
                         |> animateHero ( turnHeroAnimation Right )
-                        |> setHeroState Moving
-                        |> recordMove Right
+                        |> sendCommand StartAnimation
+                        |> sendCommand ( RecordMove ( directionToMove Right ))
                         |> Hero
 
                 _ ->
@@ -448,34 +436,40 @@ updateHero msg { board, mode, recordingEnabled } hero =
                         if atGoal then
                             hero
                                 |> animateHero winAnimation
-                                |> setHeroState Won
+                                |> sendCommand StartAnimation
                                 |> Hero
                         else
                             hero
                                 |> animateHero noHeroAnimation
-                                |> setHeroState Idle
                                 |> Hero
                     else
                         Hero hero
 
-setHeroState : HeroState -> HeroData -> HeroData
-setHeroState state hero =
-    { hero | state = state }
+clearCommands : Game s -> Game s
+clearCommands ( { board } as game ) =
+    let
+        clearCmd actor = case actor of
+            Hero hero -> Hero { hero | cmds = [] }
+            _         -> actor
+    in
+        { game | board = board |> mapActors clearCmd }
+
+
+sendCommand : Msg -> HeroData -> HeroData
+sendCommand cmd hero =
+    { hero | cmds =
+        if List.member cmd hero.cmds
+            then hero.cmds
+            else cmd :: hero.cmds }
 
 stopAnimation : Board s -> Board s
 stopAnimation board =
     let animation = board.animation
     in  { board | animation = { animation | t = 0, onDelta = always Sub.none }}
 
-startAnimation : Bool -> Board s -> Board s
-startAnimation restart board =
-    let
-        animation = board.animation
-    in
-        if restart || animation.onDelta AnimationFrame == Sub.none then
-            { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
-        else
-            board
+startAnimation : Board s -> Board s
+startAnimation ( { animation } as board ) =
+    { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
 
 advanceAnimation : Float -> Board s -> Board s
 advanceAnimation dt board =
@@ -505,13 +499,13 @@ resetHero : Board s -> Board s
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( HeroData x y Up noHeroAnimation Idle [] )
+            then Just ( HeroData x y Up noHeroAnimation [] )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation Idle [] )
+            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation [] )
     in
         { board | actors = setHero hero actors }
 

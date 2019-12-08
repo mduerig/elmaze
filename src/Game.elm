@@ -283,13 +283,12 @@ updateGame msg  ( { board, programText } as game ) =
                 game.board.actors
                     |> List.foldl ( updateActor msg ) game
                     |> runCommands
-                    |> Tuple.mapFirst clearCommands
 
 runCommands : Game s -> ( Game s , Cmd Msg )
 runCommands game =
     game.board.actors
         |> List.concatMap getCommands
-        |> List.foldl runCommand ( game, Cmd.none )
+        |> List.foldl runCommand ( game |> clearCommands, Cmd.none )
 
 getCommands : Actor s -> List Msg
 getCommands actor =
@@ -394,6 +393,11 @@ updateHero msg { board, mode } hero =
             , dPhi = \t -> 4 * pi * t
             }
 
+        recordMove direction game =
+            game |> if mode == Program
+                then sendCommand ( RecordMove ( directionToMove direction ))
+                else identity
+
         move =
             if mode == Program then
                 getInput board.actors
@@ -406,13 +410,14 @@ updateHero msg { board, mode } hero =
                     hero
                         |> animateHero loseAnimation
                         |> sendCommand StartAnimation
+                        |> sendCommand ( SwitchMode Program )
                         |> Hero
                 else
                     hero
                         |> moveHero phi
                         |> animateHero ( moveHeroAnimation phi )
                         |> sendCommand StartAnimation
-                        |> sendCommand ( RecordMove ( directionToMove Up ))
+                        |> recordMove Up
                         |> Hero
 
             Just TurnLeft ->
@@ -420,7 +425,7 @@ updateHero msg { board, mode } hero =
                     |> turnHero Left
                     |> animateHero ( turnHeroAnimation Left )
                     |> sendCommand StartAnimation
-                    |> sendCommand ( RecordMove ( directionToMove Left ))
+                    |> recordMove Left
                     |> Hero
 
             Just TurnRight ->
@@ -428,7 +433,7 @@ updateHero msg { board, mode } hero =
                     |> turnHero Right
                     |> animateHero ( turnHeroAnimation Right )
                     |> sendCommand StartAnimation
-                    |> sendCommand ( RecordMove ( directionToMove Right ))
+                    |> recordMove Right
                     |> Hero
 
             _ ->
@@ -437,10 +442,12 @@ updateHero msg { board, mode } hero =
                         hero
                             |> animateHero winAnimation
                             |> sendCommand StartAnimation
+                            |> sendCommand ( SwitchMode Program )
                             |> Hero
                     else
                         hero
                             |> animateHero noHeroAnimation
+                            |> sendCommand ( SwitchMode Program )
                             |> Hero
                 else
                     Hero hero

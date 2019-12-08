@@ -117,13 +117,10 @@ type Direction
 
 type Msg
     = KeyArrow Direction
-    | KeyEscape
-    | KeyShift Bool
     | ResetGame
     | SwitchMode Mode
     | EnterMode
     | KeyOtherDown String
-    | KeyOtherUp String
     | Resize Int Int
     | AnimationFrame Float
     | AnimationStart
@@ -830,20 +827,7 @@ keyDownDecoder =
                 "ArrowRight" -> KeyArrow Right
                 "ArrowUp"    -> KeyArrow Up
                 "ArrowDown"  -> KeyArrow Down
-                "Escape"     -> KeyEscape
-                "Shift"      -> KeyShift True
                 _            -> KeyOtherDown string
-    in
-        Decode.field "key" Decode.string
-            |> Decode.map toDirection
-
-keyUpDecoder : Decode.Decoder Msg
-keyUpDecoder =
-    let
-        toDirection string =
-            case string of
-                "Shift" -> KeyShift False
-                _       -> KeyOtherUp string
     in
         Decode.field "key" Decode.string
             |> Decode.map toDirection
@@ -854,7 +838,6 @@ play configuration =
         { subscriptions =
             \{ board } -> Sub.batch
                 [ onKeyDown keyDownDecoder
-                , onKeyUp keyUpDecoder
                 , board.animation.onDelta AnimationFrame
                 , onResize Resize
                 ]

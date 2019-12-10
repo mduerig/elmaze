@@ -4,6 +4,7 @@ import Array exposing ( Array )
 import Browser
 import Browser.Dom as Dom
 import Browser.Events exposing ( onKeyDown, onAnimationFrameDelta, onResize )
+import Random
 import Collage exposing ( .. )
 import Collage.Render exposing ( svg )
 import Collage.Text as Text
@@ -73,6 +74,7 @@ type Boundary
 
 type Actor s
     = Hero HeroData
+    | Friend FriendData
     | InputController Move
     | Executor ( ExecutionData s )
 
@@ -84,6 +86,14 @@ type alias ExecutionData s =
     }
 
 type alias HeroData =
+    { x : Int
+    , y : Int
+    , phi : Direction
+    , animation : HeroAnimation
+    , cmds : List Msg
+    }
+
+type alias FriendData =
     { x : Int
     , y : Int
     , phi : Direction
@@ -120,6 +130,8 @@ type Msg
     | ProgramChanged String
     | GotViewport ( Result Dom.Error Dom.Viewport )
     | Coding Bool
+    | GenerateRandom ( Cmd Msg )
+    | RandomDirection Direction
 
 initGame : Configuration solver -> ( Game solver, Cmd Msg )
 initGame { board, init, update } =
@@ -131,6 +143,15 @@ initGame { board, init, update } =
                         { x = 0
                         , y = 0
                         , phi = Up
+                        , animation = noHeroAnimation
+                        , cmds = []
+                        }
+                    )
+                |> addActor
+                    ( Friend
+                        { x = 1
+                        , y = 1
+                        , phi = Right
                         , animation = noHeroAnimation
                         , cmds = []
                         }
@@ -192,6 +213,9 @@ updateGame msg  ( { board, programText } as game ) =
             <| programText
     in
         case msg of
+            GenerateRandom cmd ->
+                ( game, cmd )
+
             ResetGame ->
                 ( { game
                   | board = board |> resetHero
@@ -290,8 +314,10 @@ runCommands game =
 getCommands : Actor s -> List Msg
 getCommands actor =
     case actor of
-        Hero hero -> hero.cmds
-        _         -> []
+        Hero hero         -> hero.cmds
+        Friend friend     -> friend.cmds
+        Executor        _ -> []
+        InputController _ -> []
 
 runCommand : Msg -> ( Game s, Cmd Msg ) -> ( Game s, Cmd Msg )
 runCommand msg ( game, cmd ) =
@@ -307,6 +333,9 @@ updateActor msg actor game =
             case actor of
                 Hero hero ->
                     updateHero msg game hero
+
+                Friend friend ->
+                    updateFriend msg game friend
 
                 InputController _ ->
                     updateInputController msg game
@@ -333,6 +362,7 @@ setActor actor board =
         ( \currentActor ->
             case ( currentActor, actor ) of
                 ( Hero _, Hero _ ) -> actor
+                ( Friend _, Friend _ ) -> actor
                 ( InputController _, InputController _ ) -> actor
                 ( Executor _, Executor _ ) -> actor
                 ( _, _ ) -> currentActor
@@ -455,12 +485,44 @@ updateHero msg { board } hero =
                 else
                     Hero hero
 
+updateFriend : Msg -> Game s -> FriendData -> Actor s
+updateFriend msg { board } ( { x, y, phi } as friend ) =
+    let
+        isBlocked direction =
+            queryTile ( x, y ) board ( hasBoundary direction Wall )
+
+        rnd = Random.uniform Up [ Down, Left, Right ]
+    in
+        case msg of
+            RandomDirection direction ->
+                Friend { friend | phi = direction }
+
+            AnimationStart ->
+                if isBlocked phi then
+                    Friend { friend | cmds = [ GenerateRandom <| Random.generate RandomDirection rnd ] }
+                else
+                    friend
+                        |> moveHero phi
+                        |> animateHero ( moveHeroAnimation phi )
+                        |> Friend
+
+            AnimationEnd ->
+                friend
+                    |> animateHero noHeroAnimation
+                    |> Friend
+
+            _ ->
+                Friend friend
+
 clearCommands : Game s -> Game s
 clearCommands ( { board } as game ) =
     let
         clearCmd actor = case actor of
-            Hero hero -> Hero { hero | cmds = [] }
-            _         -> actor
+            Hero hero         -> Hero { hero | cmds = [] }
+            Friend friend     -> Friend { friend | cmds = [] }
+            Executor _        -> actor
+            InputController _ -> actor
+
     in
         { game | board = board |> mapActors clearCmd }
 
@@ -653,9 +715,10 @@ getHero actors =
 viewActor : Float -> Float -> Actor s -> Collage Msg
 viewActor t cellSize actor =
     case actor of
-        Hero hero -> viewHero t cellSize hero
+        Hero hero         -> viewHero t cellSize hero
+        Friend friend     -> viewFriend t cellSize friend
         InputController _ -> Collage.group []
-        Executor _ -> Collage.group []
+        Executor _        -> Collage.group []
 
 
 viewHero : Float -> Float -> HeroData -> Collage Msg
@@ -681,6 +744,30 @@ viewHero t cellSize hero =
         |> group
         |> shiftX ( cellSize * ( toFloat hero.x + dX ) )
         |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
+
+viewFriend : Float -> Float -> FriendData -> Collage Msg
+viewFriend t cellSize friend =
+    let
+        angle = case friend.phi of
+            Left  -> pi/2
+            Up    -> 0
+            Right -> -pi/2
+            Down  -> pi
+
+        dPhi = friend.animation.dPhi t
+        dX = friend.animation.dX t
+        dY = friend.animation.dY t
+    in
+        [ Text.fromString "🦋"
+            |> Text.size (round (cellSize/5*3))
+            |> rendered
+            |> rotate ( angle + dPhi)
+        , circle (cellSize/5*2)
+            |> filled transparent
+        ]
+        |> group
+        |> shiftX ( cellSize * ( toFloat friend.x + dX ) )
+        |> shiftY ( cellSize * ( toFloat friend.y + dY ) )
 
 viewGame : Game solver -> List (Html Msg)
 viewGame { board, programText } =

@@ -484,18 +484,6 @@ resetActors : Board -> Board
 resetActors board =
     { board | actors = board.resetActors }
 
-setHero : A.ActorData Msg -> List Actor -> List Actor
-setHero heroData actors =
-    let
-        replaceHero actor =
-            case actor of
-                Hero _ -> Hero heroData
-                _ -> actor
-    in
-        actors
-            |> List.map replaceHero
-
-
 queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
     Array.get ((height - 1 - y) * width + x) tiles

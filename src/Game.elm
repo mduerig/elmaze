@@ -35,6 +35,7 @@ type alias Board =
     , width : Int
     , height : Int
     , tiles : Array Tile
+    , resetActors : List Actor
     , actors : List Actor
     , animation : Animation
     }
@@ -92,27 +93,11 @@ type Msg
 initGame : Board -> ( Game, Cmd Msg )
 initGame board =
     let
+        boardWithActors = board
+            |> addActor ( KbdInputController A.Nop )
+
         game =
-            { board = board
-                |> addActor
-                    ( Hero
-                        { x = 0
-                        , y = 0
-                        , phi = A.Up
-                        , animation = A.noAnimation
-                        , cmds = []
-                        }
-                    )
-                |> addActor
-                    ( Friend
-                        { x = 1
-                        , y = 1
-                        , phi = A.Right
-                        , animation = A.noAnimation
-                        , cmds = []
-                        }
-                    )
-                |> addActor ( KbdInputController A.Nop )
+            { board = { boardWithActors | resetActors = boardWithActors.actors }
             , coding = False
             , programText = ""
             }
@@ -137,6 +122,7 @@ newBoard width height =
             , bottom = Wall
             , right = Wall
             }
+    , resetActors = []
     , actors = []
     , animation =
         { v = 1.5
@@ -163,7 +149,7 @@ updateGame msg  ( { board, programText } as game ) =
 
             ResetGame ->
                 ( { game
-                  | board = board |> resetHero
+                  | board = board |> resetActors
                   , programText = ""
                 }
                 , Cmd.none
@@ -212,7 +198,7 @@ updateGame msg  ( { board, programText } as game ) =
                 updateGame EnterMode
                     { game
                     | board = board
-                        |> resetHero
+                        |> resetActors
                         |> setPrgController program
                     }
 
@@ -494,19 +480,9 @@ isHeroAtGoal : A.ActorData Msg -> Board -> Bool
 isHeroAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
-resetHero : Board -> Board
-resetHero ( { actors } as board ) =
-    let
-        startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( A.ActorData x y A.Up A.noAnimation [] )
-            else Nothing
-
-        hero = tilesWithIndex board
-            |> List.filterMap startTileToHero
-            |> List.head
-            |> Maybe.withDefault ( A.ActorData 0 0 A.Up A.noAnimation [] )
-    in
-        { board | actors = setHero hero actors }
+resetActors : Board -> Board
+resetActors board =
+    { board | actors = board.resetActors }
 
 setHero : A.ActorData Msg -> List Actor -> List Actor
 setHero heroData actors =

@@ -2,11 +2,9 @@ module Main exposing ( main )
 
 import Game exposing
     ( Game, Board, newBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
-    , TileType(..), Msg, updateTileBackground, Actor
+    , TileType(..), Msg, updateTileBackground, Actor(..), addActor
     )
 import Actor as A
-import Parse as P
-import Interpreter as I
 
 testBoard : Board
 testBoard = newBoard 8 6
@@ -109,6 +107,24 @@ testBoard = newBoard 8 6
     |> updateTile ( 1, 4 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 1, 5 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 3, 4 ) ( updateTileBackground "tiles/0.png")
+    |> addActor
+        ( Hero
+            { x = 0
+            , y = 0
+            , phi = A.Up
+            , animation = A.noAnimation
+            , cmds = []
+            }
+        )
+    |> addActor
+        ( Friend
+            { x = 1
+            , y = 1
+            , phi = A.Right
+            , animation = A.noAnimation
+            , cmds = []
+            }
+        )
 
 main : Program () Game Msg
 main =

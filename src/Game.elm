@@ -89,7 +89,7 @@ type alias HeroData =
     { x : Int
     , y : Int
     , phi : Direction
-    , animation : HeroAnimation
+    , animation : ActorAnimation
     , cmds : List Msg
     }
 
@@ -97,11 +97,11 @@ type alias FriendData =
     { x : Int
     , y : Int
     , phi : Direction
-    , animation : HeroAnimation
+    , animation : ActorAnimation
     , cmds : List Msg
     }
 
-type alias HeroAnimation =
+type alias ActorAnimation =
     { dX : Float -> Float
     , dY : Float -> Float
     , dPhi : Float -> Float
@@ -175,7 +175,7 @@ getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
     Task.attempt GotViewport ( Dom.getViewportOf "boardWidth" )
 
-noHeroAnimation : HeroAnimation
+noHeroAnimation : ActorAnimation
 noHeroAnimation =
     { dY = always 0
     , dX = always 0
@@ -548,7 +548,7 @@ advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
-moveHeroAnimation : Direction -> HeroAnimation
+moveHeroAnimation : Direction -> ActorAnimation
 moveHeroAnimation direction =
     case direction of
         Left  -> { noHeroAnimation | dX = Ease.inOutBack >> \t -> 1 - t }
@@ -556,7 +556,7 @@ moveHeroAnimation direction =
         Up    -> { noHeroAnimation | dY = Ease.inOutBack >> \t -> t - 1 }
         Down  -> { noHeroAnimation | dY = Ease.inOutBack >> \t -> 1 - t }
 
-turnHeroAnimation : Direction -> HeroAnimation
+turnHeroAnimation : Direction -> ActorAnimation
 turnHeroAnimation direction =
     case direction of
         Left  -> { noHeroAnimation | dPhi = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
@@ -609,7 +609,7 @@ turnHero direction hero =
             _     -> hero.phi
     }
 
-animateHero : HeroAnimation -> HeroData -> HeroData
+animateHero : ActorAnimation -> HeroData -> HeroData
 animateHero animation hero =
     { hero | animation = animation }
 

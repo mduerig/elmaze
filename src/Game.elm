@@ -68,8 +68,8 @@ type Boundary
     | Path
 
 type Actor s
-    = Hero HeroData
-    | Friend FriendData
+    = Hero ActorData
+    | Friend ActorData
     | InputController A.Move
     | Executor ( ExecutionData s )
 
@@ -80,22 +80,13 @@ type alias ExecutionData s =
     , move : A.Move
     }
 
-type alias HeroData =
+type alias ActorData =
     { x : Int
     , y : Int
     , phi : A.Direction
     , animation : A.Animation
     , cmds : List Msg
     }
-
-type alias FriendData =
-    { x : Int
-    , y : Int
-    , phi : A.Direction
-    , animation : A.Animation
-    , cmds : List Msg
-    }
-
 
 type Msg
     = KeyArrow A.Direction
@@ -367,7 +358,7 @@ updateExecutor msg board executor =
         else
             Executor { executor | move = A.Nop }
 
-updateHero : Msg -> Game s -> HeroData -> Actor s
+updateHero : Msg -> Game s -> ActorData -> Actor s
 updateHero msg { board } hero =
     let
         { x, y, phi } = hero
@@ -455,7 +446,7 @@ updateHero msg { board } hero =
                 else
                     Hero hero
 
-updateFriend : Msg -> Game s -> FriendData -> Actor s
+updateFriend : Msg -> Game s -> ActorData -> Actor s
 updateFriend msg { board } ( { x, y, phi } as friend ) =
     let
         isBlocked direction =
@@ -497,7 +488,7 @@ clearCommands ( { board } as game ) =
         { game | board = board |> mapActors clearCmd }
 
 
-sendCommand : Msg -> HeroData -> HeroData
+sendCommand : Msg -> ActorData -> ActorData
 sendCommand cmd hero =
     { hero | cmds =
         if List.member cmd hero.cmds
@@ -518,7 +509,7 @@ advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
-isHeroAtGoal : HeroData -> Board s -> Bool
+isHeroAtGoal : ActorData -> Board s -> Bool
 isHeroAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
@@ -526,17 +517,17 @@ resetHero : Board s -> Board s
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( HeroData x y A.Up A.noAnimation [] )
+            then Just ( ActorData x y A.Up A.noAnimation [] )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( HeroData 0 0 A.Up A.noAnimation [] )
+            |> Maybe.withDefault ( ActorData 0 0 A.Up A.noAnimation [] )
     in
         { board | actors = setHero hero actors }
 
-setHero : HeroData -> List ( Actor s ) -> List ( Actor s )
+setHero : ActorData -> List ( Actor s ) -> List ( Actor s )
 setHero heroData actors =
     let
         replaceHero actor =
@@ -547,7 +538,7 @@ setHero heroData actors =
         actors
             |> List.map replaceHero
 
-moveHero : A.Direction -> HeroData -> HeroData
+moveHero : A.Direction -> ActorData -> ActorData
 moveHero direction hero =
     case direction of
         A.Right -> { hero | x = hero.x + 1 }
@@ -555,7 +546,7 @@ moveHero direction hero =
         A.Up    -> { hero | y = hero.y + 1 }
         A.Down  -> { hero | y = hero.y - 1 }
 
-turnHero : A.Direction -> HeroData -> HeroData
+turnHero : A.Direction -> ActorData -> ActorData
 turnHero direction hero =
     { hero | phi =
         case direction of
@@ -564,7 +555,7 @@ turnHero direction hero =
             _       -> hero.phi
     }
 
-animateHero : A.Animation -> HeroData -> HeroData
+animateHero : A.Animation -> ActorData -> ActorData
 animateHero animation hero =
     { hero | animation = animation }
 
@@ -656,7 +647,7 @@ getInput actors =
     in
         actors |> queryActor input
 
-getHero : List ( Actor s ) -> Maybe HeroData
+getHero : List ( Actor s ) -> Maybe ActorData
 getHero actors =
     let
         hero actor =
@@ -676,7 +667,7 @@ viewActor t cellSize actor =
         Executor _        -> Collage.group []
 
 
-viewHero : Float -> Float -> HeroData -> Collage Msg
+viewHero : Float -> Float -> ActorData -> Collage Msg
 viewHero t cellSize hero =
     let
         angle = case hero.phi of
@@ -700,7 +691,7 @@ viewHero t cellSize hero =
         |> shiftX ( cellSize * ( toFloat hero.x + dX ) )
         |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
 
-viewFriend : Float -> Float -> FriendData -> Collage Msg
+viewFriend : Float -> Float -> ActorData -> Collage Msg
 viewFriend t cellSize friend =
     let
         angle = case friend.phi of

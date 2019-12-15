@@ -371,7 +371,7 @@ updateHero msg { board } hero =
                 else A.sendCommand ( RecordMove ( A.directionToMove direction ))
     in
         case getInput board.actors of
-            Just A.Forward ->
+            A.Forward ->
                 if isBlocked phi then
                     hero
                         |> A.animate loseAnimation
@@ -386,7 +386,7 @@ updateHero msg { board } hero =
                         |> recordMove A.Up
                         |> Hero
 
-            Just A.TurnLeft ->
+            A.TurnLeft ->
                 hero
                     |> A.turn A.Left
                     |> A.animate ( A.turnAnimation A.Left )
@@ -394,7 +394,7 @@ updateHero msg { board } hero =
                     |> recordMove A.Left
                     |> Hero
 
-            Just A.TurnRight ->
+            A.TurnRight ->
                 hero
                     |> A.turn A.Right
                     |> A.animate ( A.turnAnimation A.Right )
@@ -553,7 +553,7 @@ isRunning actors =
             |> queryActor executorRunning
             |> Maybe.withDefault False
 
-getInput : List Actor -> Maybe A.Move
+getInput : List Actor -> A.Move
 getInput actors =
     let
         input actor =
@@ -563,7 +563,9 @@ getInput actors =
                 _ -> Nothing
 
     in
-        actors |> queryActor input
+        actors
+            |> queryActor input
+            |> Maybe.withDefault A.Nop
 
 getHero : List Actor -> Maybe ( A.ActorData Msg )
 getHero actors =

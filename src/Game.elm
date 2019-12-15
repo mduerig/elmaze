@@ -311,27 +311,18 @@ updateKbdInputController msg { coding } =
 
 isMet : Board -> P.Condition -> Bool
 isMet board condition =
-    let
-        hero = getHero board.actors
-            |> Maybe.withDefault ( A.ActorData 50 50 A.Up A.noAnimation [] )
+    case condition of
+        P.Not notCondition
+            -> not <| isMet board notCondition
 
-        atGoal tile = tile.tileType == Goal
+        P.Free
+            -> canHeroMove board
 
-        queryHero : (Tile -> Bool) -> Bool
-        queryHero = queryTile (hero.x, hero.y) board
-    in
-        case condition of
-            P.Not notCondition
-                -> not <| isMet board notCondition
+        P.Blocked
+            -> not ( canHeroMove board )
 
-            P.Free
-                -> queryHero ( hasBoundary hero.phi Path )
-
-            P.Blocked
-                -> queryHero ( hasBoundary hero.phi Wall )
-
-            P.Goal
-                -> queryHero atGoal
+        P.Goal
+            -> isHeroAtGoal board
 
 updatePrgInputController : Msg -> Game -> Interpreter -> Actor
 updatePrgInputController msg game interpreter =
@@ -347,6 +338,9 @@ updateHero msg { board } hero =
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
+
+        isAtGoal =
+            queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
         noAnimation = A.noAnimation
         winAnimation =
@@ -402,7 +396,7 @@ updateHero msg { board } hero =
 
             _ ->
                 if msg == AnimationEnd then
-                    if isAtGoal hero board then
+                    if isAtGoal then
                         hero
                             |> A.animate winAnimation
                             |> ( if running
@@ -473,10 +467,6 @@ advanceAnimation : Float -> Board -> Board
 advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
-
-isAtGoal : A.ActorData Msg -> Board -> Bool
-isAtGoal hero board =
-    queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
 resetActors : Board -> Board
 resetActors board =
@@ -565,16 +555,29 @@ getInput actors =
             |> queryActor input
             |> Maybe.withDefault A.Nop
 
-getHero : List Actor -> Maybe ( A.ActorData Msg )
-getHero actors =
+canHeroMove : Board -> Bool
+canHeroMove board =
     let
-        hero actor =
+        canMove actor =
             case actor of
-                Hero heroData -> Just heroData
-                _ -> Nothing
-
+               Hero hero -> Just ( queryTile ( hero.x, hero.y ) board ( hasBoundary hero.phi Wall ) )
+               _ -> Just False
     in
-        actors |> queryActor hero
+        board.actors
+            |> queryActor canMove
+            |> Maybe.withDefault False
+
+isHeroAtGoal : Board -> Bool
+isHeroAtGoal board =
+    let
+        atGoal actor =
+            case actor of
+               Hero hero -> Just ( queryTile ( hero.x, hero.y ) board (\tile -> tile.tileType == Goal) )
+               _ -> Just False
+    in
+        board.actors
+            |> queryActor atGoal
+            |> Maybe.withDefault False
 
 viewActor : Float -> Float -> Actor -> Collage Msg
 viewActor t cellSize actor =

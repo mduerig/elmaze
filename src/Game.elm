@@ -70,7 +70,7 @@ type Boundary
 type Actor s
     = Hero ( A.ActorData Msg )
     | Friend ( A.ActorData Msg )
-    | InputController A.Move
+    | KbdInputController A.Move
     | Executor ( ExecutionData s )
 
 type alias ExecutionData s =
@@ -131,7 +131,7 @@ initGame { board, init, update } =
                         , move = A.Nop
                         }
                     )
-                |> addActor ( InputController A.Nop )
+                |> addActor ( KbdInputController A.Nop )
             , coding = False
             , programText = ""
             }
@@ -265,10 +265,10 @@ runCommands game =
 getCommands : Actor s -> List Msg
 getCommands actor =
     case actor of
-        Hero hero         -> hero.cmds
-        Friend friend     -> friend.cmds
-        Executor        _ -> []
-        InputController _ -> []
+        Hero hero            -> hero.cmds
+        Friend friend        -> friend.cmds
+        Executor           _ -> []
+        KbdInputController _ -> []
 
 runCommand : Msg -> ( Game s, Cmd Msg ) -> ( Game s, Cmd Msg )
 runCommand msg ( game, cmd ) =
@@ -288,8 +288,8 @@ updateActor msg actor game =
                 Friend friend ->
                     updateFriend msg game friend
 
-                InputController _ ->
-                    updateInputController msg game
+                KbdInputController _ ->
+                    updateKbdInputController msg game
 
                 Executor executor ->
                     updateExecutor msg game.board executor
@@ -314,21 +314,21 @@ setActor actor board =
             case ( currentActor, actor ) of
                 ( Hero _, Hero _ ) -> actor
                 ( Friend _, Friend _ ) -> actor
-                ( InputController _, InputController _ ) -> actor
+                ( KbdInputController _, KbdInputController _ ) -> actor
                 ( Executor _, Executor _ ) -> actor
                 ( _, _ ) -> currentActor
         )
 
-updateInputController : Msg -> Game s -> Actor s
-updateInputController msg { coding } =
+updateKbdInputController : Msg -> Game s -> Actor s
+updateKbdInputController msg { coding } =
     if coding then
-        InputController A.Nop
+        KbdInputController A.Nop
     else
         case msg of
-        KeyArrow A.Up    -> InputController A.Forward
-        KeyArrow A.Left  -> InputController A.TurnLeft
-        KeyArrow A.Right -> InputController A.TurnRight
-        _                -> InputController A.Nop
+        KeyArrow A.Up    -> KbdInputController A.Forward
+        KeyArrow A.Left  -> KbdInputController A.TurnLeft
+        KeyArrow A.Right -> KbdInputController A.TurnRight
+        _                -> KbdInputController A.Nop
 
 updateExecutor : Msg -> Board s -> ExecutionData s -> Actor s
 updateExecutor msg board executor =
@@ -471,10 +471,10 @@ clearCommands : Game s -> Game s
 clearCommands ( { board } as game ) =
     let
         clearCmd actor = case actor of
-            Hero hero         -> Hero { hero | cmds = [] }
-            Friend friend     -> Friend { friend | cmds = [] }
-            Executor _        -> actor
-            InputController _ -> actor
+            Hero hero            -> Hero { hero | cmds = [] }
+            Friend friend        -> Friend { friend | cmds = [] }
+            Executor _           -> actor
+            KbdInputController _ -> actor
 
     in
         { game | board = board |> mapActors clearCmd }
@@ -605,7 +605,7 @@ getInput actors =
     let
         input actor =
             case actor of
-                InputController move -> Just move
+                KbdInputController move -> Just move
                 _ -> Nothing
 
     in
@@ -625,10 +625,10 @@ getHero actors =
 viewActor : Float -> Float -> Actor s -> Collage Msg
 viewActor t cellSize actor =
     case actor of
-        Hero hero         -> viewHero t cellSize hero
-        Friend friend     -> viewFriend t cellSize friend
-        InputController _ -> Collage.group []
-        Executor _        -> Collage.group []
+        Hero hero            -> viewHero t cellSize hero
+        Friend friend        -> viewFriend t cellSize friend
+        KbdInputController _ -> Collage.group []
+        Executor _           -> Collage.group []
 
 
 viewHero : Float -> Float -> A.ActorData Msg -> Collage Msg

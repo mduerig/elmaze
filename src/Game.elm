@@ -68,7 +68,7 @@ type Actor
     = Hero ( A.ActorData Msg )
     | Friend ( A.ActorData Msg )
     | KbdInputController A.Move
-    | PrgInputController ( Maybe Interpreter, A.Move )
+    | PrgInputController ( Interpreter, A.Move )
 
 type Msg
     = KeyArrow A.Direction
@@ -136,11 +136,8 @@ updateGame msg  ( { board, programText } as game ) =
     let
         program =
             case P.parse ( ensureTrailingLF programText ) of
-                Ok ast ->
-                    Just <| Interpreter.init ast
-
-                Err error ->
-                    Debug.log (Debug.toString error) Nothing
+                Ok ast    -> Interpreter.init ast
+                Err error -> Debug.log (Debug.toString error) Interpreter.void
 
     in
         case msg of
@@ -249,11 +246,8 @@ updateActor msg actor game =
                 KbdInputController _ ->
                     updateKbdInputController msg game
 
-                PrgInputController ( Just interpreter, _ ) ->
+                PrgInputController ( interpreter, _ ) ->
                     updatePrgInputController msg game interpreter
-
-                PrgInputController ( Nothing, _ ) ->
-                    actor
     in
         { game | board = setActor updatedActor game.board }
 
@@ -270,7 +264,7 @@ setKbdController board =
                 _ -> actor
         )
 
-setPrgController : Maybe Interpreter -> Board -> Board
+setPrgController : Interpreter -> Board -> Board
 setPrgController interprter board =
     board |> mapActors
         ( \actor ->
@@ -327,9 +321,9 @@ isMet board condition =
 updatePrgInputController : Msg -> Game -> Interpreter -> Actor
 updatePrgInputController msg game interpreter =
     if msg == EnterMode || msg == AnimationEnd then
-        PrgInputController <| Tuple.mapFirst Just ( Interpreter.update ( isMet game.board ) interpreter )
+        PrgInputController ( Interpreter.update ( isMet game.board ) interpreter )
     else
-        PrgInputController ( Just interpreter, A.Nop )
+        PrgInputController ( interpreter, A.Nop )
 
 updateHero : Msg -> Game -> A.ActorData Msg -> Actor
 updateHero msg { board } hero =
@@ -534,7 +528,7 @@ isRunning actors =
     let
         executorRunning actor =
             case actor of
-                PrgInputController ( interpreter, _ ) -> Just ( interpreter /= Nothing )
+                PrgInputController _ -> Just True
                 _ -> Nothing
     in
         actors

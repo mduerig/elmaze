@@ -1,5 +1,6 @@
 module Interpreter exposing
-    ( init
+    ( void
+    , init
     , update
     , Interpreter
     )
@@ -14,6 +15,9 @@ type Interpreter =
 
 type alias Bindings
     = Dict String P.Move
+
+void : Interpreter
+void = init []
 
 init : P.Program -> Interpreter
 init program = Interpreter program Dict.empty

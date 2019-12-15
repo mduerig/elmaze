@@ -383,14 +383,8 @@ updateHero msg { board } hero =
             game |> if running
                 then identity
                 else A.sendCommand ( RecordMove ( A.directionToMove direction ))
-
-        move =
-            if running then
-                getMove board.actors
-            else
-                getInput board.actors
     in
-        case move of
+        case getInput board.actors of
             Just A.Forward ->
                 if isBlocked phi then
                     hero
@@ -595,22 +589,13 @@ isRunning actors =
             |> queryActor executorRunning
             |> Maybe.withDefault False
 
-getMove : List Actor -> Maybe A.Move
-getMove actors =
-    let
-        move actor =
-            case actor of
-                PrgInputController ( _ , prgMove ) -> Just prgMove
-                _ -> Nothing
-    in
-        actors |> queryActor move
-
 getInput : List Actor -> Maybe A.Move
 getInput actors =
     let
         input actor =
             case actor of
                 KbdInputController move -> Just move
+                PrgInputController ( _ , move ) -> Just move
                 _ -> Nothing
 
     in

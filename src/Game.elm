@@ -68,8 +68,8 @@ type Boundary
     | Path
 
 type Actor s
-    = Hero ActorData
-    | Friend ActorData
+    = Hero ( A.ActorData Msg )
+    | Friend ( A.ActorData Msg )
     | InputController A.Move
     | Executor ( ExecutionData s )
 
@@ -78,14 +78,6 @@ type alias ExecutionData s =
     , init : Board s -> String -> s
     , update : Board s -> s -> ( s, A.Move )
     , move : A.Move
-    }
-
-type alias ActorData =
-    { x : Int
-    , y : Int
-    , phi : A.Direction
-    , animation : A.Animation
-    , cmds : List Msg
     }
 
 type Msg
@@ -358,7 +350,7 @@ updateExecutor msg board executor =
         else
             Executor { executor | move = A.Nop }
 
-updateHero : Msg -> Game s -> ActorData -> Actor s
+updateHero : Msg -> Game s -> A.ActorData Msg -> Actor s
 updateHero msg { board } hero =
     let
         { x, y, phi } = hero
@@ -387,7 +379,7 @@ updateHero msg { board } hero =
         recordMove direction game =
             game |> if running
                 then identity
-                else sendCommand ( RecordMove ( A.directionToMove direction ))
+                else A.sendCommand ( RecordMove ( A.directionToMove direction ))
 
         move =
             if running then
@@ -399,31 +391,31 @@ updateHero msg { board } hero =
             Just A.Forward ->
                 if isBlocked phi then
                     hero
-                        |> animateHero loseAnimation
-                        |> sendCommand StartAnimation
-                        |> sendCommand StopRunning
+                        |> A.animate loseAnimation
+                        |> A.sendCommand StartAnimation
+                        |> A.sendCommand StopRunning
                         |> Hero
                 else
                     hero
-                        |> moveHero phi
-                        |> animateHero ( A.moveAnimation phi )
-                        |> sendCommand StartAnimation
+                        |> A.move phi
+                        |> A.animate ( A.moveAnimation phi )
+                        |> A.sendCommand StartAnimation
                         |> recordMove A.Up
                         |> Hero
 
             Just A.TurnLeft ->
                 hero
-                    |> turnHero A.Left
-                    |> animateHero ( A.turnAnimation A.Left )
-                    |> sendCommand StartAnimation
+                    |> A.turn A.Left
+                    |> A.animate ( A.turnAnimation A.Left )
+                    |> A.sendCommand StartAnimation
                     |> recordMove A.Left
                     |> Hero
 
             Just A.TurnRight ->
                 hero
-                    |> turnHero A.Right
-                    |> animateHero ( A.turnAnimation A.Right )
-                    |> sendCommand StartAnimation
+                    |> A.turn A.Right
+                    |> A.animate ( A.turnAnimation A.Right )
+                    |> A.sendCommand StartAnimation
                     |> recordMove A.Right
                     |> Hero
 
@@ -431,22 +423,22 @@ updateHero msg { board } hero =
                 if msg == AnimationEnd then
                     if atGoal then
                         hero
-                            |> animateHero winAnimation
+                            |> A.animate winAnimation
                             |> ( if running
-                                    then sendCommand StartAnimation
+                                    then A.sendCommand StartAnimation
                                     else identity
                                )
-                            |> sendCommand StopRunning
+                            |> A.sendCommand StopRunning
                             |> Hero
                     else
                         hero
-                            |> animateHero A.noAnimation
-                            |> sendCommand StopRunning
+                            |> A.animate A.noAnimation
+                            |> A.sendCommand StopRunning
                             |> Hero
                 else
                     Hero hero
 
-updateFriend : Msg -> Game s -> ActorData -> Actor s
+updateFriend : Msg -> Game s -> A.ActorData Msg -> Actor s
 updateFriend msg { board } ( { x, y, phi } as friend ) =
     let
         isBlocked direction =
@@ -463,13 +455,13 @@ updateFriend msg { board } ( { x, y, phi } as friend ) =
                     Friend { friend | cmds = [ GenerateRandom <| Random.generate RandomDirection rnd ] }
                 else
                     friend
-                        |> moveHero phi
-                        |> animateHero ( A.moveAnimation phi )
+                        |> A.move phi
+                        |> A.animate ( A.moveAnimation phi )
                         |> Friend
 
             AnimationEnd ->
                 friend
-                    |> animateHero A.noAnimation
+                    |> A.animate A.noAnimation
                     |> Friend
 
             _ ->
@@ -487,14 +479,6 @@ clearCommands ( { board } as game ) =
     in
         { game | board = board |> mapActors clearCmd }
 
-
-sendCommand : Msg -> ActorData -> ActorData
-sendCommand cmd hero =
-    { hero | cmds =
-        if List.member cmd hero.cmds
-            then hero.cmds
-            else cmd :: hero.cmds }
-
 stopAnimation : Board s -> Board s
 stopAnimation board =
     let animation = board.animation
@@ -509,7 +493,7 @@ advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
-isHeroAtGoal : ActorData -> Board s -> Bool
+isHeroAtGoal : A.ActorData Msg -> Board s -> Bool
 isHeroAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
@@ -517,17 +501,17 @@ resetHero : Board s -> Board s
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( ActorData x y A.Up A.noAnimation [] )
+            then Just ( A.ActorData x y A.Up A.noAnimation [] )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( ActorData 0 0 A.Up A.noAnimation [] )
+            |> Maybe.withDefault ( A.ActorData 0 0 A.Up A.noAnimation [] )
     in
         { board | actors = setHero hero actors }
 
-setHero : ActorData -> List ( Actor s ) -> List ( Actor s )
+setHero : A.ActorData Msg -> List ( Actor s ) -> List ( Actor s )
 setHero heroData actors =
     let
         replaceHero actor =
@@ -538,26 +522,6 @@ setHero heroData actors =
         actors
             |> List.map replaceHero
 
-moveHero : A.Direction -> ActorData -> ActorData
-moveHero direction hero =
-    case direction of
-        A.Right -> { hero | x = hero.x + 1 }
-        A.Left  -> { hero | x = hero.x - 1 }
-        A.Up    -> { hero | y = hero.y + 1 }
-        A.Down  -> { hero | y = hero.y - 1 }
-
-turnHero : A.Direction -> ActorData -> ActorData
-turnHero direction hero =
-    { hero | phi =
-        case direction of
-            A.Right -> A.rightOfDirection hero.phi
-            A.Left  -> A.leftOfDirection hero.phi
-            _       -> hero.phi
-    }
-
-animateHero : A.Animation -> ActorData -> ActorData
-animateHero animation hero =
-    { hero | animation = animation }
 
 queryTile : ( Int, Int ) -> Board s -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
@@ -647,7 +611,7 @@ getInput actors =
     in
         actors |> queryActor input
 
-getHero : List ( Actor s ) -> Maybe ActorData
+getHero : List ( Actor s ) -> Maybe ( A.ActorData Msg )
 getHero actors =
     let
         hero actor =
@@ -667,7 +631,7 @@ viewActor t cellSize actor =
         Executor _        -> Collage.group []
 
 
-viewHero : Float -> Float -> ActorData -> Collage Msg
+viewHero : Float -> Float -> A.ActorData Msg -> Collage Msg
 viewHero t cellSize hero =
     let
         angle = case hero.phi of
@@ -691,7 +655,7 @@ viewHero t cellSize hero =
         |> shiftX ( cellSize * ( toFloat hero.x + dX ) )
         |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
 
-viewFriend : Float -> Float -> ActorData -> Collage Msg
+viewFriend : Float -> Float -> A.ActorData Msg -> Collage Msg
 viewFriend t cellSize friend =
     let
         angle = case friend.phi of

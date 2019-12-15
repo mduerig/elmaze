@@ -8,6 +8,14 @@ type alias Animation =
     , dPhi : Float -> Float
     }
 
+type alias ActorData msg =
+    { x : Int
+    , y : Int
+    , phi : Direction
+    , animation : Animation
+    , cmds : List msg
+    }
+
 type Move
     = Forward
     | TurnLeft
@@ -19,6 +27,34 @@ type Direction
     | Up
     | Left
     | Down
+
+sendCommand : msg -> ActorData msg -> ActorData msg
+sendCommand cmd hero =
+    { hero | cmds =
+        if List.member cmd hero.cmds
+            then hero.cmds
+            else cmd :: hero.cmds }
+
+move : Direction -> ActorData msg -> ActorData msg
+move direction hero =
+    case direction of
+        Right -> { hero | x = hero.x + 1 }
+        Left  -> { hero | x = hero.x - 1 }
+        Up    -> { hero | y = hero.y + 1 }
+        Down  -> { hero | y = hero.y - 1 }
+
+turn : Direction -> ActorData msg -> ActorData msg
+turn direction hero =
+    { hero | phi =
+        case direction of
+            Right -> rightOfDirection hero.phi
+            Left  -> leftOfDirection hero.phi
+            _     -> hero.phi
+    }
+
+animate : Animation -> ActorData msg -> ActorData msg
+animate animation hero =
+    { hero | animation = animation }
 
 directionToMove : Direction -> Move
 directionToMove direction =
@@ -53,8 +89,8 @@ leftOfDirection direction =
         Down  -> Right
 
 moveToString : Move -> String
-moveToString move =
-    case move of
+moveToString m =
+    case m of
         Forward   -> "forward\n"
         TurnLeft  -> "left\n"
         TurnRight -> "right\n"

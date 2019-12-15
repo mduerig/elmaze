@@ -112,7 +112,6 @@ initGame board =
                         , cmds = []
                         }
                     )
-                |> addActor ( PrgInputController ( Nothing, A.Nop ))
                 |> addActor ( KbdInputController A.Nop )
             , coding = False
             , programText = ""
@@ -214,33 +213,20 @@ updateGame msg  ( { board, programText } as game ) =
                     { game
                     | board = board
                         |> resetHero
-                        |> initExecutor program
+                        |> setPrgController program
                     }
 
             StopRunning ->
                 updateGame EnterMode
                     { game
                     | board = board
-                        |> initExecutor Nothing
+                        |> setKbdController
                     }
 
             _ ->
                 game.board.actors
                     |> List.foldl ( updateActor msg ) game
                     |> runCommands
-
-initExecutor : Maybe Interpreter -> Board -> Board
-initExecutor interpreter board =
-    board |>
-        mapActors
-            ( \actor ->
-                case actor of
-                    PrgInputController ( _, _ ) ->
-                        PrgInputController ( interpreter, A.Nop )
-
-                    _
-                        -> actor
-            )
 
 runCommands : Game -> ( Game , Cmd Msg )
 runCommands game =
@@ -288,6 +274,24 @@ updateActor msg actor game =
 addActor : Actor -> Board -> Board
 addActor actor ( {actors } as board ) =
     { board | actors = actor :: actors }
+
+setKbdController : Board -> Board
+setKbdController board =
+    board |> mapActors
+        ( \actor ->
+            case actor of
+                PrgInputController _ -> KbdInputController A.Nop
+                _ -> actor
+        )
+
+setPrgController : Maybe Interpreter -> Board -> Board
+setPrgController interprter board =
+    board |> mapActors
+        ( \actor ->
+            case actor of
+                KbdInputController _ -> PrgInputController ( interprter, A.Nop )
+                _ -> actor
+        )
 
 mapActors : ( Actor -> Actor ) -> Board -> Board
 mapActors update board =

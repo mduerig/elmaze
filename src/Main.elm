@@ -8,7 +8,7 @@ import Actor as A
 import Parse as P
 import Interpreter as I
 
-testBoard : Board s
+testBoard : Board
 testBoard = newBoard 8 6
     |> updateTileBoundary (0, 0) A.Up Path
     |> updateTileBoundary (0, 1) A.Up Path
@@ -110,52 +110,6 @@ testBoard = newBoard 8 6
     |> updateTile ( 1, 5 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 3, 4 ) ( updateTileBackground "tiles/0.png")
 
-isMet : Game.Board s -> P.Condition -> Bool
-isMet board condition =
-    let
-        hero = Game.getHero board.actors
-            |> Maybe.withDefault ( A.ActorData 50 50 A.Up A.noAnimation [] )
-
-        isAtGoal tile = tile.tileType == Game.Goal
-
-        queryHero : (Game.Tile -> Bool) -> Bool
-        queryHero = Game.queryTile (hero.x, hero.y) board
-    in
-        case condition of
-            P.Not notCondition
-                -> not <| isMet board notCondition
-
-            P.Free
-                -> queryHero ( Game.hasBoundary hero.phi Game.Path )
-
-            P.Blocked
-                -> queryHero ( Game.hasBoundary hero.phi Game.Wall )
-
-            P.Goal
-                -> queryHero isAtGoal
-
-updateGame : Board s -> Maybe I.Interpreter -> ( Maybe I.Interpreter, A.Move )
-updateGame board interpreter =
-    case interpreter of
-        Just interp ->
-            I.update ( isMet board ) interp
-                |> Tuple.mapFirst Just
-        _ ->
-            ( Nothing, A.Nop )
-
-initGame : Board s -> String -> Maybe I.Interpreter
-initGame board program =
-    case P.parse program of
-        Ok ast ->
-            Just <| I.init ast
-
-        Err error ->
-            Debug.log (Debug.toString error) Nothing
-
-main : Program () (Game ( Maybe I.Interpreter )) Msg
+main : Program () Game Msg
 main =
-    Game.play
-        { board = testBoard
-        , init = initGame
-        , update = updateGame
-        }
+    Game.play testBoard

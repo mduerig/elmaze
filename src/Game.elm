@@ -21,25 +21,21 @@ import Json.Decode as Decode
 import Task as Task
 import Ease
 import Actor as A
+import Interpreter exposing ( Interpreter )
+import Parse as P
 
-type alias Game s =
-    { board : Board s
+type alias Game =
+    { board : Board
     , coding : Bool
     , programText : String
     }
 
-type alias Configuration s =
-  { board : Board s
-  , init : Board s -> String -> s
-  , update : Board s -> s -> ( s, A.Move )
-  }
-
-type alias Board s =
+type alias Board =
     { size : Float
     , width : Int
     , height : Int
     , tiles : Array Tile
-    , actors : List ( Actor s )
+    , actors : List Actor
     , animation : Animation
     }
 
@@ -67,18 +63,11 @@ type Boundary
     = Wall
     | Path
 
-type Actor s
+type Actor
     = Hero ( A.ActorData Msg )
     | Friend ( A.ActorData Msg )
     | KbdInputController A.Move
-    | Executor ( ExecutionData s )
-
-type alias ExecutionData s =
-    { solver : Maybe s
-    , init : Board s -> String -> s
-    , update : Board s -> s -> ( s, A.Move )
-    , move : A.Move
-    }
+    | PrgInputController ( Maybe Interpreter, A.Move )
 
 type Msg
     = KeyArrow A.Direction
@@ -100,8 +89,8 @@ type Msg
     | GenerateRandom ( Cmd Msg )
     | RandomDirection A.Direction
 
-initGame : Configuration solver -> ( Game solver, Cmd Msg )
-initGame { board, init, update } =
+initGame : Board -> ( Game, Cmd Msg )
+initGame board =
     let
         game =
             { board = board
@@ -123,14 +112,7 @@ initGame { board, init, update } =
                         , cmds = []
                         }
                     )
-                |> addActor
-                    ( Executor
-                        { solver = Nothing
-                        , init = init
-                        , update = update
-                        , move = A.Nop
-                        }
-                    )
+                |> addActor ( PrgInputController ( Nothing, A.Nop ))
                 |> addActor ( KbdInputController A.Nop )
             , coding = False
             , programText = ""
@@ -142,7 +124,7 @@ getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
     Task.attempt GotViewport ( Dom.getViewportOf "boardWidth" )
 
-newBoard : Int -> Int -> Board s
+newBoard : Int -> Int -> Board
 newBoard width height =
     { size = 500
     , width = width
@@ -164,13 +146,17 @@ newBoard width height =
         }
     }
 
-updateGame : Msg -> Game solver -> ( Game solver, Cmd Msg )
+updateGame : Msg -> Game -> ( Game, Cmd Msg )
 updateGame msg  ( { board, programText } as game ) =
     let
-        initSolver board0 executor = Just
-            <| executor.init board0
-            <| ensureTrailingLF
-            <| programText
+        program =
+            case P.parse ( ensureTrailingLF programText ) of
+                Ok ast ->
+                    Just <| Interpreter.init ast
+
+                Err error ->
+                    Debug.log (Debug.toString error) Nothing
+
     in
         case msg of
             GenerateRandom cmd ->
@@ -228,14 +214,14 @@ updateGame msg  ( { board, programText } as game ) =
                     { game
                     | board = board
                         |> resetHero
-                        |> initExecutor initSolver
+                        |> initExecutor program
                     }
 
             StopRunning ->
                 updateGame EnterMode
                     { game
                     | board = board
-                        |> initExecutor ( always <| always Nothing )
+                        |> initExecutor Nothing
                     }
 
             _ ->
@@ -243,41 +229,41 @@ updateGame msg  ( { board, programText } as game ) =
                     |> List.foldl ( updateActor msg ) game
                     |> runCommands
 
-initExecutor : (Board s -> ExecutionData s -> Maybe s) -> Board s -> Board s
-initExecutor initSolver board =
+initExecutor : Maybe Interpreter -> Board -> Board
+initExecutor interpreter board =
     board |>
         mapActors
             ( \actor ->
                 case actor of
-                    Executor executor ->
-                        Executor { executor | solver = initSolver board executor }
+                    PrgInputController ( _, _ ) ->
+                        PrgInputController ( interpreter, A.Nop )
 
                     _
                         -> actor
             )
 
-runCommands : Game s -> ( Game s , Cmd Msg )
+runCommands : Game -> ( Game , Cmd Msg )
 runCommands game =
     game.board.actors
         |> List.concatMap getCommands
         |> List.foldl runCommand ( game |> clearCommands, Cmd.none )
 
-getCommands : Actor s -> List Msg
+getCommands : Actor -> List Msg
 getCommands actor =
     case actor of
         Hero hero            -> hero.cmds
         Friend friend        -> friend.cmds
-        Executor           _ -> []
         KbdInputController _ -> []
+        PrgInputController _ -> []
 
-runCommand : Msg -> ( Game s, Cmd Msg ) -> ( Game s, Cmd Msg )
+runCommand : Msg -> ( Game, Cmd Msg ) -> ( Game, Cmd Msg )
 runCommand msg ( game, cmd ) =
     let
         ( newGame, newCommand ) = updateGame msg game
     in
         ( newGame, Cmd.batch [ cmd, newCommand ] )
 
-updateActor : Msg -> Actor s -> Game s -> Game s
+updateActor : Msg -> Actor -> Game -> Game
 updateActor msg actor game =
     let
         updatedActor =
@@ -291,23 +277,26 @@ updateActor msg actor game =
                 KbdInputController _ ->
                     updateKbdInputController msg game
 
-                Executor executor ->
-                    updateExecutor msg game.board executor
+                PrgInputController ( Just interpreter, _ ) ->
+                    updatePrgInputController msg game interpreter
+
+                PrgInputController ( Nothing, _ ) ->
+                    actor
     in
         { game | board = setActor updatedActor game.board }
 
-addActor : Actor s -> Board s -> Board s
+addActor : Actor -> Board -> Board
 addActor actor ( {actors } as board ) =
     { board | actors = actor :: actors }
 
-mapActors : ( Actor s -> Actor s ) -> Board s -> Board s
+mapActors : ( Actor -> Actor ) -> Board -> Board
 mapActors update board =
     { board
     | actors = board.actors
         |> List.map update
     }
 
-setActor : Actor s -> Board s -> Board s
+setActor : Actor -> Board -> Board
 setActor actor board =
     board |> mapActors
         ( \currentActor ->
@@ -315,11 +304,11 @@ setActor actor board =
                 ( Hero _, Hero _ ) -> actor
                 ( Friend _, Friend _ ) -> actor
                 ( KbdInputController _, KbdInputController _ ) -> actor
-                ( Executor _, Executor _ ) -> actor
+                ( PrgInputController _, PrgInputController _ ) -> actor
                 ( _, _ ) -> currentActor
         )
 
-updateKbdInputController : Msg -> Game s -> Actor s
+updateKbdInputController : Msg -> Game -> Actor
 updateKbdInputController msg { coding } =
     if coding then
         KbdInputController A.Nop
@@ -330,27 +319,38 @@ updateKbdInputController msg { coding } =
         KeyArrow A.Right -> KbdInputController A.TurnRight
         _                -> KbdInputController A.Nop
 
-updateExecutor : Msg -> Board s -> ExecutionData s -> Actor s
-updateExecutor msg board executor =
+isMet : Board -> P.Condition -> Bool
+isMet board condition =
     let
-        ( updatedSolver, move ) = case executor.solver of
-            Just solver ->
-                executor.update board solver
-                    |> Tuple.mapFirst Just
+        hero = getHero board.actors
+            |> Maybe.withDefault ( A.ActorData 50 50 A.Up A.noAnimation [] )
 
-            _ ->
-                ( Nothing, A.Nop )
+        isAtGoal tile = tile.tileType == Goal
+
+        queryHero : (Tile -> Bool) -> Bool
+        queryHero = queryTile (hero.x, hero.y) board
     in
-        if msg == EnterMode || msg == AnimationEnd then
-            Executor
-                { executor
-                | solver = updatedSolver
-                , move = move
-                }
-        else
-            Executor { executor | move = A.Nop }
+        case condition of
+            P.Not notCondition
+                -> not <| isMet board notCondition
 
-updateHero : Msg -> Game s -> A.ActorData Msg -> Actor s
+            P.Free
+                -> queryHero ( hasBoundary hero.phi Path )
+
+            P.Blocked
+                -> queryHero ( hasBoundary hero.phi Wall )
+
+            P.Goal
+                -> queryHero isAtGoal
+
+updatePrgInputController : Msg -> Game -> Interpreter -> Actor
+updatePrgInputController msg game interpreter =
+    if msg == EnterMode || msg == AnimationEnd then
+        PrgInputController <| Tuple.mapFirst Just ( Interpreter.update ( isMet game.board ) interpreter )
+    else
+        PrgInputController ( Just interpreter, A.Nop )
+
+updateHero : Msg -> Game -> A.ActorData Msg -> Actor
 updateHero msg { board } hero =
     let
         { x, y, phi } = hero
@@ -374,7 +374,6 @@ updateHero msg { board } hero =
             }
 
         running = isRunning board.actors
-            |> Maybe.withDefault False
 
         recordMove direction game =
             game |> if running
@@ -438,7 +437,7 @@ updateHero msg { board } hero =
                 else
                     Hero hero
 
-updateFriend : Msg -> Game s -> A.ActorData Msg -> Actor s
+updateFriend : Msg -> Game -> A.ActorData Msg -> Actor
 updateFriend msg { board } ( { x, y, phi } as friend ) =
     let
         isBlocked direction =
@@ -467,37 +466,37 @@ updateFriend msg { board } ( { x, y, phi } as friend ) =
             _ ->
                 Friend friend
 
-clearCommands : Game s -> Game s
+clearCommands : Game -> Game
 clearCommands ( { board } as game ) =
     let
         clearCmd actor = case actor of
             Hero hero            -> Hero { hero | cmds = [] }
             Friend friend        -> Friend { friend | cmds = [] }
-            Executor _           -> actor
             KbdInputController _ -> actor
+            PrgInputController _ -> actor
 
     in
         { game | board = board |> mapActors clearCmd }
 
-stopAnimation : Board s -> Board s
+stopAnimation : Board -> Board
 stopAnimation board =
     let animation = board.animation
     in  { board | animation = { animation | t = 0, onDelta = always Sub.none }}
 
-startAnimation : Board s -> Board s
+startAnimation : Board -> Board
 startAnimation ( { animation } as board ) =
     { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
 
-advanceAnimation : Float -> Board s -> Board s
+advanceAnimation : Float -> Board -> Board
 advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
-isHeroAtGoal : A.ActorData Msg -> Board s -> Bool
+isHeroAtGoal : A.ActorData Msg -> Board -> Bool
 isHeroAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
-resetHero : Board s -> Board s
+resetHero : Board -> Board
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
@@ -511,7 +510,7 @@ resetHero ( { actors } as board ) =
     in
         { board | actors = setHero hero actors }
 
-setHero : A.ActorData Msg -> List ( Actor s ) -> List ( Actor s )
+setHero : A.ActorData Msg -> List Actor -> List Actor
 setHero heroData actors =
     let
         replaceHero actor =
@@ -523,13 +522,13 @@ setHero heroData actors =
             |> List.map replaceHero
 
 
-queryTile : ( Int, Int ) -> Board s -> (Tile -> Bool) -> Bool
+queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
     Array.get ((height - 1 - y) * width + x) tiles
         |> Maybe.map query
         |> Maybe.withDefault True
 
-updateTile : ( Int, Int ) -> (Tile -> Tile) -> Board s -> Board s
+updateTile : ( Int, Int ) -> (Tile -> Tile) -> Board -> Board
 updateTile ( x, y ) update ( { width, height, tiles } as board ) =
     let
         i = (height - 1 - y) * width + x
@@ -545,7 +544,7 @@ updateTileType tileType tile = { tile | tileType = tileType }
 updateTileBackground : String -> Tile -> Tile
 updateTileBackground background tile = { tile | background = Just background }
 
-updateTileBoundary : ( Int, Int ) -> A.Direction -> Boundary -> Board s -> Board s
+updateTileBoundary : ( Int, Int ) -> A.Direction -> Boundary -> Board -> Board
 updateTileBoundary ( x, y ) direction boundary board =
     let
         update dir tile =
@@ -574,33 +573,35 @@ hasBoundary direction boundary tile =
         A.Up    -> tile.top
         A.Down  -> tile.bottom
 
-queryActor : ( Actor s -> Maybe a ) -> List ( Actor s ) -> Maybe a
+queryActor : ( Actor -> Maybe a ) -> List ( Actor ) -> Maybe a
 queryActor get actors =
     actors
         |> List.filterMap get
         |> List.head
 
-isRunning : List ( Actor s ) -> Maybe Bool
+isRunning : List Actor -> Bool
 isRunning actors =
     let
         executorRunning actor =
             case actor of
-                Executor executor -> Just ( executor.solver /= Nothing )
+                PrgInputController ( interpreter, _ ) -> Just ( interpreter /= Nothing )
                 _ -> Nothing
     in
-        actors |> queryActor executorRunning
+        actors
+            |> queryActor executorRunning
+            |> Maybe.withDefault False
 
-getMove : List ( Actor s ) -> Maybe A.Move
+getMove : List Actor -> Maybe A.Move
 getMove actors =
     let
         move actor =
             case actor of
-                Executor executor -> Just executor.move
+                PrgInputController ( _ , prgMove ) -> Just prgMove
                 _ -> Nothing
     in
         actors |> queryActor move
 
-getInput : List ( Actor s ) -> Maybe A.Move
+getInput : List Actor -> Maybe A.Move
 getInput actors =
     let
         input actor =
@@ -611,7 +612,7 @@ getInput actors =
     in
         actors |> queryActor input
 
-getHero : List ( Actor s ) -> Maybe ( A.ActorData Msg )
+getHero : List Actor -> Maybe ( A.ActorData Msg )
 getHero actors =
     let
         hero actor =
@@ -622,14 +623,13 @@ getHero actors =
     in
         actors |> queryActor hero
 
-viewActor : Float -> Float -> Actor s -> Collage Msg
+viewActor : Float -> Float -> Actor -> Collage Msg
 viewActor t cellSize actor =
     case actor of
         Hero hero            -> viewHero t cellSize hero
         Friend friend        -> viewFriend t cellSize friend
         KbdInputController _ -> Collage.group []
-        Executor _           -> Collage.group []
-
+        PrgInputController _ -> Collage.group []
 
 viewHero : Float -> Float -> A.ActorData Msg -> Collage Msg
 viewHero t cellSize hero =
@@ -679,7 +679,7 @@ viewFriend t cellSize friend =
         |> shiftX ( cellSize * ( toFloat friend.x + dX ) )
         |> shiftY ( cellSize * ( toFloat friend.y + dY ) )
 
-viewGame : Game solver -> List (Html Msg)
+viewGame : Game -> List (Html Msg)
 viewGame { board, programText } =
     let
         { actors, animation } = board
@@ -689,7 +689,6 @@ viewGame { board, programText } =
             |> List.map ( viewActor animation.t cellSize )
 
         running = isRunning actors
-            |> Maybe.withDefault False
 
     in
         [ CDN.stylesheet
@@ -760,7 +759,7 @@ ensureTrailingLF s =
         then s
         else s ++ "\n"
 
-tilesWithIndex : Board s -> List ( Int, Int, Tile )
+tilesWithIndex : Board -> List ( Int, Int, Tile )
 tilesWithIndex { width, height, tiles } =
     tiles
         |> Array.indexedMap
@@ -815,16 +814,16 @@ keyDownDecoder =
         Decode.field "key" Decode.string
             |> Decode.map toDirection
 
-play : Configuration solver -> Program () (Game solver) Msg
-play configuration =
+play : Board -> Program () Game Msg
+play board =
     Browser.document
         { subscriptions =
-            \{ board } -> Sub.batch
+            \game -> Sub.batch
                 [ onKeyDown keyDownDecoder
-                , board.animation.onDelta AnimationFrame
+                , game.board.animation.onDelta AnimationFrame
                 , onResize Resize
                 ]
-        , init = \_ -> initGame configuration
+        , init = \_ -> initGame board
         , update = updateGame
         , view =
             \game ->

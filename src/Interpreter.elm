@@ -8,6 +8,7 @@ import Dict exposing ( Dict )
 
 import Parse as P
 import Game as G
+import Actor as A
 
 type Interpreter =
     Interpreter P.Program Bindings
@@ -18,11 +19,11 @@ type alias Bindings
 init : P.Program -> Interpreter
 init program = Interpreter program Dict.empty
 
-update : G.Board s -> Interpreter -> ( Interpreter, G.Move )
+update : G.Board s -> Interpreter -> ( Interpreter, A.Move )
 update board ( Interpreter ( program ) bindings ) =
     let
         hero = G.getHero board.actors
-            |> Maybe.withDefault ( G.HeroData 50 50 G.Up G.noHeroAnimation [] )
+            |> Maybe.withDefault ( G.HeroData 50 50 A.Up A.noAnimation [] )
 
         isAtGoal tile = tile.tileType == G.Goal
 
@@ -46,7 +47,7 @@ update board ( Interpreter ( program ) bindings ) =
     in
         case program of
             [] ->
-                ( Interpreter [] bindings, G.Nop )
+                ( Interpreter [] bindings, A.Nop )
 
             (P.Command move) :: stmts ->
                 case move of
@@ -66,10 +67,10 @@ update board ( Interpreter ( program ) bindings ) =
                     P.Do ( atomicMove :: moves) ->
                         ( Interpreter ( ( P.Command <| P.Do <| moves ) :: stmts ) bindings
                         , case atomicMove of
-                            P.Left     -> G.TurnLeft
-                            P.Right    -> G.TurnRight
-                            P.Forward  -> G.Forward
-                            P.Move _   -> G.Nop
+                            P.Left     -> A.TurnLeft
+                            P.Right    -> A.TurnRight
+                            P.Forward  -> A.Forward
+                            P.Move _   -> A.Nop
                         )
 
                     P.If condition trueMoves falseMoves ->

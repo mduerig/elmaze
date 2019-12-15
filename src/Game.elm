@@ -20,6 +20,7 @@ import Bootstrap.Grid.Col as Col
 import Json.Decode as Decode
 import Task as Task
 import Ease
+import Actor as A
 
 type alias Game s =
     { board : Board s
@@ -30,14 +31,8 @@ type alias Game s =
 type alias Configuration s =
   { board : Board s
   , init : Board s -> String -> s
-  , update : Board s -> s -> ( s, Move )
+  , update : Board s -> s -> ( s, A.Move )
   }
-
-type Move
-    = Forward
-    | TurnLeft
-    | TurnRight
-    | Nop
 
 type alias Board s =
     { size : Float
@@ -75,46 +70,35 @@ type Boundary
 type Actor s
     = Hero HeroData
     | Friend FriendData
-    | InputController Move
+    | InputController A.Move
     | Executor ( ExecutionData s )
 
 type alias ExecutionData s =
     { solver : Maybe s
     , init : Board s -> String -> s
-    , update : Board s -> s -> ( s, Move )
-    , move : Move
+    , update : Board s -> s -> ( s, A.Move )
+    , move : A.Move
     }
 
 type alias HeroData =
     { x : Int
     , y : Int
-    , phi : Direction
-    , animation : ActorAnimation
+    , phi : A.Direction
+    , animation : A.Animation
     , cmds : List Msg
     }
 
 type alias FriendData =
     { x : Int
     , y : Int
-    , phi : Direction
-    , animation : ActorAnimation
+    , phi : A.Direction
+    , animation : A.Animation
     , cmds : List Msg
     }
 
-type alias ActorAnimation =
-    { dX : Float -> Float
-    , dY : Float -> Float
-    , dPhi : Float -> Float
-    }
-
-type Direction
-    = Right
-    | Up
-    | Left
-    | Down
 
 type Msg
-    = KeyArrow Direction
+    = KeyArrow A.Direction
     | ResetGame
     | RunProgram
     | StopRunning
@@ -122,7 +106,7 @@ type Msg
     | KeyOtherDown String
     | Resize Int Int
     | StartAnimation
-    | RecordMove Move
+    | RecordMove A.Move
     | AnimationFrame Float
     | AnimationStart
     | AnimationStep
@@ -131,7 +115,7 @@ type Msg
     | GotViewport ( Result Dom.Error Dom.Viewport )
     | Coding Bool
     | GenerateRandom ( Cmd Msg )
-    | RandomDirection Direction
+    | RandomDirection A.Direction
 
 initGame : Configuration solver -> ( Game solver, Cmd Msg )
 initGame { board, init, update } =
@@ -142,8 +126,8 @@ initGame { board, init, update } =
                     ( Hero
                         { x = 0
                         , y = 0
-                        , phi = Up
-                        , animation = noHeroAnimation
+                        , phi = A.Up
+                        , animation = A.noAnimation
                         , cmds = []
                         }
                     )
@@ -151,8 +135,8 @@ initGame { board, init, update } =
                     ( Friend
                         { x = 1
                         , y = 1
-                        , phi = Right
-                        , animation = noHeroAnimation
+                        , phi = A.Right
+                        , animation = A.noAnimation
                         , cmds = []
                         }
                     )
@@ -161,10 +145,10 @@ initGame { board, init, update } =
                         { solver = Nothing
                         , init = init
                         , update = update
-                        , move = Nop
+                        , move = A.Nop
                         }
                     )
-                |> addActor ( InputController Nop )
+                |> addActor ( InputController A.Nop )
             , coding = False
             , programText = ""
             }
@@ -174,13 +158,6 @@ initGame { board, init, update } =
 getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
     Task.attempt GotViewport ( Dom.getViewportOf "boardWidth" )
-
-noHeroAnimation : ActorAnimation
-noHeroAnimation =
-    { dY = always 0
-    , dX = always 0
-    , dPhi = always 0
-    }
 
 newBoard : Int -> Int -> Board s
 newBoard width height =
@@ -254,18 +231,9 @@ updateGame msg  ( { board, programText } as game ) =
                         updateGame AnimationEnd   { game | board = board |> stopAnimation }
 
             RecordMove move ->
-                let
-                    toString direction =
-                        case direction of
-                            Forward   -> "forward\n"
-                            TurnLeft  -> "left\n"
-                            TurnRight -> "right\n"
-                            _         -> ""
-
-                in
-                    ( { game | programText = ensureTrailingLF programText ++ toString move }
-                    , Cmd.none
-                    )
+                ( { game | programText = ensureTrailingLF programText ++ A.moveToString move }
+                , Cmd.none
+                )
 
             ProgramChanged newProgram ->
                 ( { game | programText = newProgram }
@@ -371,13 +339,13 @@ setActor actor board =
 updateInputController : Msg -> Game s -> Actor s
 updateInputController msg { coding } =
     if coding then
-        InputController Nop
+        InputController A.Nop
     else
         case msg of
-        KeyArrow Up    -> InputController Forward
-        KeyArrow Left  -> InputController TurnLeft
-        KeyArrow Right -> InputController TurnRight
-        _              -> InputController Nop
+        KeyArrow A.Up    -> InputController A.Forward
+        KeyArrow A.Left  -> InputController A.TurnLeft
+        KeyArrow A.Right -> InputController A.TurnRight
+        _                -> InputController A.Nop
 
 updateExecutor : Msg -> Board s -> ExecutionData s -> Actor s
 updateExecutor msg board executor =
@@ -388,7 +356,7 @@ updateExecutor msg board executor =
                     |> Tuple.mapFirst Just
 
             _ ->
-                ( Nothing, Nop )
+                ( Nothing, A.Nop )
     in
         if msg == EnterMode || msg == AnimationEnd then
             Executor
@@ -397,7 +365,7 @@ updateExecutor msg board executor =
                 , move = move
                 }
         else
-            Executor { executor | move = Nop }
+            Executor { executor | move = A.Nop }
 
 updateHero : Msg -> Game s -> HeroData -> Actor s
 updateHero msg { board } hero =
@@ -408,14 +376,16 @@ updateHero msg { board } hero =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
 
         atGoal = isHeroAtGoal hero board
+
+        noAnimation = A.noAnimation
         winAnimation =
-            { noHeroAnimation
+            { noAnimation
             | dY = Ease.outBack >> \t -> t
             , dPhi = \t -> 4 * pi * t
             }
 
         loseAnimation =
-            { noHeroAnimation
+            { noAnimation
             | dY = Ease.inBack >> \t -> -10 * t
             , dPhi = \t -> 4 * pi * t
             }
@@ -426,7 +396,7 @@ updateHero msg { board } hero =
         recordMove direction game =
             game |> if running
                 then identity
-                else sendCommand ( RecordMove ( directionToMove direction ))
+                else sendCommand ( RecordMove ( A.directionToMove direction ))
 
         move =
             if running then
@@ -435,7 +405,7 @@ updateHero msg { board } hero =
                 getInput board.actors
     in
         case move of
-            Just Forward ->
+            Just A.Forward ->
                 if isBlocked phi then
                     hero
                         |> animateHero loseAnimation
@@ -445,25 +415,25 @@ updateHero msg { board } hero =
                 else
                     hero
                         |> moveHero phi
-                        |> animateHero ( moveHeroAnimation phi )
+                        |> animateHero ( A.moveAnimation phi )
                         |> sendCommand StartAnimation
-                        |> recordMove Up
+                        |> recordMove A.Up
                         |> Hero
 
-            Just TurnLeft ->
+            Just A.TurnLeft ->
                 hero
-                    |> turnHero Left
-                    |> animateHero ( turnHeroAnimation Left )
+                    |> turnHero A.Left
+                    |> animateHero ( A.turnAnimation A.Left )
                     |> sendCommand StartAnimation
-                    |> recordMove Left
+                    |> recordMove A.Left
                     |> Hero
 
-            Just TurnRight ->
+            Just A.TurnRight ->
                 hero
-                    |> turnHero Right
-                    |> animateHero ( turnHeroAnimation Right )
+                    |> turnHero A.Right
+                    |> animateHero ( A.turnAnimation A.Right )
                     |> sendCommand StartAnimation
-                    |> recordMove Right
+                    |> recordMove A.Right
                     |> Hero
 
             _ ->
@@ -479,7 +449,7 @@ updateHero msg { board } hero =
                             |> Hero
                     else
                         hero
-                            |> animateHero noHeroAnimation
+                            |> animateHero A.noAnimation
                             |> sendCommand StopRunning
                             |> Hero
                 else
@@ -491,7 +461,7 @@ updateFriend msg { board } ( { x, y, phi } as friend ) =
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
 
-        rnd = Random.uniform Up [ Down, Left, Right ]
+        rnd = Random.uniform A.Up [ A.Down, A.Left, A.Right ]
     in
         case msg of
             RandomDirection direction ->
@@ -503,12 +473,12 @@ updateFriend msg { board } ( { x, y, phi } as friend ) =
                 else
                     friend
                         |> moveHero phi
-                        |> animateHero ( moveHeroAnimation phi )
+                        |> animateHero ( A.moveAnimation phi )
                         |> Friend
 
             AnimationEnd ->
                 friend
-                    |> animateHero noHeroAnimation
+                    |> animateHero A.noAnimation
                     |> Friend
 
             _ ->
@@ -548,21 +518,6 @@ advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
-moveHeroAnimation : Direction -> ActorAnimation
-moveHeroAnimation direction =
-    case direction of
-        Left  -> { noHeroAnimation | dX = Ease.inOutBack >> \t -> 1 - t }
-        Right -> { noHeroAnimation | dX = Ease.inOutBack >> \t -> t - 1 }
-        Up    -> { noHeroAnimation | dY = Ease.inOutBack >> \t -> t - 1 }
-        Down  -> { noHeroAnimation | dY = Ease.inOutBack >> \t -> 1 - t }
-
-turnHeroAnimation : Direction -> ActorAnimation
-turnHeroAnimation direction =
-    case direction of
-        Left  -> { noHeroAnimation | dPhi = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
-        Right -> { noHeroAnimation | dPhi = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
-        _     ->   noHeroAnimation
-
 isHeroAtGoal : HeroData -> Board s -> Bool
 isHeroAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
@@ -571,13 +526,13 @@ resetHero : Board s -> Board s
 resetHero ( { actors } as board ) =
     let
         startTileToHero (x, y, tile) = if tile.tileType == Start
-            then Just ( HeroData x y Up noHeroAnimation [] )
+            then Just ( HeroData x y A.Up A.noAnimation [] )
             else Nothing
 
         hero = tilesWithIndex board
             |> List.filterMap startTileToHero
             |> List.head
-            |> Maybe.withDefault ( HeroData 0 0 Up noHeroAnimation [] )
+            |> Maybe.withDefault ( HeroData 0 0 A.Up A.noAnimation [] )
     in
         { board | actors = setHero hero actors }
 
@@ -592,24 +547,24 @@ setHero heroData actors =
         actors
             |> List.map replaceHero
 
-moveHero : Direction -> HeroData -> HeroData
+moveHero : A.Direction -> HeroData -> HeroData
 moveHero direction hero =
     case direction of
-        Right -> { hero | x = hero.x + 1 }
-        Left  -> { hero | x = hero.x - 1 }
-        Up    -> { hero | y = hero.y + 1 }
-        Down  -> { hero | y = hero.y - 1 }
+        A.Right -> { hero | x = hero.x + 1 }
+        A.Left  -> { hero | x = hero.x - 1 }
+        A.Up    -> { hero | y = hero.y + 1 }
+        A.Down  -> { hero | y = hero.y - 1 }
 
-turnHero : Direction -> HeroData -> HeroData
+turnHero : A.Direction -> HeroData -> HeroData
 turnHero direction hero =
     { hero | phi =
         case direction of
-            Right -> rightOfDirection hero.phi
-            Left  -> leftOfDirection hero.phi
-            _     -> hero.phi
+            A.Right -> A.rightOfDirection hero.phi
+            A.Left  -> A.leftOfDirection hero.phi
+            _       -> hero.phi
     }
 
-animateHero : ActorAnimation -> HeroData -> HeroData
+animateHero : A.Animation -> HeroData -> HeroData
 animateHero animation hero =
     { hero | animation = animation }
 
@@ -635,34 +590,34 @@ updateTileType tileType tile = { tile | tileType = tileType }
 updateTileBackground : String -> Tile -> Tile
 updateTileBackground background tile = { tile | background = Just background }
 
-updateTileBoundary : ( Int, Int ) -> Direction -> Boundary -> Board s -> Board s
+updateTileBoundary : ( Int, Int ) -> A.Direction -> Boundary -> Board s -> Board s
 updateTileBoundary ( x, y ) direction boundary board =
     let
         update dir tile =
             case dir of
-                Up    -> { tile | top = boundary }
-                Down  -> { tile | bottom = boundary }
-                Left  -> { tile | left = boundary }
-                Right -> { tile | right = boundary }
+                A.Up    -> { tile | top = boundary }
+                A.Down  -> { tile | bottom = boundary }
+                A.Left  -> { tile | left = boundary }
+                A.Right -> { tile | right = boundary }
 
         neighbour =
             case direction of
-                Up    -> ( x, y + 1 )
-                Down  -> ( x, y - 1 )
-                Left  -> ( x - 1, y )
-                Right -> ( x + 1, y )
+                A.Up    -> ( x, y + 1 )
+                A.Down  -> ( x, y - 1 )
+                A.Left  -> ( x - 1, y )
+                A.Right -> ( x + 1, y )
     in
         board
             |> updateTile ( x, y ) (update direction)
-            |> updateTile neighbour (update <| oppositeDirection direction)
+            |> updateTile neighbour (update <| A.oppositeDirection direction)
 
-hasBoundary : Direction -> Boundary -> Tile -> Bool
+hasBoundary : A.Direction -> Boundary -> Tile -> Bool
 hasBoundary direction boundary tile =
     boundary == case direction of
-        Right -> tile.right
-        Left  -> tile.left
-        Up    -> tile.top
-        Down  -> tile.bottom
+        A.Right -> tile.right
+        A.Left  -> tile.left
+        A.Up    -> tile.top
+        A.Down  -> tile.bottom
 
 queryActor : ( Actor s -> Maybe a ) -> List ( Actor s ) -> Maybe a
 queryActor get actors =
@@ -680,7 +635,7 @@ isRunning actors =
     in
         actors |> queryActor executorRunning
 
-getMove : List ( Actor s ) -> Maybe Move
+getMove : List ( Actor s ) -> Maybe A.Move
 getMove actors =
     let
         move actor =
@@ -690,7 +645,7 @@ getMove actors =
     in
         actors |> queryActor move
 
-getInput : List ( Actor s ) -> Maybe Move
+getInput : List ( Actor s ) -> Maybe A.Move
 getInput actors =
     let
         input actor =
@@ -725,10 +680,10 @@ viewHero : Float -> Float -> HeroData -> Collage Msg
 viewHero t cellSize hero =
     let
         angle = case hero.phi of
-            Left  -> pi/2
-            Up    -> 0
-            Right -> -pi/2
-            Down  -> pi
+            A.Left  -> pi/2
+            A.Up    -> 0
+            A.Right -> -pi/2
+            A.Down  -> pi
 
         dPhi = hero.animation.dPhi t
         dX = hero.animation.dX t
@@ -749,10 +704,10 @@ viewFriend : Float -> Float -> FriendData -> Collage Msg
 viewFriend t cellSize friend =
     let
         angle = case friend.phi of
-            Left  -> pi/2
-            Up    -> 0
-            Right -> -pi/2
-            Down  -> pi
+            A.Left  -> pi/2
+            A.Up    -> 0
+            A.Right -> -pi/2
+            A.Down  -> pi
 
         dPhi = friend.animation.dPhi t
         dX = friend.animation.dX t
@@ -844,38 +799,6 @@ viewGame { board, programText } =
             ]
         ]
 
-directionToMove : Direction -> Move
-directionToMove direction =
-    case direction of
-        Up    -> Forward
-        Left  -> TurnLeft
-        Right -> TurnRight
-        _     -> Nop
-
-oppositeDirection : Direction -> Direction
-oppositeDirection direction =
-    case direction of
-        Up    -> Down
-        Down  -> Up
-        Left  -> Right
-        Right -> Left
-
-rightOfDirection : Direction -> Direction
-rightOfDirection direction =
-    case direction of
-        Right -> Down
-        Up    -> Right
-        Left  -> Up
-        Down  -> Left
-
-leftOfDirection : Direction -> Direction
-leftOfDirection direction =
-    case direction of
-        Right -> Up
-        Up    -> Left
-        Left  -> Down
-        Down  -> Right
-
 ensureTrailingLF : String -> String
 ensureTrailingLF s =
     if String.endsWith "\n" s || s == ""
@@ -928,10 +851,10 @@ keyDownDecoder =
     let
         toDirection string =
             case string of
-                "ArrowLeft"  -> KeyArrow Left
-                "ArrowRight" -> KeyArrow Right
-                "ArrowUp"    -> KeyArrow Up
-                "ArrowDown"  -> KeyArrow Down
+                "ArrowLeft"  -> KeyArrow A.Left
+                "ArrowRight" -> KeyArrow A.Right
+                "ArrowUp"    -> KeyArrow A.Up
+                "ArrowDown"  -> KeyArrow A.Down
                 _            -> KeyOtherDown string
     in
         Decode.field "key" Decode.string

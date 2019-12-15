@@ -2,62 +2,63 @@ module Main exposing ( main )
 
 import Game exposing
     ( Game, Board, newBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
-    , TileType(..), Msg, Direction(..), Move(..), updateTileBackground
+    , TileType(..), Msg, updateTileBackground
     )
+import Actor as A
 import Parse as P
 import Interpreter as I
 
 testBoard : Board s
 testBoard = newBoard 8 6
-    |> updateTileBoundary (0, 0) Up Path
-    |> updateTileBoundary (0, 1) Up Path
-    |> updateTileBoundary (0, 2) Up Path
-    |> updateTileBoundary (0, 3) Right Path
-    |> updateTileBoundary (1, 3) Right Path
-    |> updateTileBoundary (2, 3) Right Path
-    |> updateTileBoundary (3, 3) Right Path
-    |> updateTileBoundary (4, 3) Down Path
-    |> updateTileBoundary (4, 2) Down Path
-    |> updateTileBoundary (4, 1) Left Path
-    |> updateTileBoundary (3, 1) Left Path
-    |> updateTileBoundary (2, 1) Left Path
-    |> updateTileBoundary (1, 1) Left Path
-    |> updateTileBoundary (1, 2) Right Path
-    |> updateTileBoundary (2, 2) Right Path
-    |> updateTileBoundary (4, 2) Right Path
-    |> updateTileBoundary (5, 2) Right Path
-    |> updateTileBoundary (6, 2) Down Path
-    |> updateTileBoundary (6, 1) Down Path
-    |> updateTileBoundary (6, 0) Left Path
-    |> updateTileBoundary (5, 0) Left Path
-    |> updateTileBoundary (4, 0) Up Path
-    |> updateTileBoundary (4, 3) Up Path
-    |> updateTileBoundary (4, 4) Right Path
-    |> updateTileBoundary (5, 4) Up Path
-    |> updateTileBoundary (5, 5) Left Path
-    |> updateTileBoundary (4, 5) Left Path
-    |> updateTileBoundary (3, 5) Left Path
-    |> updateTileBoundary (2, 5) Down Path
-    |> updateTileBoundary (2, 4) Down Path
-    |> updateTileBoundary (5, 5) Right Path
-    |> updateTileBoundary (6, 5) Right Path
-    |> updateTileBoundary (1, 0) Right Path
-    |> updateTileBoundary (2, 0) Right Path
-    |> updateTileBoundary (7, 0) Up Path
-    |> updateTileBoundary (7, 1) Up Path
-    |> updateTileBoundary (7, 2) Up Path
-    |> updateTileBoundary (7, 3) Up Path
-    |> updateTileBoundary (7, 3) Left Path
-    |> updateTileBoundary (6, 3) Up Path
-    |> updateTileBoundary (6, 3) Left Path
-    |> updateTileBoundary (7, 4) Left Path
-    |> updateTileBoundary (0, 4) Up Path
-    |> updateTileBoundary (0, 4) Right Path
-    |> updateTileBoundary (1, 4) Up Path
-    |> updateTileBoundary (1, 5) Left Path
-    |> updateTileBoundary (7, 4) Up Path
-    |> updateTileBoundary (7, 4) Left Wall
-    |> updateTileBoundary (7, 4) Down Wall
+    |> updateTileBoundary (0, 0) A.Up Path
+    |> updateTileBoundary (0, 1) A.Up Path
+    |> updateTileBoundary (0, 2) A.Up Path
+    |> updateTileBoundary (0, 3) A.Right Path
+    |> updateTileBoundary (1, 3) A.Right Path
+    |> updateTileBoundary (2, 3) A.Right Path
+    |> updateTileBoundary (3, 3) A.Right Path
+    |> updateTileBoundary (4, 3) A.Down Path
+    |> updateTileBoundary (4, 2) A.Down Path
+    |> updateTileBoundary (4, 1) A.Left Path
+    |> updateTileBoundary (3, 1) A.Left Path
+    |> updateTileBoundary (2, 1) A.Left Path
+    |> updateTileBoundary (1, 1) A.Left Path
+    |> updateTileBoundary (1, 2) A.Right Path
+    |> updateTileBoundary (2, 2) A.Right Path
+    |> updateTileBoundary (4, 2) A.Right Path
+    |> updateTileBoundary (5, 2) A.Right Path
+    |> updateTileBoundary (6, 2) A.Down Path
+    |> updateTileBoundary (6, 1) A.Down Path
+    |> updateTileBoundary (6, 0) A.Left Path
+    |> updateTileBoundary (5, 0) A.Left Path
+    |> updateTileBoundary (4, 0) A.Up Path
+    |> updateTileBoundary (4, 3) A.Up Path
+    |> updateTileBoundary (4, 4) A.Right Path
+    |> updateTileBoundary (5, 4) A.Up Path
+    |> updateTileBoundary (5, 5) A.Left Path
+    |> updateTileBoundary (4, 5) A.Left Path
+    |> updateTileBoundary (3, 5) A.Left Path
+    |> updateTileBoundary (2, 5) A.Down Path
+    |> updateTileBoundary (2, 4) A.Down Path
+    |> updateTileBoundary (5, 5) A.Right Path
+    |> updateTileBoundary (6, 5) A.Right Path
+    |> updateTileBoundary (1, 0) A.Right Path
+    |> updateTileBoundary (2, 0) A.Right Path
+    |> updateTileBoundary (7, 0) A.Up Path
+    |> updateTileBoundary (7, 1) A.Up Path
+    |> updateTileBoundary (7, 2) A.Up Path
+    |> updateTileBoundary (7, 3) A.Up Path
+    |> updateTileBoundary (7, 3) A.Left Path
+    |> updateTileBoundary (6, 3) A.Up Path
+    |> updateTileBoundary (6, 3) A.Left Path
+    |> updateTileBoundary (7, 4) A.Left Path
+    |> updateTileBoundary (0, 4) A.Up Path
+    |> updateTileBoundary (0, 4) A.Right Path
+    |> updateTileBoundary (1, 4) A.Up Path
+    |> updateTileBoundary (1, 5) A.Left Path
+    |> updateTileBoundary (7, 4) A.Up Path
+    |> updateTileBoundary (7, 4) A.Left Wall
+    |> updateTileBoundary (7, 4) A.Down Wall
     |> updateTile ( 0, 0 ) (updateTileType Start)
     |> updateTile ( 7, 4 ) (updateTileType Goal)
     |> updateTile ( 0, 0 ) ( updateTileBackground "tiles/ns.png")
@@ -109,14 +110,14 @@ testBoard = newBoard 8 6
     |> updateTile ( 1, 5 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 3, 4 ) ( updateTileBackground "tiles/0.png")
 
-updateGame : Board s -> Maybe I.Interpreter -> ( Maybe I.Interpreter, Move )
+updateGame : Board s -> Maybe I.Interpreter -> ( Maybe I.Interpreter, A.Move )
 updateGame board interpreter =
     case interpreter of
         Just interp ->
             I.update board interp
                 |> Tuple.mapFirst Just
         _ ->
-            ( Nothing, Nop )
+            ( Nothing, A.Nop )
 
 initGame : Board s -> String -> Maybe I.Interpreter
 initGame board program =

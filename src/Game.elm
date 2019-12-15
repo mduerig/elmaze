@@ -315,7 +315,7 @@ isMet board condition =
         hero = getHero board.actors
             |> Maybe.withDefault ( A.ActorData 50 50 A.Up A.noAnimation [] )
 
-        isAtGoal tile = tile.tileType == Goal
+        atGoal tile = tile.tileType == Goal
 
         queryHero : (Tile -> Bool) -> Bool
         queryHero = queryTile (hero.x, hero.y) board
@@ -331,7 +331,7 @@ isMet board condition =
                 -> queryHero ( hasBoundary hero.phi Wall )
 
             P.Goal
-                -> queryHero isAtGoal
+                -> queryHero atGoal
 
 updatePrgInputController : Msg -> Game -> Interpreter -> Actor
 updatePrgInputController msg game interpreter =
@@ -347,8 +347,6 @@ updateHero msg { board } hero =
 
         isBlocked direction =
             queryTile ( x, y ) board ( hasBoundary direction Wall )
-
-        atGoal = isHeroAtGoal hero board
 
         noAnimation = A.noAnimation
         winAnimation =
@@ -404,7 +402,7 @@ updateHero msg { board } hero =
 
             _ ->
                 if msg == AnimationEnd then
-                    if atGoal then
+                    if isAtGoal hero board then
                         hero
                             |> A.animate winAnimation
                             |> ( if running
@@ -476,8 +474,8 @@ advanceAnimation dt board =
     let animation = board.animation
     in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
-isHeroAtGoal : A.ActorData Msg -> Board -> Bool
-isHeroAtGoal hero board =
+isAtGoal : A.ActorData Msg -> Board -> Bool
+isAtGoal hero board =
     queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
 
 resetActors : Board -> Board

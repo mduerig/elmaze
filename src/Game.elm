@@ -73,9 +73,10 @@ type Actor
 type Msg
     = KeyArrow A.Direction
     | ResetGame
-    | RunProgram
-    | StopRunning
-    | EnterMode
+    | StartProgram
+    | StopProgram
+    | StartInterpreter
+    | StopInterpreter
     | KeyOtherDown String
     | Resize Int Int
     | StartAnimation
@@ -191,16 +192,16 @@ updateGame msg  ( { board, programText } as game ) =
                 , Cmd.none
                 )
 
-            RunProgram ->
-                updateGame EnterMode
+            StartProgram ->
+                updateGame StartInterpreter
                     { game
                     | board = board
                         |> resetActors
                         |> setPrgController program
                     }
 
-            StopRunning ->
-                updateGame EnterMode
+            StopProgram ->
+                updateGame StopInterpreter
                     { game
                     | board = board
                         |> setKbdController
@@ -320,7 +321,7 @@ isMet board condition =
 
 updatePrgInputController : Msg -> Game -> Interpreter -> Actor
 updatePrgInputController msg game interpreter =
-    if msg == EnterMode || msg == AnimationEnd then
+    if msg == StartInterpreter || msg == AnimationEnd then
         PrgInputController ( Interpreter.update ( isMet game.board ) interpreter )
     else
         PrgInputController ( interpreter, A.Nop )
@@ -362,7 +363,7 @@ updateHero msg { board } hero =
                     hero
                         |> A.animate loseAnimation
                         |> A.sendCommand StartAnimation
-                        |> A.sendCommand StopRunning
+                        |> A.sendCommand StopProgram
                         |> Hero
                 else
                     hero
@@ -397,12 +398,12 @@ updateHero msg { board } hero =
                                     then A.sendCommand StartAnimation
                                     else identity
                                )
-                            |> A.sendCommand StopRunning
+                            |> A.sendCommand StopProgram
                             |> Hero
                     else
                         hero
                             |> A.animate A.noAnimation
-                            |> A.sendCommand StopRunning
+                            |> A.sendCommand StopProgram
                             |> Hero
                 else
                     Hero hero
@@ -673,13 +674,13 @@ viewGame { board, programText } =
                             then Button.button
                                 [ Button.danger
                                 , Button.block
-                                , Button.onClick StopRunning
+                                , Button.onClick StopProgram
                                 ]
                                 [ Html.text "Stop" ]
                             else Button.button
                                 [ Button.outlineSuccess
                                 , Button.block
-                                , Button.onClick RunProgram
+                                , Button.onClick StartProgram
                                 ]
                                 [ Html.text "Go!" ]
                         , Button.button

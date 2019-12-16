@@ -577,25 +577,25 @@ isHeroAtGoal board =
 viewActor : Float -> Float -> Actor -> Collage Msg
 viewActor t cellSize actor =
     case actor of
-        Hero hero            -> viewHero t cellSize hero
-        Friend friend        -> viewFriend t cellSize friend
+        Hero hero            -> viewHeroOrFriend t cellSize "🐞" hero
+        Friend friend        -> viewHeroOrFriend t cellSize "🦋" friend
         KbdInputController _ -> Collage.group []
         PrgInputController _ -> Collage.group []
 
-viewHero : Float -> Float -> A.ActorData Msg -> Collage Msg
-viewHero t cellSize hero =
+viewHeroOrFriend : Float -> Float -> String -> A.ActorData Msg -> Collage Msg
+viewHeroOrFriend t cellSize emoji actor =
     let
-        angle = case hero.phi of
+        angle = case actor.phi of
             A.Left  -> pi/2
             A.Up    -> 0
             A.Right -> -pi/2
             A.Down  -> pi
 
-        dPhi = hero.animation.dPhi t
-        dX = hero.animation.dX t
-        dY = hero.animation.dY t
+        dPhi = actor.animation.dPhi t
+        dX = actor.animation.dX t
+        dY = actor.animation.dY t
     in
-        [ Text.fromString "🐞"
+        [ Text.fromString emoji
             |> Text.size (round (cellSize/5*3))
             |> rendered
             |> rotate ( angle + dPhi)
@@ -603,32 +603,8 @@ viewHero t cellSize hero =
             |> filled transparent
         ]
         |> group
-        |> shiftX ( cellSize * ( toFloat hero.x + dX ) )
-        |> shiftY ( cellSize * ( toFloat hero.y + dY ) )
-
-viewFriend : Float -> Float -> A.ActorData Msg -> Collage Msg
-viewFriend t cellSize friend =
-    let
-        angle = case friend.phi of
-            A.Left  -> pi/2
-            A.Up    -> 0
-            A.Right -> -pi/2
-            A.Down  -> pi
-
-        dPhi = friend.animation.dPhi t
-        dX = friend.animation.dX t
-        dY = friend.animation.dY t
-    in
-        [ Text.fromString "🦋"
-            |> Text.size (round (cellSize/5*3))
-            |> rendered
-            |> rotate ( angle + dPhi)
-        , circle (cellSize/5*2)
-            |> filled transparent
-        ]
-        |> group
-        |> shiftX ( cellSize * ( toFloat friend.x + dX ) )
-        |> shiftY ( cellSize * ( toFloat friend.y + dY ) )
+        |> shiftX ( cellSize * ( toFloat actor.x + dX ) )
+        |> shiftY ( cellSize * ( toFloat actor.y + dY ) )
 
 viewGame : Game -> List (Html Msg)
 viewGame { board, programText } =

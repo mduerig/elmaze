@@ -113,7 +113,6 @@ testBoard = newBoard 8 6
             , y = 0
             , phi = A.Up
             , animation = A.noAnimation
-            , cmds = []
             }
         )
     |> addActor
@@ -122,7 +121,6 @@ testBoard = newBoard 8 6
             , y = 1
             , phi = A.Right
             , animation = A.noAnimation
-            , cmds = []
             }
         )
 

@@ -65,8 +65,8 @@ type Boundary
     | Path
 
 type Actor
-    = Hero ( A.ActorData Msg )
-    | Friend ( A.ActorData Msg )
+    = Hero A.ActorData
+    | Friend A.ActorData
     | KbdInputController A.Move
     | PrgInputController ( Interpreter, A.Move )
 
@@ -90,6 +90,18 @@ type Msg
     | Coding Bool
     | GenerateRandom ( Cmd Msg )
     | RandomDirection A.Direction
+    | Batch ( List Msg )
+
+nop : Msg
+nop = Batch []
+
+batch : Msg -> Msg -> Msg
+batch msg1 msg2 =
+    case ( msg1, msg2 ) of
+       ( Batch msgs1, Batch msgs2 ) -> Batch ( msgs1 ++ msgs2 )
+       ( Batch msgs, _ )            -> Batch ( msgs ++ [ msg2 ] )
+       ( _, Batch msgs )            -> Batch ( msg1 :: msgs )
+       _                            -> Batch [ msg1, msg2 ]
 
 initGame : Board -> ( Game, Cmd Msg )
 initGame board =
@@ -142,6 +154,10 @@ updateGame msg  ( { board, programText } as game ) =
 
     in
         case msg of
+            Batch msgs ->
+                Debug.log "" msgs
+                    |> List.foldl runCommand ( game, Cmd.none )
+
             GenerateRandom cmd ->
                 ( game, cmd )
 
@@ -209,22 +225,12 @@ updateGame msg  ( { board, programText } as game ) =
 
             _ ->
                 game.board.actors
-                    |> List.foldl ( updateActor msg ) game
+                    |> List.foldl ( updateActor msg ) ( game, nop )
                     |> runCommands
 
-runCommands : Game -> ( Game , Cmd Msg )
-runCommands game =
-    game.board.actors
-        |> List.concatMap getCommands
-        |> List.foldl runCommand ( game |> clearCommands, Cmd.none )
-
-getCommands : Actor -> List Msg
-getCommands actor =
-    case actor of
-        Hero hero            -> hero.cmds
-        Friend friend        -> friend.cmds
-        KbdInputController _ -> []
-        PrgInputController _ -> []
+runCommands : ( Game, Msg ) -> ( Game, Cmd Msg )
+runCommands ( game, cmd ) =
+    updateGame cmd game
 
 runCommand : Msg -> ( Game, Cmd Msg ) -> ( Game, Cmd Msg )
 runCommand msg ( game, cmd ) =
@@ -233,10 +239,10 @@ runCommand msg ( game, cmd ) =
     in
         ( newGame, Cmd.batch [ cmd, newCommand ] )
 
-updateActor : Msg -> Actor -> Game -> Game
-updateActor msg actor game =
+updateActor : Msg -> Actor -> ( Game, Msg ) -> ( Game, Msg )
+updateActor msg actor ( game, cmds ) =
     let
-        updatedActor =
+        ( updatedActor, cmd ) =
             case actor of
                 Hero hero ->
                     updateHero msg game hero
@@ -250,7 +256,9 @@ updateActor msg actor game =
                 PrgInputController ( interpreter, _ ) ->
                     updatePrgInputController msg game interpreter
     in
-        { game | board = setActor updatedActor game.board }
+        ( { game | board = setActor updatedActor game.board }
+        , batch cmd cmds
+        )
 
 addActor : Actor -> Board -> Board
 addActor actor ( {actors } as board ) =
@@ -293,16 +301,16 @@ setActor actor board =
                 ( _, _ ) -> currentActor
         )
 
-updateKbdInputController : Msg -> Game -> Actor
+updateKbdInputController : Msg -> Game -> ( Actor, Msg )
 updateKbdInputController msg { coding } =
     if coding then
-        KbdInputController A.Nop
+        ( KbdInputController A.Nop, nop )
     else
         case msg of
-        KeyArrow A.Up    -> KbdInputController A.Forward
-        KeyArrow A.Left  -> KbdInputController A.TurnLeft
-        KeyArrow A.Right -> KbdInputController A.TurnRight
-        _                -> KbdInputController A.Nop
+        KeyArrow A.Up    -> ( KbdInputController A.Forward, nop )
+        KeyArrow A.Left  -> ( KbdInputController A.TurnLeft, nop )
+        KeyArrow A.Right -> ( KbdInputController A.TurnRight, nop )
+        _                -> ( KbdInputController A.Nop, nop )
 
 isMet : Board -> P.Condition -> Bool
 isMet board condition =
@@ -319,14 +327,18 @@ isMet board condition =
         P.Goal
             -> isHeroAtGoal board
 
-updatePrgInputController : Msg -> Game -> Interpreter -> Actor
+updatePrgInputController : Msg -> Game -> Interpreter -> ( Actor, Msg )
 updatePrgInputController msg game interpreter =
     if msg == StartInterpreter || msg == AnimationEnd then
-        PrgInputController ( Interpreter.update ( isMet game.board ) interpreter )
+        ( PrgInputController ( Interpreter.update ( isMet game.board ) interpreter )
+        , nop
+        )
     else
-        PrgInputController ( interpreter, A.Nop )
+        ( PrgInputController ( interpreter, A.Nop )
+        , nop
+        )
 
-updateHero : Msg -> Game -> A.ActorData Msg -> Actor
+updateHero : Msg -> Game -> A.ActorData -> ( Actor, Msg )
 updateHero msg { board } hero =
     let
         { x, y, phi } = hero
@@ -352,63 +364,61 @@ updateHero msg { board } hero =
 
         running = isRunning board.actors
 
-        recordMove direction game =
-            game |> if running
-                then identity
-                else A.sendCommand ( RecordMove ( A.directionToMove direction ))
+        recordMove direction =
+            if running
+                then nop
+                else RecordMove ( A.directionToMove direction )
     in
         case getInput board.actors of
             A.Forward ->
                 if isBlocked phi then
-                    hero
+                    ( hero
                         |> A.animate loseAnimation
-                        |> A.sendCommand StartAnimation
-                        |> A.sendCommand StopProgram
                         |> Hero
+                    , batch StartAnimation StopProgram
+                    )
                 else
-                    hero
+                    ( hero
                         |> A.move phi
                         |> A.animate ( A.moveAnimation phi )
-                        |> A.sendCommand StartAnimation
-                        |> recordMove A.Up
                         |> Hero
+                    , batch StartAnimation ( recordMove A.Up )
+                    )
 
             A.TurnLeft ->
-                hero
+                ( hero
                     |> A.turn A.Left
                     |> A.animate ( A.turnAnimation A.Left )
-                    |> A.sendCommand StartAnimation
-                    |> recordMove A.Left
                     |> Hero
+                , batch StartAnimation ( recordMove A.Left )
+                )
 
             A.TurnRight ->
-                hero
+                ( hero
                     |> A.turn A.Right
                     |> A.animate ( A.turnAnimation A.Right )
-                    |> A.sendCommand StartAnimation
-                    |> recordMove A.Right
                     |> Hero
+                , batch StartAnimation ( recordMove A.Right )
+                )
 
             _ ->
                 if msg == AnimationEnd then
                     if isAtGoal then
-                        hero
+                        ( hero
                             |> A.animate winAnimation
-                            |> ( if running
-                                    then A.sendCommand StartAnimation
-                                    else identity
-                               )
-                            |> A.sendCommand StopProgram
                             |> Hero
+                        , batch StopProgram ( if running then StartAnimation else nop )
+                        )
                     else
-                        hero
+                        ( hero
                             |> A.animate A.noAnimation
-                            |> A.sendCommand StopProgram
                             |> Hero
+                        , StopProgram
+                        )
                 else
-                    Hero hero
+                    ( Hero hero, nop )
 
-updateFriend : Msg -> Game -> A.ActorData Msg -> Actor
+updateFriend : Msg -> Game -> A.ActorData -> ( Actor, Msg )
 updateFriend msg { board } ( { x, y, phi } as friend ) =
     let
         isBlocked direction =
@@ -418,36 +428,32 @@ updateFriend msg { board } ( { x, y, phi } as friend ) =
     in
         case msg of
             RandomDirection direction ->
-                Friend { friend | phi = direction }
+                ( Friend { friend | phi = direction }
+                , nop
+                )
 
             AnimationStart ->
                 if isBlocked phi then
-                    Friend { friend | cmds = [ GenerateRandom <| Random.generate RandomDirection rnd ] }
+                    ( Friend friend
+                    , GenerateRandom ( Random.generate RandomDirection rnd )
+                    )
                 else
-                    friend
+                    ( friend
                         |> A.move phi
                         |> A.animate ( A.moveAnimation phi )
                         |> Friend
+                    , nop
+                    )
 
             AnimationEnd ->
-                friend
+                ( friend
                     |> A.animate A.noAnimation
                     |> Friend
+                , nop
+                )
 
             _ ->
-                Friend friend
-
-clearCommands : Game -> Game
-clearCommands ( { board } as game ) =
-    let
-        clearCmd actor = case actor of
-            Hero hero            -> Hero { hero | cmds = [] }
-            Friend friend        -> Friend { friend | cmds = [] }
-            KbdInputController _ -> actor
-            PrgInputController _ -> actor
-
-    in
-        { game | board = board |> mapActors clearCmd }
+                ( Friend friend, nop )
 
 stopAnimation : Board -> Board
 stopAnimation board =
@@ -582,7 +588,7 @@ viewActor t cellSize actor =
         KbdInputController _ -> Collage.group []
         PrgInputController _ -> Collage.group []
 
-viewHeroOrFriend : Float -> Float -> String -> A.ActorData Msg -> Collage Msg
+viewHeroOrFriend : Float -> Float -> String -> A.ActorData -> Collage Msg
 viewHeroOrFriend t cellSize emoji actor =
     let
         angle = case actor.phi of

@@ -155,7 +155,7 @@ updateGame msg  ( { board, programText } as game ) =
     in
         case msg of
             Batch msgs ->
-                Debug.log "" msgs
+                msgs
                     |> List.foldl runCommand ( game, Cmd.none )
 
             GenerateRandom cmd ->

@@ -413,7 +413,7 @@ updateHero msg { board } hero =
                         ( hero
                             |> A.animate A.noAnimation
                             |> Hero
-                        , StopProgram
+                        , nop
                         )
                 else
                     ( Hero hero, nop )

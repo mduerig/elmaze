@@ -103,8 +103,8 @@ batch msg1 msg2 =
        ( _, Batch msgs )            -> Batch ( msg1 :: msgs )
        _                            -> Batch [ msg1, msg2 ]
 
-initGame : Board -> ( Game, Cmd Msg )
-initGame board =
+initGame : Board -> flags -> ( Game, Cmd Msg )
+initGame board _ =
     let
         boardWithActors = board
             |> addActor ( KbdInputController A.Nop )
@@ -756,7 +756,7 @@ play board =
                 , game.board.animation.onDelta AnimationFrame
                 , onResize Resize
                 ]
-        , init = \_ -> initGame board
+        , init = initGame board
         , update = updateGame
         , view =
             \game ->

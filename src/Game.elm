@@ -36,6 +36,7 @@ type alias Board =
     , height : Int
     , tiles : Array Tile
     , resetActors : List Actor
+    , controller : Controller
     , actors : List Actor
     , animation : Animation
     }
@@ -67,8 +68,10 @@ type Boundary
 type Actor
     = Hero A.ActorData
     | Friend A.ActorData
-    | KbdInputController A.Move
-    | PrgInputController ( Interpreter, A.Move )
+
+type Controller
+    = Keyboard A.Move
+    | Program ( Interpreter, A.Move )
 
 type Msg
     = KeyArrow A.Direction
@@ -106,11 +109,10 @@ batch msg1 msg2 =
 initGame : Board -> flags -> ( Game, Cmd Msg )
 initGame board _ =
     let
-        boardWithActors = board
-            |> addActor ( KbdInputController A.Nop )
-
         game =
-            { board = { boardWithActors | resetActors = boardWithActors.actors }
+            { board = { board
+                | resetActors = board.actors }
+                |> resetController
             , coding = False
             , programText = ""
             }
@@ -136,6 +138,7 @@ newBoard width height =
             , right = Wall
             }
     , resetActors = []
+    , controller = Keyboard A.Nop
     , actors = []
     , animation =
         { v = 1.5
@@ -163,7 +166,9 @@ updateGame msg  ( { board, programText } as game ) =
 
             ResetGame ->
                 ( { game
-                  | board = board |> resetActors
+                  | board = board
+                        |> resetActors
+                        |> resetController
                   , programText = ""
                 }
                 , Cmd.none
@@ -225,7 +230,7 @@ updateGame msg  ( { board, programText } as game ) =
 
             _ ->
                 game.board.actors
-                    |> List.foldl ( updateActor msg ) ( game, nop )
+                    |> List.foldl ( updateActor msg ) ( updateController msg game, nop )
                     |> runCommands
 
 runCommands : ( Game, Msg ) -> ( Game, Cmd Msg )
@@ -249,38 +254,35 @@ updateActor msg actor ( game, cmds ) =
 
                 Friend friend ->
                     updateFriend msg game friend
-
-                KbdInputController _ ->
-                    updateKbdInputController msg game
-
-                PrgInputController ( interpreter, _ ) ->
-                    updatePrgInputController msg game interpreter
     in
         ( { game | board = setActor updatedActor game.board }
         , batch cmd cmds
         )
 
+updateController : Msg -> Game -> Game
+updateController msg game =
+    let
+        updatedController =
+            case game.board.controller of
+                Keyboard _ ->
+                    updateKeyboardController msg game.coding
+
+                Program ( interpreter, _ ) ->
+                    updateProgramController msg game interpreter
+    in
+        { game | board = setController updatedController game.board }
+
 addActor : Actor -> Board -> Board
-addActor actor ( {actors } as board ) =
+addActor actor ( { actors } as board ) =
     { board | actors = actor :: actors }
 
 setKbdController : Board -> Board
-setKbdController board =
-    board |> mapActors
-        ( \actor ->
-            case actor of
-                PrgInputController _ -> KbdInputController A.Nop
-                _ -> actor
-        )
+setKbdController =
+    setController ( Keyboard A.Nop )
 
 setPrgController : Interpreter -> Board -> Board
-setPrgController interprter board =
-    board |> mapActors
-        ( \actor ->
-            case actor of
-                KbdInputController _ -> PrgInputController ( interprter, A.Nop )
-                _ -> actor
-        )
+setPrgController interprter =
+    setController ( Program ( interprter, A.Nop ) )
 
 mapActors : ( Actor -> Actor ) -> Board -> Board
 mapActors update board =
@@ -296,21 +298,23 @@ setActor actor board =
             case ( currentActor, actor ) of
                 ( Hero _, Hero _ ) -> actor
                 ( Friend _, Friend _ ) -> actor
-                ( KbdInputController _, KbdInputController _ ) -> actor
-                ( PrgInputController _, PrgInputController _ ) -> actor
                 ( _, _ ) -> currentActor
         )
 
-updateKbdInputController : Msg -> Game -> ( Actor, Msg )
-updateKbdInputController msg { coding } =
+setController : Controller -> Board -> Board
+setController controller board =
+    { board | controller = controller }
+
+updateKeyboardController : Msg -> Bool -> Controller
+updateKeyboardController msg coding =
     if coding then
-        ( KbdInputController A.Nop, nop )
+        Keyboard A.Nop
     else
         case msg of
-        KeyArrow A.Up    -> ( KbdInputController A.Forward, nop )
-        KeyArrow A.Left  -> ( KbdInputController A.TurnLeft, nop )
-        KeyArrow A.Right -> ( KbdInputController A.TurnRight, nop )
-        _                -> ( KbdInputController A.Nop, nop )
+        KeyArrow A.Up    -> Keyboard A.Forward
+        KeyArrow A.Left  -> Keyboard A.TurnLeft
+        KeyArrow A.Right -> Keyboard A.TurnRight
+        _                -> Keyboard A.Nop
 
 isMet : Board -> P.Condition -> Bool
 isMet board condition =
@@ -327,16 +331,12 @@ isMet board condition =
         P.Goal
             -> isHeroAtGoal board
 
-updatePrgInputController : Msg -> Game -> Interpreter -> ( Actor, Msg )
-updatePrgInputController msg game interpreter =
+updateProgramController : Msg -> Game -> Interpreter -> Controller
+updateProgramController msg game interpreter =
     if msg == StartInterpreter || msg == AnimationEnd then
-        ( PrgInputController ( Interpreter.update ( isMet game.board ) interpreter )
-        , nop
-        )
+        Program ( Interpreter.update ( isMet game.board ) interpreter )
     else
-        ( PrgInputController ( interpreter, A.Nop )
-        , nop
-        )
+        Program ( interpreter, A.Nop )
 
 updateHero : Msg -> Game -> A.ActorData -> ( Actor, Msg )
 updateHero msg { board } hero =
@@ -362,14 +362,14 @@ updateHero msg { board } hero =
             , dPhi = \t -> 4 * pi * t
             }
 
-        running = isRunning board.actors
+        running = isRunning board.controller
 
         recordMove direction =
             if running
                 then nop
                 else RecordMove ( A.directionToMove direction )
     in
-        case getInput board.actors of
+        case getInput board.controller of
             A.Forward ->
                 if isBlocked phi then
                     ( hero
@@ -473,6 +473,10 @@ resetActors : Board -> Board
 resetActors board =
     { board | actors = board.resetActors }
 
+resetController : Board -> Board
+resetController board =
+    { board | controller = Keyboard A.Nop }
+
 queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
     Array.get ((height - 1 - y) * width + x) tiles
@@ -530,31 +534,17 @@ queryActor get actors =
         |> List.filterMap get
         |> List.head
 
-isRunning : List Actor -> Bool
-isRunning actors =
-    let
-        executorRunning actor =
-            case actor of
-                PrgInputController _ -> Just True
-                _ -> Nothing
-    in
-        actors
-            |> queryActor executorRunning
-            |> Maybe.withDefault False
+isRunning : Controller -> Bool
+isRunning controller =
+    case controller of
+        Program _ -> True
+        _ -> False
 
-getInput : List Actor -> A.Move
-getInput actors =
-    let
-        input actor =
-            case actor of
-                KbdInputController move -> Just move
-                PrgInputController ( _ , move ) -> Just move
-                _ -> Nothing
-
-    in
-        actors
-            |> queryActor input
-            |> Maybe.withDefault A.Nop
+getInput : Controller -> A.Move
+getInput controller =
+    case controller of
+        Keyboard move -> move
+        Program ( _ , move ) -> move
 
 canHeroMove : Board -> Bool
 canHeroMove board =
@@ -585,8 +575,6 @@ viewActor t cellSize actor =
     case actor of
         Hero hero            -> viewHeroOrFriend t cellSize "🐞" hero
         Friend friend        -> viewHeroOrFriend t cellSize "🦋" friend
-        KbdInputController _ -> Collage.group []
-        PrgInputController _ -> Collage.group []
 
 viewHeroOrFriend : Float -> Float -> String -> A.ActorData -> Collage Msg
 viewHeroOrFriend t cellSize emoji actor =
@@ -615,13 +603,13 @@ viewHeroOrFriend t cellSize emoji actor =
 viewGame : Game -> List (Html Msg)
 viewGame { board, programText } =
     let
-        { actors, animation } = board
+        { actors, controller, animation } = board
         cellSize = board.size / toFloat board.width
 
         viewActors = actors
             |> List.map ( viewActor animation.t cellSize )
 
-        running = isRunning actors
+        running = isRunning controller
 
     in
         [ CDN.stylesheet

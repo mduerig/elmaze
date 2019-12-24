@@ -561,8 +561,8 @@ canHeroMove board =
     let
         canMove actor =
             case actor of
-               Hero hero -> Just ( queryTile ( hero.x, hero.y ) board ( hasBoundary hero.phi Wall ) )
-               _ -> Just False
+               Hero hero -> Just ( queryTile ( hero.x, hero.y ) board ( hasBoundary hero.phi Path ) )
+               _ -> Nothing
     in
         board.actors
             |> queryActor canMove
@@ -574,7 +574,7 @@ isHeroAtGoal board =
         atGoal actor =
             case actor of
                Hero hero -> Just ( queryTile ( hero.x, hero.y ) board (\tile -> tile.tileType == Goal) )
-               _ -> Just False
+               _ -> Nothing
     in
         board.actors
             |> queryActor atGoal

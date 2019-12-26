@@ -19,14 +19,12 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Json.Decode as Decode
 import Task as Task
-import Ease
 import Actor as A
 import Interpreter exposing ( Interpreter )
 import Parse as P
 
 type alias Game =
     { board : Board
-    , coding : Bool
     , programText : String
     }
 
@@ -72,6 +70,7 @@ type Actor
 type Controller
     = Keyboard A.Move
     | Program ( Interpreter, A.Move )
+    | Nop
 
 type Msg
     = KeyArrow A.Direction
@@ -113,7 +112,6 @@ initGame board _ =
             { board = { board
                 | defaultActors = board.actors }
                 |> setKbdController
-            , coding = False
             , programText = ""
             }
     in
@@ -174,8 +172,12 @@ updateGame msg  ( { board, programText } as game ) =
                 , Cmd.none
                 )
 
-            Coding coding ->
-                ( { game | coding = coding }
+            Coding coding  ->
+                ( { game | board = game.board
+                    |> if coding
+                        then setNopController
+                        else setKbdController
+                  }
                 , Cmd.none
                 )
 
@@ -265,10 +267,12 @@ updateController msg game =
         updatedController =
             case game.board.controller of
                 Keyboard _ ->
-                    updateKeyboardController msg game.coding
+                    updateKeyboardController msg
 
                 Program ( interpreter, _ ) ->
                     updateProgramController msg ( isConditionTrue game.board ) interpreter
+
+                Nop -> game.board.controller
     in
         { game | board = setController updatedController game.board }
 
@@ -288,6 +292,10 @@ setPrgController : Interpreter -> Board -> Board
 setPrgController interprter =
     setController ( Program ( interprter, A.Nop ) )
 
+setNopController : Board -> Board
+setNopController =
+    setController Nop
+
 mapActors : ( Actor -> Actor ) -> Board -> Board
 mapActors update board =
     { board
@@ -305,12 +313,9 @@ setActor actor board =
                 ( _, _ ) -> currentActor
         )
 
-updateKeyboardController : Msg -> Bool -> Controller
-updateKeyboardController msg coding =
-    if coding then
-        Keyboard A.Nop
-    else
-        case msg of
+updateKeyboardController : Msg -> Controller
+updateKeyboardController msg =
+    case msg of
         KeyArrow A.Up    -> Keyboard A.Forward
         KeyArrow A.Left  -> Keyboard A.TurnLeft
         KeyArrow A.Right -> Keyboard A.TurnRight
@@ -524,8 +529,9 @@ isRunning controller =
 getInput : Controller -> A.Move
 getInput controller =
     case controller of
-        Keyboard move -> move
+        Keyboard move        -> move
         Program ( _ , move ) -> move
+        Nop                  -> A.Nop
 
 canHeroMove : Board -> Bool
 canHeroMove board =

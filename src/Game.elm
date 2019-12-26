@@ -112,7 +112,7 @@ initGame board _ =
         game =
             { board = { board
                 | defaultActors = board.actors }
-                |> resetController
+                |> setKbdController
             , coding = False
             , programText = ""
             }
@@ -168,7 +168,7 @@ updateGame msg  ( { board, programText } as game ) =
                 ( { game
                   | board = board
                         |> resetActors
-                        |> resetController
+                        |> setKbdController
                   , programText = ""
                 }
                 , Cmd.none
@@ -276,6 +276,10 @@ addActor : Actor -> Board -> Board
 addActor actor ( { actors } as board ) =
     { board | actors = actor :: actors }
 
+setController : Controller -> Board -> Board
+setController controller board =
+    { board | controller = controller }
+
 setKbdController : Board -> Board
 setKbdController =
     setController ( Keyboard A.Nop )
@@ -300,10 +304,6 @@ setActor actor board =
                 ( Friend _, Friend _ ) -> actor
                 ( _, _ ) -> currentActor
         )
-
-setController : Controller -> Board -> Board
-setController controller board =
-    { board | controller = controller }
 
 updateKeyboardController : Msg -> Bool -> Controller
 updateKeyboardController msg coding =
@@ -457,10 +457,6 @@ advanceAnimation dt board =
 resetActors : Board -> Board
 resetActors board =
     { board | actors = board.defaultActors }
-
-resetController : Board -> Board
-resetController board =
-    { board | controller = Keyboard A.Nop }
 
 queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =

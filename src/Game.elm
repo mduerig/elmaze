@@ -20,7 +20,8 @@ import Bootstrap.Grid.Col as Col
 import Json.Decode as Decode
 import Task as Task
 import Actor as A
-import Interpreter exposing ( Interpreter )
+import Controller as C exposing ( Controller )
+import Interpreter
 import Parse as P
 
 type alias Game =
@@ -67,11 +68,6 @@ type Actor
     = Hero A.ActorData
     | Friend A.ActorData
 
-type Controller
-    = Keyboard A.Move
-    | Program ( Interpreter, A.Move )
-    | Nop
-
 type Msg
     = KeyArrow A.Direction
     | ResetGame
@@ -111,7 +107,7 @@ initGame board _ =
         game =
             { board = { board
                 | defaultActors = board.actors }
-                |> setKbdController
+                |> setController C.keyboardController
             , programText = ""
             }
     in
@@ -136,7 +132,7 @@ emptyBoard width height =
             , right = Wall
             }
     , defaultActors = []
-    , controller = Keyboard A.Nop
+    , controller = C.keyboardController
     , actors = []
     , animation =
         { v = 1.5
@@ -166,7 +162,7 @@ updateGame msg  ( { board, programText } as game ) =
                 ( { game
                   | board = board
                         |> resetActors
-                        |> setKbdController
+                        |> setController C.keyboardController
                   , programText = ""
                 }
                 , Cmd.none
@@ -175,8 +171,8 @@ updateGame msg  ( { board, programText } as game ) =
             Coding coding  ->
                 ( { game | board = game.board
                     |> if coding
-                        then setNopController
-                        else setKbdController
+                        then setController C.nopController
+                        else setController C.keyboardController
                   }
                 , Cmd.none
                 )
@@ -220,14 +216,14 @@ updateGame msg  ( { board, programText } as game ) =
                     { game
                     | board = board
                         |> resetActors
-                        |> setPrgController program
+                        |> setController ( C.programController program )
                     }
 
             StopProgram ->
                 updateGame StopInterpreter
                     { game
                     | board = board
-                        |> setKbdController
+                        |> setController C.keyboardController
                     }
 
             _ ->
@@ -264,15 +260,12 @@ updateActor msg actor ( game, cmds ) =
 updateController : Msg -> Game -> Game
 updateController msg game =
     let
-        updatedController =
-            case game.board.controller of
-                Keyboard _ ->
-                    updateKeyboardController msg
-
-                Program ( interpreter, _ ) ->
-                    updateProgramController msg ( isConditionTrue game.board ) interpreter
-
-                Nop -> game.board.controller
+        updatedController = game.board.controller
+            |> case msg of
+                KeyArrow direction -> C.updateKeyboardController direction
+                StartInterpreter   -> C.updateProgramController ( isConditionTrue game.board )
+                AnimationEnd       -> C.updateProgramController ( isConditionTrue game.board )
+                _                  -> C.resetKeyboardController >> C.resetProgramController
     in
         { game | board = setController updatedController game.board }
 
@@ -283,18 +276,6 @@ addActor actor ( { actors } as board ) =
 setController : Controller -> Board -> Board
 setController controller board =
     { board | controller = controller }
-
-setKbdController : Board -> Board
-setKbdController =
-    setController ( Keyboard A.Nop )
-
-setPrgController : Interpreter -> Board -> Board
-setPrgController interprter =
-    setController ( Program ( interprter, A.Nop ) )
-
-setNopController : Board -> Board
-setNopController =
-    setController Nop
 
 mapActors : ( Actor -> Actor ) -> Board -> Board
 mapActors update board =
@@ -313,14 +294,6 @@ setActor actor board =
                 ( _, _ ) -> currentActor
         )
 
-updateKeyboardController : Msg -> Controller
-updateKeyboardController msg =
-    case msg of
-        KeyArrow A.Up    -> Keyboard A.Forward
-        KeyArrow A.Left  -> Keyboard A.TurnLeft
-        KeyArrow A.Right -> Keyboard A.TurnRight
-        _                -> Keyboard A.Nop
-
 isConditionTrue : Board -> P.Condition -> Bool
 isConditionTrue board condition =
     case condition of
@@ -336,13 +309,6 @@ isConditionTrue board condition =
         P.Goal
             -> isHeroAtGoal board
 
-updateProgramController : Msg -> ( P.Condition -> Bool ) -> Interpreter -> Controller
-updateProgramController msg isTrue interpreter =
-    if msg == StartInterpreter || msg == AnimationEnd then
-        Program ( Interpreter.update isTrue interpreter )
-    else
-        Program ( interpreter, A.Nop )
-
 updateHero : Msg -> Game -> A.ActorData -> ( Actor, Msg )
 updateHero msg { board } hero =
     let
@@ -352,14 +318,14 @@ updateHero msg { board } hero =
         isAtGoal =
             queryTile ( hero.x, hero.y ) board ( \tile -> tile.tileType == Goal )
 
-        running = isRunning board.controller
+        running = C.isProgram board.controller
 
         recordMove direction =
             if running
                 then nop
                 else RecordMove ( A.directionToMove direction )
     in
-        case getInput board.controller of
+        case C.getInput board.controller of
             A.Forward ->
                 if isBlocked hero.phi then
                     ( hero
@@ -520,19 +486,6 @@ queryActor get actors =
         |> List.filterMap get
         |> List.head
 
-isRunning : Controller -> Bool
-isRunning controller =
-    case controller of
-        Program _ -> True
-        _ -> False
-
-getInput : Controller -> A.Move
-getInput controller =
-    case controller of
-        Keyboard move        -> move
-        Program ( _ , move ) -> move
-        Nop                  -> A.Nop
-
 canHeroMove : Board -> Bool
 canHeroMove board =
     let
@@ -596,7 +549,7 @@ viewGame { board, programText } =
         viewActors = actors
             |> List.map ( viewActor animation.t cellSize )
 
-        running = isRunning controller
+        running = C.isProgram controller
 
     in
         [ CDN.stylesheet

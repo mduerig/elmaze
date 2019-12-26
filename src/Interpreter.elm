@@ -23,9 +23,9 @@ init : P.Program -> Interpreter
 init program = Interpreter program Dict.empty
 
 update : ( P.Condition -> Bool ) -> Interpreter -> ( Interpreter, A.Move )
-update isMet ( Interpreter ( program ) bindings ) =
+update isTrue ( Interpreter ( program ) bindings ) =
     let
-        update0 int = update isMet int
+        updateRec = update isTrue
     in
         case program of
             [] ->
@@ -34,7 +34,7 @@ update isMet ( Interpreter ( program ) bindings ) =
             (P.Command move) :: stmts ->
                 case move of
                     P.Do [] ->
-                        update0 ( Interpreter stmts bindings )
+                        updateRec ( Interpreter stmts bindings )
 
                     P.Do ( P.Move moveId :: moves) ->
                         let
@@ -43,7 +43,7 @@ update isMet ( Interpreter ( program ) bindings ) =
                                 |> Maybe.map (P.Command >> List.singleton)
                                 |> Maybe.withDefault []
                         in
-                            update0 ( Interpreter (stmt ++ ( P.Command <| P.Do moves ) :: stmts) bindings )
+                            updateRec ( Interpreter (stmt ++ ( P.Command <| P.Do moves ) :: stmts) bindings )
 
                     P.Do ( atomicMove :: moves) ->
                         ( Interpreter ( ( P.Command <| P.Do <| moves ) :: stmts ) bindings
@@ -58,20 +58,20 @@ update isMet ( Interpreter ( program ) bindings ) =
                         let
                             nextMoves : List P.Statement
                             nextMoves =
-                                ( if isMet condition
+                                ( if isTrue condition
                                     then Just trueMoves
                                     else falseMoves
                                 )
                                 |> Maybe.map ( P.Do >> P.Command >> List.singleton )
                                 |> Maybe.withDefault []
                         in
-                            update0 ( Interpreter ( nextMoves ++ stmts ) bindings )
+                            updateRec ( Interpreter ( nextMoves ++ stmts ) bindings )
 
                     P.While condition moves ->
                         let
                             nextMoves : List P.Statement
                             nextMoves =
-                                if isMet condition
+                                if isTrue condition
                                     then
                                         [ P.Command <| P.Do moves
                                         , P.Command move
@@ -79,7 +79,7 @@ update isMet ( Interpreter ( program ) bindings ) =
                                     else
                                         []
                         in
-                            update0 ( Interpreter ( nextMoves ++ stmts ) bindings )
+                            updateRec ( Interpreter ( nextMoves ++ stmts ) bindings )
 
                     P.Repeat count moves ->
                         let
@@ -93,7 +93,7 @@ update isMet ( Interpreter ( program ) bindings ) =
                                     else
                                         []
                         in
-                            update0 ( Interpreter ( nextMoves ++ stmts ) bindings )
+                            updateRec ( Interpreter ( nextMoves ++ stmts ) bindings )
 
             (P.Binding (P.Let moveId move)) :: stmts ->
-                update0 ( Interpreter stmts ( Dict.insert moveId move bindings ) )
+                updateRec ( Interpreter stmts ( Dict.insert moveId move bindings ) )

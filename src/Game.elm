@@ -268,7 +268,7 @@ updateController msg game =
                     updateKeyboardController msg game.coding
 
                 Program ( interpreter, _ ) ->
-                    updateProgramController msg game interpreter
+                    updateProgramController msg ( isConditionTrue game.board ) interpreter
     in
         { game | board = setController updatedController game.board }
 
@@ -316,11 +316,11 @@ updateKeyboardController msg coding =
         KeyArrow A.Right -> Keyboard A.TurnRight
         _                -> Keyboard A.Nop
 
-isMet : Board -> P.Condition -> Bool
-isMet board condition =
+isConditionTrue : Board -> P.Condition -> Bool
+isConditionTrue board condition =
     case condition of
         P.Not notCondition
-            -> not <| isMet board notCondition
+            -> not <| isConditionTrue board notCondition
 
         P.Free
             -> canHeroMove board
@@ -331,10 +331,10 @@ isMet board condition =
         P.Goal
             -> isHeroAtGoal board
 
-updateProgramController : Msg -> Game -> Interpreter -> Controller
-updateProgramController msg game interpreter =
+updateProgramController : Msg -> ( P.Condition -> Bool ) -> Interpreter -> Controller
+updateProgramController msg isTrue interpreter =
     if msg == StartInterpreter || msg == AnimationEnd then
-        Program ( Interpreter.update ( isMet game.board ) interpreter )
+        Program ( Interpreter.update isTrue interpreter )
     else
         Program ( interpreter, A.Nop )
 

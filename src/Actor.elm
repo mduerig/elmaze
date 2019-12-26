@@ -109,3 +109,17 @@ turnAnimation direction =
         Left  -> { noAnimation | dPhi = Ease.inOutBack >> \t -> pi/2 * (t - 1) }
         Right -> { noAnimation | dPhi = Ease.inOutBack >> \t -> pi/2 * (1 - t) }
         _     ->   noAnimation
+
+winAnimation : Animation
+winAnimation =
+    { noAnimation
+    | dY = Ease.outBack >> \t -> t
+    , dPhi = \t -> 4 * pi * t
+    }
+
+loseAnimation : Animation
+loseAnimation =
+    { noAnimation
+    | dY = Ease.inBack >> \t -> -10 * t
+    , dPhi = \t -> 4 * pi * t
+    }

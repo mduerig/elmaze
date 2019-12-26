@@ -341,26 +341,11 @@ updateProgramController msg game interpreter =
 updateHero : Msg -> Game -> A.ActorData -> ( Actor, Msg )
 updateHero msg { board } hero =
     let
-        { x, y, phi } = hero
-
         isBlocked direction =
-            queryTile ( x, y ) board ( hasBoundary direction Wall )
+            queryTile ( hero.x, hero.y ) board ( hasBoundary direction Wall )
 
         isAtGoal =
-            queryTile (hero.x, hero.y) board (\tile -> tile.tileType == Goal)
-
-        noAnimation = A.noAnimation
-        winAnimation =
-            { noAnimation
-            | dY = Ease.outBack >> \t -> t
-            , dPhi = \t -> 4 * pi * t
-            }
-
-        loseAnimation =
-            { noAnimation
-            | dY = Ease.inBack >> \t -> -10 * t
-            , dPhi = \t -> 4 * pi * t
-            }
+            queryTile ( hero.x, hero.y ) board ( \tile -> tile.tileType == Goal )
 
         running = isRunning board.controller
 
@@ -371,16 +356,16 @@ updateHero msg { board } hero =
     in
         case getInput board.controller of
             A.Forward ->
-                if isBlocked phi then
+                if isBlocked hero.phi then
                     ( hero
-                        |> A.animate loseAnimation
+                        |> A.animate A.loseAnimation
                         |> Hero
                     , batch StartAnimation StopProgram
                     )
                 else
                     ( hero
-                        |> A.move phi
-                        |> A.animate ( A.moveAnimation phi )
+                        |> A.move hero.phi
+                        |> A.animate ( A.moveAnimation hero.phi )
                         |> Hero
                     , batch StartAnimation ( recordMove A.Up )
                     )
@@ -405,7 +390,7 @@ updateHero msg { board } hero =
                 if msg == AnimationEnd then
                     if isAtGoal then
                         ( hero
-                            |> A.animate winAnimation
+                            |> A.animate A.winAnimation
                             |> Hero
                         , batch StopProgram ( if running then StartAnimation else nop )
                         )

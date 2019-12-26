@@ -35,7 +35,7 @@ type alias Board =
     , width : Int
     , height : Int
     , tiles : Array Tile
-    , resetActors : List Actor
+    , defaultActors : List Actor
     , controller : Controller
     , actors : List Actor
     , animation : Animation
@@ -111,7 +111,7 @@ initGame board _ =
     let
         game =
             { board = { board
-                | resetActors = board.actors }
+                | defaultActors = board.actors }
                 |> resetController
             , coding = False
             , programText = ""
@@ -123,8 +123,8 @@ getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
     Task.attempt GotViewport ( Dom.getViewportOf "boardWidth" )
 
-newBoard : Int -> Int -> Board
-newBoard width height =
+emptyBoard : Int -> Int -> Board
+emptyBoard width height =
     { size = 500
     , width = width
     , height = height
@@ -137,7 +137,7 @@ newBoard width height =
             , bottom = Wall
             , right = Wall
             }
-    , resetActors = []
+    , defaultActors = []
     , controller = Keyboard A.Nop
     , actors = []
     , animation =
@@ -456,7 +456,7 @@ advanceAnimation dt board =
 
 resetActors : Board -> Board
 resetActors board =
-    { board | actors = board.resetActors }
+    { board | actors = board.defaultActors }
 
 resetController : Board -> Board
 resetController board =

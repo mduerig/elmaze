@@ -1,13 +1,13 @@
 module Main exposing ( main )
 
 import Game exposing
-    ( Game, Board, newBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
+    ( Game, Board, emptyBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
     , TileType(..), Msg, updateTileBackground, Actor(..), addActor
     )
 import Actor as A
 
 testBoard : Board
-testBoard = newBoard 8 6
+testBoard = emptyBoard 8 6
     |> updateTileBoundary (0, 0) A.Up Path
     |> updateTileBoundary (0, 1) A.Up Path
     |> updateTileBoundary (0, 2) A.Up Path

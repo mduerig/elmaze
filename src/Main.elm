@@ -113,6 +113,7 @@ testBoard = emptyBoard 8 6
             , y = 0
             , phi = A.Up
             , animation = A.noAnimation
+            , avatar = "🐞"
             }
         )
     |> addActor
@@ -121,6 +122,7 @@ testBoard = emptyBoard 8 6
             , y = 1
             , phi = A.Right
             , animation = A.noAnimation
+            , avatar = "🦋"
             }
         )
 

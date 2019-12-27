@@ -1,6 +1,8 @@
 module Actor exposing (..)
 
 import Ease
+import Collage as C exposing ( Collage )
+import Collage.Text as Text
 
 type alias Animation =
     { dX : Float -> Float
@@ -13,6 +15,7 @@ type alias ActorData =
     , y : Int
     , phi : Direction
     , animation : Animation
+    , avatar : String
     }
 
 type Move
@@ -123,3 +126,27 @@ loseAnimation =
     | dY = Ease.inBack >> \t -> -10 * t
     , dPhi = \t -> 4 * pi * t
     }
+
+viewActor : Float -> Float -> ActorData -> Collage msg
+viewActor t cellSize { x, y, phi, animation, avatar } =
+    let
+        angle = case phi of
+            Left  -> pi/2
+            Up    -> 0
+            Right -> -pi/2
+            Down  -> pi
+
+        dPhi = animation.dPhi t
+        dX = animation.dX t
+        dY = animation.dY t
+    in
+        [ Text.fromString avatar
+            |> Text.size (round (cellSize/5*3))
+            |> C.rendered
+            |> C.rotate ( angle + dPhi)
+        , C.circle (cellSize/5*2)
+            |> C.filled C.transparent
+        ]
+        |> C.group
+        |> C.shiftX ( cellSize * ( toFloat x + dX ) )
+        |> C.shiftY ( cellSize * ( toFloat y + dY ) )

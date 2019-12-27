@@ -513,32 +513,8 @@ isHeroAtGoal board =
 viewActor : Float -> Float -> Actor -> Collage Msg
 viewActor t cellSize actor =
     case actor of
-        Hero hero            -> viewHeroOrFriend t cellSize "🐞" hero
-        Friend friend        -> viewHeroOrFriend t cellSize "🦋" friend
-
-viewHeroOrFriend : Float -> Float -> String -> A.ActorData -> Collage Msg
-viewHeroOrFriend t cellSize emoji actor =
-    let
-        angle = case actor.phi of
-            A.Left  -> pi/2
-            A.Up    -> 0
-            A.Right -> -pi/2
-            A.Down  -> pi
-
-        dPhi = actor.animation.dPhi t
-        dX = actor.animation.dX t
-        dY = actor.animation.dY t
-    in
-        [ Text.fromString emoji
-            |> Text.size (round (cellSize/5*3))
-            |> rendered
-            |> rotate ( angle + dPhi)
-        , circle (cellSize/5*2)
-            |> filled transparent
-        ]
-        |> group
-        |> shiftX ( cellSize * ( toFloat actor.x + dX ) )
-        |> shiftY ( cellSize * ( toFloat actor.y + dY ) )
+        Hero actorData    -> A.viewActor t cellSize actorData
+        Friend actorData  -> A.viewActor t cellSize actorData
 
 viewGame : Game -> List (Html Msg)
 viewGame { board, programText } =

@@ -1,14 +1,35 @@
-module Actor exposing (..)
+module Actor exposing
+    ( Actor
+    , Move ( .. )
+    , Direction ( .. )
+    , IsFreePredicate
+    , IsGoalPredicate
+    , hero
+    , friend
+    , viewActor
+    , oppositeDirection
+    , setActorDirection
+    , setActor
+    , mapActors
+    , canHeroMove
+    , isHeroAtGoal
+    , canFriendMove
+    , moveActorAhead
+    , turnHero
+    , playLoseAnimation
+    , playWinAnimation
+    , clearActorAnimation
+    , directionToMove
+    , moveToString
+    )
 
 import Ease
 import Collage as C exposing ( Collage )
 import Collage.Text as Text
 
-type alias Animation =
-    { dX : Float -> Float
-    , dY : Float -> Float
-    , dPhi : Float -> Float
-    }
+type Actor
+    = Hero ActorData
+    | Friend ActorData
 
 type alias ActorData =
     { x : Int
@@ -16,6 +37,12 @@ type alias ActorData =
     , phi : Direction
     , animation : Animation
     , avatar : String
+    }
+
+type alias Animation =
+    { dX : Float -> Float
+    , dY : Float -> Float
+    , dPhi : Float -> Float
     }
 
 type Move
@@ -30,26 +57,158 @@ type Direction
     | Left
     | Down
 
-move : Direction -> ActorData -> ActorData
-move direction hero =
-    case direction of
-        Right -> { hero | x = hero.x + 1 }
-        Left  -> { hero | x = hero.x - 1 }
-        Up    -> { hero | y = hero.y + 1 }
-        Down  -> { hero | y = hero.y - 1 }
+type alias IsFreePredicate
+    = ( Int, Int ) -> Direction -> Bool
 
-turn : Direction -> ActorData -> ActorData
-turn direction hero =
-    { hero | phi =
-        case direction of
-            Right -> rightOfDirection hero.phi
-            Left  -> leftOfDirection hero.phi
-            _     -> hero.phi
+type alias IsGoalPredicate
+    = ( Int, Int ) -> Bool
+
+hero : ( Int, Int ) -> Direction -> String -> Actor
+hero pos phi avatar = Hero
+    { x = Tuple.first pos
+    , y = Tuple.second pos
+    , phi = phi
+    , animation = noAnimation
+    , avatar = avatar
     }
 
-animate : Animation -> ActorData -> ActorData
-animate animation hero =
-    { hero | animation = animation }
+friend : ( Int, Int ) -> Direction -> String -> Actor
+friend pos phi avatar = Friend
+    { x = Tuple.first pos
+    , y = Tuple.second pos
+    , phi = phi
+    , animation = noAnimation
+    , avatar = avatar
+    }
+
+queryActor : ( Actor -> Maybe a ) -> List ( Actor ) -> Maybe a
+queryActor get actors =
+    actors
+        |> List.filterMap get
+        |> List.head
+
+isHeroAtGoal : List Actor -> ( ( Int, Int ) -> Bool ) -> Bool
+isHeroAtGoal actors isGoal =
+    let
+        atGoal actor =
+            case actor of
+               Hero data -> Just ( isGoal ( data.x, data.y )  )
+               _ -> Nothing
+    in
+        actors
+            |> queryActor atGoal
+            |> Maybe.withDefault False
+
+canHeroMove : List Actor -> ( ( Int, Int ) -> Direction -> Bool ) -> Bool
+canHeroMove actors isFree =
+    let
+        canMove actor =
+            case actor of
+               Hero data -> Just ( isFree ( data.x, data.y ) data.phi )
+               _ -> Nothing
+    in
+        actors
+            |> queryActor canMove
+            |> Maybe.withDefault False
+
+canFriendMove : List Actor -> ( ( Int, Int ) -> Direction -> Bool ) -> Bool
+canFriendMove actors isFree =
+    let
+        canMove actor =
+            case actor of
+               Friend data -> Just ( isFree ( data.x, data.y ) data.phi )
+               _ -> Nothing
+    in
+        actors
+            |> queryActor canMove
+            |> Maybe.withDefault False
+
+setActor : Actor -> List Actor -> List Actor
+setActor actor actors =
+    actors
+        |> List.map
+        ( \currentActor ->
+            case ( currentActor, actor ) of
+                ( Hero _, Hero _ ) -> actor
+                ( Friend _, Friend _ ) -> actor
+                ( _, _ ) -> currentActor
+        )
+
+moveActor : Direction -> ActorData -> ActorData
+moveActor direction actor =
+    case direction of
+        Right -> { actor | x = actor.x + 1 }
+        Left  -> { actor | x = actor.x - 1 }
+        Up    -> { actor | y = actor.y + 1 }
+        Down  -> { actor | y = actor.y - 1 }
+
+turnActor : Direction -> ActorData -> ActorData
+turnActor direction actor =
+    { actor | phi =
+        case direction of
+            Right -> rightOfDirection actor.phi
+            Left  -> leftOfDirection actor.phi
+            _     -> actor.phi
+    }
+
+setActorDirection : Direction -> Actor -> Actor
+setActorDirection direction actor =
+    actor
+        |> mapActor ( \data -> { data | phi = direction } )
+
+mapActor : ( ActorData -> ActorData ) -> Actor -> Actor
+mapActor update actor =
+    case actor of
+        Hero data   -> Hero ( update data )
+        Friend data -> Friend ( update data )
+
+animateActor : Animation -> ActorData -> ActorData
+animateActor animation actor =
+    { actor | animation = animation }
+
+moveActorAhead : Actor -> Actor
+moveActorAhead actor =
+    let
+        move a = a
+            |> moveActor a.phi
+            |> animateActor ( moveAnimation a.phi )
+    in
+        mapActor move actor
+
+turnHero : Direction -> Actor -> Actor
+turnHero direction actor =
+    case actor of
+        Hero data -> data
+            |> turnActor direction
+            |> animateActor ( turnAnimation direction )
+            |> Hero
+
+        Friend _ -> actor
+
+mapActors : ( Actor -> a ) -> ( Actor -> a ) -> List Actor -> List a
+mapActors updateHero updateFriend actors =
+    actors
+        |> List.map
+        ( \actor -> case actor of
+            Hero _    -> updateHero actor
+            Friend _  -> updateFriend actor
+        )
+
+playLoseAnimation : Actor -> Actor
+playLoseAnimation actor =
+    actor
+        |> mapActor ( \data -> { data | animation = loseAnimation } )
+
+playWinAnimation : Actor -> Actor
+playWinAnimation actor =
+    actor
+        |> mapActor ( \data -> { data | animation = winAnimation } )
+
+clearActorAnimation : Actor -> Actor
+clearActorAnimation actor =
+    actor
+        |> mapActor ( \data -> { data | animation = noAnimation } )
+
 
 directionToMove : Direction -> Move
 directionToMove direction =
@@ -127,9 +286,13 @@ loseAnimation =
     , dPhi = \t -> 4 * pi * t
     }
 
-viewActor : Float -> Float -> ActorData -> Collage msg
-viewActor t cellSize { x, y, phi, animation, avatar } =
+viewActor : Float -> Float -> Actor -> Collage msg
+viewActor t cellSize actor =
     let
+        { x, y, phi, animation, avatar } = case actor of
+            Hero actorData    -> actorData
+            Friend actorData  -> actorData
+
         angle = case phi of
             Left  -> pi/2
             Up    -> 0

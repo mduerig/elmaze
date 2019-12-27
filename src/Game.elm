@@ -19,7 +19,7 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Json.Decode as Decode
 import Task as Task
-import Actor as A
+import Actor as A exposing ( Actor )
 import Controller as C exposing ( Controller )
 import Interpreter
 import Parse as P
@@ -63,10 +63,6 @@ type TileType
 type Boundary
     = Wall
     | Path
-
-type Actor
-    = Hero A.ActorData
-    | Friend A.ActorData
 
 type Msg
     = KeyArrow A.Direction
@@ -227,8 +223,9 @@ updateGame msg  ( { board, programText } as game ) =
                     }
 
             _ ->
-                game.board.actors
-                    |> List.foldl ( updateActor msg ) ( updateController msg game, nop )
+                game
+                    |> updateController msg
+                    |> updateActors msg
                     |> runCommands
 
 runCommands : ( Game, Msg ) -> ( Game, Cmd Msg )
@@ -242,19 +239,24 @@ runCommand msg ( game, cmd ) =
     in
         ( newGame, Cmd.batch [ cmd, newCommand ] )
 
-updateActor : Msg -> Actor -> ( Game, Msg ) -> ( Game, Msg )
-updateActor msg actor ( game, cmds ) =
-    let
-        ( updatedActor, cmd ) =
-            case actor of
-                Hero hero ->
-                    updateHero msg game hero
+isFreePredicate : Board -> A.IsFreePredicate
+isFreePredicate board pos direction =
+    queryTile pos board ( hasBoundary direction Path )
 
-                Friend friend ->
-                    updateFriend msg game friend
+isGoalPredicate : Board -> A.IsGoalPredicate
+isGoalPredicate board pos =
+    queryTile pos board ( \tile -> tile.tileType == Goal )
+
+updateActors : Msg -> Game -> ( Game, Msg )
+updateActors msg ( { board } as game ) =
+    let
+        mapHero = updateHero msg ( isFreePredicate board ) ( isGoalPredicate board ) board.controller
+        mapFriend = updateFriend msg ( isFreePredicate board )
+
+        actorsAndMessages = A.mapActors mapHero mapFriend board.actors
     in
-        ( { game | board = setActor updatedActor game.board }
-        , batch cmd cmds
+        ( { game | board = { board | actors = List.map Tuple.first actorsAndMessages } }
+        , Batch ( List.map Tuple.second actorsAndMessages )
         )
 
 updateController : Msg -> Game -> Game
@@ -277,23 +279,6 @@ setController : Controller -> Board -> Board
 setController controller board =
     { board | controller = controller }
 
-mapActors : ( Actor -> Actor ) -> Board -> Board
-mapActors update board =
-    { board
-    | actors = board.actors
-        |> List.map update
-    }
-
-setActor : Actor -> Board -> Board
-setActor actor board =
-    board |> mapActors
-        ( \currentActor ->
-            case ( currentActor, actor ) of
-                ( Hero _, Hero _ ) -> actor
-                ( Friend _, Friend _ ) -> actor
-                ( _, _ ) -> currentActor
-        )
-
 isConditionTrue : Board -> P.Condition -> Bool
 isConditionTrue board condition =
     case condition of
@@ -301,115 +286,78 @@ isConditionTrue board condition =
             -> not <| isConditionTrue board notCondition
 
         P.Free
-            -> canHeroMove board
+            -> A.canHeroMove board.actors ( isFreePredicate board )
 
         P.Blocked
-            -> not ( canHeroMove board )
+            -> not ( A.canHeroMove board.actors ( isFreePredicate board ) )
 
         P.Goal
-            -> isHeroAtGoal board
+            -> A.isHeroAtGoal board.actors ( isGoalPredicate board )
 
-updateHero : Msg -> Game -> A.ActorData -> ( Actor, Msg )
-updateHero msg { board } hero =
+updateHero : Msg -> A.IsFreePredicate -> A.IsGoalPredicate -> Controller -> Actor -> ( Actor, Msg )
+updateHero msg isFree isGoal controller actor =
     let
-        isBlocked direction =
-            queryTile ( hero.x, hero.y ) board ( hasBoundary direction Wall )
-
-        isAtGoal =
-            queryTile ( hero.x, hero.y ) board ( \tile -> tile.tileType == Goal )
-
-        running = C.isProgram board.controller
+        running = C.isProgram controller
 
         recordMove direction =
             if running
                 then nop
                 else RecordMove ( A.directionToMove direction )
     in
-        case C.getInput board.controller of
+        case C.getInput controller of
             A.Forward ->
-                if isBlocked hero.phi then
-                    ( hero
-                        |> A.animate A.loseAnimation
-                        |> Hero
-                    , batch StartAnimation StopProgram
+                if A.canHeroMove [ actor ] isFree then
+                    ( A.moveActorAhead actor
+                    , batch StartAnimation ( recordMove A.Up )
                     )
                 else
-                    ( hero
-                        |> A.move hero.phi
-                        |> A.animate ( A.moveAnimation hero.phi )
-                        |> Hero
-                    , batch StartAnimation ( recordMove A.Up )
+                    ( A.playLoseAnimation actor
+                    , batch StartAnimation StopProgram
                     )
 
             A.TurnLeft ->
-                ( hero
-                    |> A.turn A.Left
-                    |> A.animate ( A.turnAnimation A.Left )
-                    |> Hero
+                ( A.turnHero A.Left actor
                 , batch StartAnimation ( recordMove A.Left )
                 )
 
             A.TurnRight ->
-                ( hero
-                    |> A.turn A.Right
-                    |> A.animate ( A.turnAnimation A.Right )
-                    |> Hero
+                ( A.turnHero A.Right actor
                 , batch StartAnimation ( recordMove A.Right )
                 )
 
             _ ->
                 if msg == AnimationEnd then
-                    if isAtGoal then
-                        ( hero
-                            |> A.animate A.winAnimation
-                            |> Hero
+                    if A.isHeroAtGoal [ actor ] isGoal then
+                        ( A.playWinAnimation actor
                         , batch StopProgram ( if running then StartAnimation else nop )
                         )
                     else
-                        ( hero
-                            |> A.animate A.noAnimation
-                            |> Hero
+                        ( A.clearActorAnimation actor
                         , nop
                         )
                 else
-                    ( Hero hero, nop )
+                    ( actor, nop )
 
-updateFriend : Msg -> Game -> A.ActorData -> ( Actor, Msg )
-updateFriend msg { board } ( { x, y, phi } as friend ) =
+updateFriend : Msg -> A.IsFreePredicate -> Actor -> ( Actor, Msg )
+updateFriend msg isFree actor =
     let
-        isBlocked direction =
-            queryTile ( x, y ) board ( hasBoundary direction Wall )
-
         rnd = Random.uniform A.Up [ A.Down, A.Left, A.Right ]
     in
         case msg of
             RandomDirection direction ->
-                ( Friend { friend | phi = direction }
-                , nop
-                )
+                ( A.setActorDirection direction actor, nop )
 
             AnimationStart ->
-                if isBlocked phi then
-                    ( Friend friend
-                    , GenerateRandom ( Random.generate RandomDirection rnd )
-                    )
+                if A.canFriendMove [ actor ] isFree then
+                    ( A.moveActorAhead actor, nop )
                 else
-                    ( friend
-                        |> A.move phi
-                        |> A.animate ( A.moveAnimation phi )
-                        |> Friend
-                    , nop
-                    )
+                    ( actor, GenerateRandom ( Random.generate RandomDirection rnd ) )
 
             AnimationEnd ->
-                ( friend
-                    |> A.animate A.noAnimation
-                    |> Friend
-                , nop
-                )
+                ( A.clearActorAnimation actor, nop )
 
             _ ->
-                ( Friend friend, nop )
+                ( actor, nop )
 
 stopAnimation : Board -> Board
 stopAnimation board =
@@ -480,42 +428,6 @@ hasBoundary direction boundary tile =
         A.Up    -> tile.top
         A.Down  -> tile.bottom
 
-queryActor : ( Actor -> Maybe a ) -> List ( Actor ) -> Maybe a
-queryActor get actors =
-    actors
-        |> List.filterMap get
-        |> List.head
-
-canHeroMove : Board -> Bool
-canHeroMove board =
-    let
-        canMove actor =
-            case actor of
-               Hero hero -> Just ( queryTile ( hero.x, hero.y ) board ( hasBoundary hero.phi Path ) )
-               _ -> Nothing
-    in
-        board.actors
-            |> queryActor canMove
-            |> Maybe.withDefault False
-
-isHeroAtGoal : Board -> Bool
-isHeroAtGoal board =
-    let
-        atGoal actor =
-            case actor of
-               Hero hero -> Just ( queryTile ( hero.x, hero.y ) board (\tile -> tile.tileType == Goal) )
-               _ -> Nothing
-    in
-        board.actors
-            |> queryActor atGoal
-            |> Maybe.withDefault False
-
-viewActor : Float -> Float -> Actor -> Collage Msg
-viewActor t cellSize actor =
-    case actor of
-        Hero actorData    -> A.viewActor t cellSize actorData
-        Friend actorData  -> A.viewActor t cellSize actorData
-
 viewGame : Game -> List (Html Msg)
 viewGame { board, programText } =
     let
@@ -523,7 +435,7 @@ viewGame { board, programText } =
         cellSize = board.size / toFloat board.width
 
         viewActors = actors
-            |> List.map ( viewActor animation.t cellSize )
+            |> List.map ( A.viewActor animation.t cellSize )
 
         running = C.isProgram controller
 

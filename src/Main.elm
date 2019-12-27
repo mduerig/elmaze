@@ -2,7 +2,7 @@ module Main exposing ( main )
 
 import Game exposing
     ( Game, Board, emptyBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
-    , TileType(..), Msg, updateTileBackground, Actor(..), addActor
+    , TileType(..), Msg, updateTileBackground, addActor
     )
 import Actor as A
 
@@ -107,24 +107,8 @@ testBoard = emptyBoard 8 6
     |> updateTile ( 1, 4 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 1, 5 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 3, 4 ) ( updateTileBackground "tiles/0.png")
-    |> addActor
-        ( Hero
-            { x = 0
-            , y = 0
-            , phi = A.Up
-            , animation = A.noAnimation
-            , avatar = "🐞"
-            }
-        )
-    |> addActor
-        ( Friend
-            { x = 1
-            , y = 1
-            , phi = A.Right
-            , animation = A.noAnimation
-            , avatar = "🦋"
-            }
-        )
+    |> addActor ( A.hero ( 0, 0 ) A.Up "🐞" )
+    |> addActor ( A.friend ( 1, 1 ) A.Up  "🦋" )
 
 main : Program () Game Msg
 main =

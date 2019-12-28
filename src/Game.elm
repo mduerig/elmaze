@@ -316,12 +316,12 @@ updateHero msg isFree isGoal controller actor =
                     )
 
             A.TurnLeft ->
-                ( A.turnHero A.Left actor
+                ( A.turnActor A.Left actor
                 , batch StartAnimation ( recordMove A.Left )
                 )
 
             A.TurnRight ->
-                ( A.turnHero A.Right actor
+                ( A.turnActor A.Right actor
                 , batch StartAnimation ( recordMove A.Right )
                 )
 

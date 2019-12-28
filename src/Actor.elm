@@ -9,13 +9,12 @@ module Actor exposing
     , viewActor
     , oppositeDirection
     , setActorDirection
-    , setActor
     , mapActors
     , canHeroMove
     , isHeroAtGoal
     , canFriendMove
     , moveActorAhead
-    , turnHero
+    , turnActor
     , playLoseAnimation
     , playWinAnimation
     , clearActorAnimation
@@ -64,16 +63,13 @@ type alias IsGoalPredicate
     = ( Int, Int ) -> Bool
 
 hero : ( Int, Int ) -> Direction -> String -> Actor
-hero pos phi avatar = Hero
-    { x = Tuple.first pos
-    , y = Tuple.second pos
-    , phi = phi
-    , animation = noAnimation
-    , avatar = avatar
-    }
+hero pos phi avatar = Hero ( actorData pos phi avatar )
 
 friend : ( Int, Int ) -> Direction -> String -> Actor
-friend pos phi avatar = Friend
+friend pos phi avatar = Friend ( actorData pos phi avatar )
+
+actorData : ( Int, Int ) -> Direction -> String -> ActorData
+actorData pos phi avatar =
     { x = Tuple.first pos
     , y = Tuple.second pos
     , phi = phi
@@ -81,69 +77,59 @@ friend pos phi avatar = Friend
     , avatar = avatar
     }
 
-queryActor : ( Actor -> Maybe a ) -> List ( Actor ) -> Maybe a
-queryActor get actors =
-    actors
-        |> List.filterMap get
-        |> List.head
-
-isHeroAtGoal : List Actor -> ( ( Int, Int ) -> Bool ) -> Bool
+isHeroAtGoal : List Actor -> IsGoalPredicate -> Bool
 isHeroAtGoal actors isGoal =
-    let
-        atGoal actor =
-            case actor of
-               Hero data -> Just ( isGoal ( data.x, data.y )  )
-               _ -> Nothing
-    in
-        actors
-            |> queryActor atGoal
-            |> Maybe.withDefault False
-
-canHeroMove : List Actor -> ( ( Int, Int ) -> Direction -> Bool ) -> Bool
-canHeroMove actors isFree =
-    let
-        canMove actor =
-            case actor of
-               Hero data -> Just ( isFree ( data.x, data.y ) data.phi )
-               _ -> Nothing
-    in
-        actors
-            |> queryActor canMove
-            |> Maybe.withDefault False
-
-canFriendMove : List Actor -> ( ( Int, Int ) -> Direction -> Bool ) -> Bool
-canFriendMove actors isFree =
-    let
-        canMove actor =
-            case actor of
-               Friend data -> Just ( isFree ( data.x, data.y ) data.phi )
-               _ -> Nothing
-    in
-        actors
-            |> queryActor canMove
-            |> Maybe.withDefault False
-
-setActor : Actor -> List Actor -> List Actor
-setActor actor actors =
     actors
-        |> List.map
-        ( \currentActor ->
-            case ( currentActor, actor ) of
-                ( Hero _, Hero _ ) -> actor
-                ( Friend _, Friend _ ) -> actor
-                ( _, _ ) -> currentActor
-        )
+        |> mapHero (\data -> isGoal ( data.x, data.x ))
+        |> headOrElse False
 
-moveActor : Direction -> ActorData -> ActorData
-moveActor direction actor =
-    case direction of
-        Right -> { actor | x = actor.x + 1 }
-        Left  -> { actor | x = actor.x - 1 }
-        Up    -> { actor | y = actor.y + 1 }
-        Down  -> { actor | y = actor.y - 1 }
+canHeroMove : List Actor -> IsFreePredicate -> Bool
+canHeroMove actors isFree =
+    actors
+        |> mapHero (\data -> isFree (data.x, data.y) data.phi )
+        |> headOrElse False
 
-turnActor : Direction -> ActorData -> ActorData
+canFriendMove : List Actor -> IsFreePredicate -> Bool
+canFriendMove actors isFree =
+    actors
+        |> mapFriend (\data -> isFree (data.x, data.y) data.phi )
+        |> headOrElse False
+
+mapHero : ( ActorData -> a ) -> List Actor -> List a
+mapHero f actors =
+    actors
+        |> List.concatMap
+            ( \actor -> case actor of
+                Hero data    -> [ f data ]
+                Friend _     -> [ ]
+            )
+
+mapFriend : ( ActorData -> a ) -> List Actor -> List a
+mapFriend f actors =
+    actors
+        |> List.concatMap
+            ( \actor -> case actor of
+                Hero _       -> [ ]
+                Friend data  -> [ f data ]
+            )
+
+headOrElse : a -> List a -> a
+headOrElse default xs =
+    xs
+        |> List.head
+        |> Maybe.withDefault default
+
+turnActor : Direction -> Actor -> Actor
 turnActor direction actor =
+    let
+        turn data = data
+            |> turnActorData direction
+            |> animateActor ( turnAnimation direction )
+    in
+        mapActor turn actor
+
+turnActorData : Direction -> ActorData -> ActorData
+turnActorData direction actor =
     { actor | phi =
         case direction of
             Right -> rightOfDirection actor.phi
@@ -151,20 +137,18 @@ turnActor direction actor =
             _     -> actor.phi
     }
 
-setActorDirection : Direction -> Actor -> Actor
-setActorDirection direction actor =
-    actor
-        |> mapActor ( \data -> { data | phi = direction } )
-
-mapActor : ( ActorData -> ActorData ) -> Actor -> Actor
-mapActor update actor =
-    case actor of
-        Hero data   -> Hero ( update data )
-        Friend data -> Friend ( update data )
-
 animateActor : Animation -> ActorData -> ActorData
 animateActor animation actor =
     { actor | animation = animation }
+
+mapActors : ( Actor -> a ) -> ( Actor -> a ) -> List Actor -> List a
+mapActors fHero fFriend actors =
+    actors
+        |> List.map
+        ( \actor -> case actor of
+            Hero _    -> fHero actor
+            Friend _  -> fFriend actor
+        )
 
 moveActorAhead : Actor -> Actor
 moveActorAhead actor =
@@ -175,24 +159,18 @@ moveActorAhead actor =
     in
         mapActor move actor
 
-turnHero : Direction -> Actor -> Actor
-turnHero direction actor =
-    case actor of
-        Hero data -> data
-            |> turnActor direction
-            |> animateActor ( turnAnimation direction )
-            |> Hero
+moveActor : Direction -> ActorData -> ActorData
+moveActor direction actor =
+    case direction of
+        Right -> { actor | x = actor.x + 1 }
+        Left  -> { actor | x = actor.x - 1 }
+        Up    -> { actor | y = actor.y + 1 }
+        Down  -> { actor | y = actor.y - 1 }
 
-        Friend _ -> actor
-
-mapActors : ( Actor -> a ) -> ( Actor -> a ) -> List Actor -> List a
-mapActors updateHero updateFriend actors =
-    actors
-        |> List.map
-        ( \actor -> case actor of
-            Hero _    -> updateHero actor
-            Friend _  -> updateFriend actor
-        )
+setActorDirection : Direction -> Actor -> Actor
+setActorDirection direction actor =
+    actor
+        |> mapActor ( \data -> { data | phi = direction } )
 
 playLoseAnimation : Actor -> Actor
 playLoseAnimation actor =
@@ -209,6 +187,11 @@ clearActorAnimation actor =
     actor
         |> mapActor ( \data -> { data | animation = noAnimation } )
 
+mapActor : ( ActorData -> ActorData ) -> Actor -> Actor
+mapActor update actor =
+    case actor of
+        Hero data   -> Hero ( update data )
+        Friend data -> Friend ( update data )
 
 directionToMove : Direction -> Move
 directionToMove direction =
@@ -245,17 +228,10 @@ leftOfDirection direction =
 moveToString : Move -> String
 moveToString m =
     case m of
-        Forward   -> "forward\n"
-        TurnLeft  -> "left\n"
-        TurnRight -> "right\n"
+        Forward   -> "forward"
+        TurnLeft  -> "left"
+        TurnRight -> "right"
         _         -> ""
-
-noAnimation : Animation
-noAnimation =
-    { dY = always 0
-    , dX = always 0
-    , dPhi = always 0
-    }
 
 moveAnimation : Direction -> Animation
 moveAnimation direction =
@@ -286,12 +262,19 @@ loseAnimation =
     , dPhi = \t -> 4 * pi * t
     }
 
+noAnimation : Animation
+noAnimation =
+    { dY = always 0
+    , dX = always 0
+    , dPhi = always 0
+    }
+
 viewActor : Float -> Float -> Actor -> Collage msg
 viewActor t cellSize actor =
     let
         { x, y, phi, animation, avatar } = case actor of
-            Hero actorData    -> actorData
-            Friend actorData  -> actorData
+            Hero data    -> data
+            Friend data  -> data
 
         angle = case phi of
             Left  -> pi/2

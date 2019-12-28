@@ -42,18 +42,10 @@ isProgram controller =
         Program _ -> True
         _ -> False
 
-moveFromDirection : A.Direction -> A.Move
-moveFromDirection direction =
-    case direction of
-        A.Up    -> A.Forward
-        A.Left  -> A.TurnLeft
-        A.Right -> A.TurnRight
-        _       -> A.Nop
-
 updateKeyboardController : A.Direction -> Controller -> Controller
 updateKeyboardController direction controller =
     case controller of
-        Keyboard _  -> Keyboard ( moveFromDirection direction )
+        Keyboard _  -> Keyboard ( A.directionToMove direction )
         _           -> controller
 
 resetKeyboardController : Controller -> Controller

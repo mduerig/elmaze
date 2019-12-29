@@ -262,14 +262,25 @@ updateActors msg ( { board } as game ) =
 updateController : Msg -> Game -> Game
 updateController msg game =
     let
-        updatedController = game.board.controller
+        update actor = game.board.controller
             |> case msg of
                 KeyArrow direction -> C.updateKeyboardController direction
-                StartInterpreter   -> C.updateProgramController ( isConditionTrue game.board )
-                AnimationEnd       -> C.updateProgramController ( isConditionTrue game.board )
+                StartInterpreter   -> C.updateProgramController ( isConditionTrue actor game.board )
+                AnimationEnd       -> C.updateProgramController ( isConditionTrue actor game.board )
                 _                  -> C.resetKeyboardController >> C.resetProgramController
+
+        updatedController = game.board.actors
+            |> A.filterActors ( always True ) ( always False )
+            |> List.map ( update >> setController )
+            |> headOrElse identity
     in
-        { game | board = setController updatedController game.board }
+        { game | board = updatedController game.board }
+
+headOrElse : a -> List a -> a
+headOrElse default xs =
+    xs
+        |> List.head
+        |> Maybe.withDefault default
 
 addActor : Actor -> Board -> Board
 addActor actor ( { actors } as board ) =
@@ -279,20 +290,20 @@ setController : Controller -> Board -> Board
 setController controller board =
     { board | controller = controller }
 
-isConditionTrue : Board -> P.Condition -> Bool
-isConditionTrue board condition =
+isConditionTrue : Actor -> Board -> P.Condition -> Bool
+isConditionTrue hero board condition =
     case condition of
         P.Not notCondition
-            -> not <| isConditionTrue board notCondition
+            -> not ( isConditionTrue hero board notCondition )
 
         P.Free
-            -> A.canHeroMove board.actors ( isFreePredicate board )
+            -> A.canActorMove hero ( isFreePredicate board )
 
         P.Blocked
-            -> not ( A.canHeroMove board.actors ( isFreePredicate board ) )
+            -> not ( A.canActorMove hero ( isFreePredicate board ) )
 
         P.Goal
-            -> A.isHeroAtGoal board.actors ( isGoalPredicate board )
+            -> A.isActorAtGoal hero ( isGoalPredicate board )
 
 updateHero : Msg -> A.IsFreePredicate -> A.IsGoalPredicate -> Controller -> Actor -> ( Actor, Msg )
 updateHero msg isFree isGoal controller actor =
@@ -306,7 +317,7 @@ updateHero msg isFree isGoal controller actor =
     in
         case C.getInput controller of
             A.Forward ->
-                if A.canHeroMove [ actor ] isFree then
+                if A.canActorMove actor isFree then
                     ( A.moveActorAhead actor
                     , batch StartAnimation ( recordMove A.Up )
                     )
@@ -327,7 +338,7 @@ updateHero msg isFree isGoal controller actor =
 
             _ ->
                 if msg == AnimationEnd then
-                    if A.isHeroAtGoal [ actor ] isGoal then
+                    if A.isActorAtGoal actor isGoal then
                         ( A.playWinAnimation actor
                         , batch StopProgram ( if running then StartAnimation else nop )
                         )
@@ -348,7 +359,7 @@ updateFriend msg isFree actor =
                 ( A.setActorDirection direction actor, nop )
 
             AnimationStart ->
-                if A.canFriendMove [ actor ] isFree then
+                if A.canActorMove actor isFree then
                     ( A.moveActorAhead actor, nop )
                 else
                     ( actor, GenerateRandom ( Random.generate RandomDirection rnd ) )

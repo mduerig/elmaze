@@ -10,9 +10,9 @@ module Actor exposing
     , oppositeDirection
     , setActorDirection
     , mapActors
-    , canHeroMove
-    , isHeroAtGoal
-    , canFriendMove
+    , filterActors
+    , isActorAtGoal
+    , canActorMove
     , moveActorAhead
     , turnActor
     , playLoseAnimation
@@ -77,47 +77,21 @@ actorData pos phi avatar =
     , avatar = avatar
     }
 
-isHeroAtGoal : List Actor -> IsGoalPredicate -> Bool
-isHeroAtGoal actors isGoal =
-    actors
-        |> mapHero (\data -> isGoal ( data.x, data.x ))
-        |> headOrElse False
+isActorAtGoal : Actor -> IsGoalPredicate -> Bool
+isActorAtGoal actor isGoal =
+    actor
+        |> mapActor ( \data -> isGoal ( data.x, data.y ))
 
-canHeroMove : List Actor -> IsFreePredicate -> Bool
-canHeroMove actors isFree =
-    actors
-        |> mapHero (\data -> isFree (data.x, data.y) data.phi )
-        |> headOrElse False
+canActorMove : Actor -> IsFreePredicate -> Bool
+canActorMove actor isFree =
+    actor
+        |> mapActor ( \data -> isFree ( data.x, data.y ) data.phi )
 
-canFriendMove : List Actor -> IsFreePredicate -> Bool
-canFriendMove actors isFree =
-    actors
-        |> mapFriend (\data -> isFree (data.x, data.y) data.phi )
-        |> headOrElse False
-
-mapHero : ( ActorData -> a ) -> List Actor -> List a
-mapHero f actors =
-    actors
-        |> List.concatMap
-            ( \actor -> case actor of
-                Hero data    -> [ f data ]
-                Friend _     -> [ ]
-            )
-
-mapFriend : ( ActorData -> a ) -> List Actor -> List a
-mapFriend f actors =
-    actors
-        |> List.concatMap
-            ( \actor -> case actor of
-                Hero _       -> [ ]
-                Friend data  -> [ f data ]
-            )
-
-headOrElse : a -> List a -> a
-headOrElse default xs =
-    xs
-        |> List.head
-        |> Maybe.withDefault default
+mapActor : ( ActorData -> a ) -> Actor -> a
+mapActor f actor =
+    case actor of
+       Hero data   -> f data
+       Friend data -> f data
 
 turnActor : Direction -> Actor -> Actor
 turnActor direction actor =
@@ -126,7 +100,7 @@ turnActor direction actor =
             |> turnActorData direction
             |> animateActor ( turnAnimation direction )
     in
-        mapActor turn actor
+        updateActor turn actor
 
 turnActorData : Direction -> ActorData -> ActorData
 turnActorData direction actor =
@@ -142,13 +116,22 @@ animateActor animation actor =
     { actor | animation = animation }
 
 mapActors : ( Actor -> a ) -> ( Actor -> a ) -> List Actor -> List a
-mapActors fHero fFriend actors =
+mapActors mapHero mapFriend actors =
     actors
         |> List.map
-        ( \actor -> case actor of
-            Hero _    -> fHero actor
-            Friend _  -> fFriend actor
-        )
+            ( \actor -> case actor of
+                Hero _    -> mapHero actor
+                Friend _  -> mapFriend actor
+            )
+
+filterActors : ( Actor -> Bool ) -> ( Actor -> Bool ) -> List Actor -> List Actor
+filterActors filterHero filterFriend actors =
+    actors
+        |> List.filter
+            ( \actor -> case actor of
+                Hero _    -> filterHero actor
+                Friend _  -> filterFriend actor
+            )
 
 moveActorAhead : Actor -> Actor
 moveActorAhead actor =
@@ -157,7 +140,7 @@ moveActorAhead actor =
             |> moveActor a.phi
             |> animateActor ( moveAnimation a.phi )
     in
-        mapActor move actor
+        updateActor move actor
 
 moveActor : Direction -> ActorData -> ActorData
 moveActor direction actor =
@@ -170,25 +153,25 @@ moveActor direction actor =
 setActorDirection : Direction -> Actor -> Actor
 setActorDirection direction actor =
     actor
-        |> mapActor ( \data -> { data | phi = direction } )
+        |> updateActor ( \data -> { data | phi = direction } )
 
 playLoseAnimation : Actor -> Actor
 playLoseAnimation actor =
     actor
-        |> mapActor ( \data -> { data | animation = loseAnimation } )
+        |> updateActor ( \data -> { data | animation = loseAnimation } )
 
 playWinAnimation : Actor -> Actor
 playWinAnimation actor =
     actor
-        |> mapActor ( \data -> { data | animation = winAnimation } )
+        |> updateActor ( \data -> { data | animation = winAnimation } )
 
 clearActorAnimation : Actor -> Actor
 clearActorAnimation actor =
     actor
-        |> mapActor ( \data -> { data | animation = noAnimation } )
+        |> updateActor ( \data -> { data | animation = noAnimation } )
 
-mapActor : ( ActorData -> ActorData ) -> Actor -> Actor
-mapActor update actor =
+updateActor : ( ActorData -> ActorData ) -> Actor -> Actor
+updateActor update actor =
     case actor of
         Hero data   -> Hero ( update data )
         Friend data -> Friend ( update data )

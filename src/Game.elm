@@ -38,6 +38,7 @@ type alias Board =
     , controller : Controller
     , actors : List Actor
     , animation : Animation
+    , tileSet : TileSet
     }
 
 type alias Animation =
@@ -48,7 +49,6 @@ type alias Animation =
 
 type alias Tile =
     { tileType : TileType
-    , background : Maybe String
     , top : Boundary
     , left : Boundary
     , bottom : Boundary
@@ -63,6 +63,9 @@ type TileType
 type Boundary
     = Wall
     | Path
+
+type alias TileSet =
+    Boundary -> Boundary -> Boundary -> Boundary -> Maybe String
 
 type Msg
     = KeyArrow A.Direction
@@ -121,7 +124,6 @@ emptyBoard width height =
     , tiles =
         Array.repeat (width * height)
             { tileType = Empty
-            , background = Nothing
             , top = Wall
             , left = Wall
             , bottom = Wall
@@ -135,6 +137,7 @@ emptyBoard width height =
         , t = 0
         , onDelta = always Sub.none
         }
+    , tileSet = always<| always <| always <| always Nothing
     }
 
 updateGame : Msg -> Game -> ( Game, Cmd Msg )
@@ -409,9 +412,6 @@ updateTile ( x, y ) update ( { width, height, tiles } as board ) =
 updateTileType : TileType -> Tile -> Tile
 updateTileType tileType tile = { tile | tileType = tileType }
 
-updateTileBackground : String -> Tile -> Tile
-updateTileBackground background tile = { tile | background = Just background }
-
 updateTileBoundary : ( Int, Int ) -> A.Direction -> Boundary -> Board -> Board
 updateTileBoundary ( x, y ) direction boundary board =
     let
@@ -432,6 +432,10 @@ updateTileBoundary ( x, y ) direction boundary board =
         board
             |> updateTile ( x, y ) (update direction)
             |> updateTile neighbour (update <| A.oppositeDirection direction)
+
+setTileSet : TileSet -> Board -> Board
+setTileSet tileSet board =
+    { board | tileSet = tileSet }
 
 hasBoundary : A.Direction -> Boundary -> Tile -> Bool
 hasBoundary direction boundary tile =
@@ -465,7 +469,7 @@ viewGame { board, programText } =
                 , Grid.col []
                     [ viewActors ++
                         ( tilesWithIndex board
-                            |> List.map  ( viewTile cellSize )
+                            |> List.map  ( viewTile board.tileSet cellSize )
                         )
                         |> group
                         |> svg
@@ -530,8 +534,8 @@ tilesWithIndex { width, height, tiles } =
             )
         |> Array.toList
 
-viewTile : Float -> ( Int, Int, Tile ) -> Collage Msg
-viewTile size ( x, y, { tileType, background } )=
+viewTile : TileSet -> Float -> ( Int, Int, Tile ) -> Collage Msg
+viewTile tileSet size ( x, y, { top, left, bottom, right, tileType } ) =
     let
         tile =
             case tileType of
@@ -550,6 +554,8 @@ viewTile size ( x, y, { tileType, background } )=
 
                 _ ->
                     []
+
+        background = tileSet top right bottom left
     in
         group
             [ group

@@ -83,7 +83,7 @@ type Msg
     | GotViewport ( Result Dom.Error Dom.Viewport )
     | Coding Bool
     | GenerateRandom ( Cmd Msg )
-    | RandomDirection A.Direction
+    | RandomDirection Actor A.Direction
     | Batch ( List Msg )
 
 nop : Msg
@@ -355,14 +355,16 @@ updateFriend msg isFree actor =
         rnd = Random.uniform A.Up [ A.Down, A.Left, A.Right ]
     in
         case msg of
-            RandomDirection direction ->
-                ( A.setActorDirection direction actor, nop )
+            RandomDirection forActor direction ->
+                if A.eqActor forActor actor
+                    then ( A.setActorDirection direction actor, nop )
+                    else ( actor, nop )
 
             AnimationStart ->
                 if A.canActorMove actor isFree then
                     ( A.moveActorAhead actor, nop )
                 else
-                    ( actor, GenerateRandom ( Random.generate RandomDirection rnd ) )
+                    ( actor, GenerateRandom ( Random.generate ( RandomDirection actor ) rnd ) )
 
             AnimationEnd ->
                 ( A.clearActorAnimation actor, nop )

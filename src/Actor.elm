@@ -6,6 +6,7 @@ module Actor exposing
     , IsGoalPredicate
     , hero
     , friend
+    , eqActor
     , viewActor
     , oppositeDirection
     , setActorDirection
@@ -31,7 +32,8 @@ type Actor
     | Friend ActorData
 
 type alias ActorData =
-    { x : Int
+    { id : Int
+    , x : Int
     , y : Int
     , phi : Direction
     , animation : Animation
@@ -62,20 +64,28 @@ type alias IsFreePredicate
 type alias IsGoalPredicate
     = ( Int, Int ) -> Bool
 
-hero : ( Int, Int ) -> Direction -> String -> Actor
-hero pos phi avatar = Hero ( actorData pos phi avatar )
+hero : Int -> ( Int, Int ) -> Direction -> String -> Actor
+hero id pos phi avatar = Hero ( actorData id pos phi avatar )
 
-friend : ( Int, Int ) -> Direction -> String -> Actor
-friend pos phi avatar = Friend ( actorData pos phi avatar )
+friend : Int -> ( Int, Int ) -> Direction -> String -> Actor
+friend id pos phi avatar = Friend ( actorData id pos phi avatar )
 
-actorData : ( Int, Int ) -> Direction -> String -> ActorData
-actorData pos phi avatar =
-    { x = Tuple.first pos
+actorData : Int -> ( Int, Int ) -> Direction -> String -> ActorData
+actorData id pos phi avatar =
+    { id = id
+    , x = Tuple.first pos
     , y = Tuple.second pos
     , phi = phi
     , animation = noAnimation
     , avatar = avatar
     }
+
+eqActor : Actor -> Actor -> Bool
+eqActor actor1 actor2 =
+    case (actor1, actor2) of
+       (Hero data1, Hero data2)     -> data1.id == data2.id
+       (Friend data1, Friend data2) -> data1.id == data2.id
+       _  -> False
 
 isActorAtGoal : Actor -> IsGoalPredicate -> Bool
 isActorAtGoal actor isGoal =

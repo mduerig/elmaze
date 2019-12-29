@@ -107,8 +107,8 @@ testBoard = emptyBoard 8 6
     |> updateTile ( 1, 4 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 1, 5 ) ( updateTileBackground "tiles/0.png")
     |> updateTile ( 3, 4 ) ( updateTileBackground "tiles/0.png")
-    |> addActor ( A.hero ( 0, 0 ) A.Up "🐞" )
-    |> addActor ( A.friend ( 1, 1 ) A.Up  "🦋" )
+    |> addActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
+    |> addActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
 
 main : Program () Game Msg
 main =

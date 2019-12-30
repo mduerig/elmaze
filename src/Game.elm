@@ -1,4 +1,19 @@
-module Game exposing (..)
+module Game exposing
+    ( Game
+    , Msg
+    , Board
+    , emptyBoard
+    , Boundary ( .. )
+    , addActor
+    , setTileSet
+    , setPath
+    , fork2
+    , fork3
+    , deadEnd
+    , setStart
+    , setGoal
+    , play
+    )
 
 import Array exposing ( Array )
 import Browser
@@ -403,6 +418,16 @@ queryTile ( x, y ) { width, height, tiles } query =
     Array.get ((height - 1 - y) * width + x) tiles
         |> Maybe.map query
         |> Maybe.withDefault True
+
+setStart : ( Int, Int ) -> Board -> Board
+setStart ( x, y ) board =
+    board
+        |> updateTile ( x, y ) ( updateTileType Start )
+
+setGoal : ( Int, Int ) -> Board -> Board
+setGoal ( x, y ) board =
+    board
+        |> updateTile ( x, y ) ( updateTileType Goal )
 
 updateTile : ( Int, Int ) -> (Tile -> Tile) -> Board -> Board
 updateTile ( x, y ) update ( { width, height, tiles } as board ) =

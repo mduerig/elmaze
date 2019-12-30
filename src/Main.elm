@@ -1,9 +1,6 @@
 module Main exposing ( main )
 
-import Game exposing
-    ( Game, Board, emptyBoard, updateTileType, updateTile, Boundary(..)
-    , TileType(..), Msg, addActor, setTileSet, setPath, fork2, deadEnd
-    )
+import Game exposing ( .. )
 import Actor as A
 
 testBoard : Board
@@ -50,11 +47,10 @@ testBoard = emptyBoard 8 6
                         )
                 )
         )
-    |> updateTile ( 0, 0 ) (updateTileType Start)
-    |> updateTile ( 7, 4 ) (updateTileType Goal)
+    |> setStart ( 0, 0 )
+    |> setGoal ( 7, 4 )
     |> addActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
     |> addActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
 
 main : Program () Game Msg
-main =
-    Game.play testBoard
+main = play testBoard

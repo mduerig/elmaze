@@ -475,18 +475,20 @@ withPath pos path board =
             board
 
         Segment [] remainingPath ->
-            withPath pos remainingPath board
+            board
+                |> withPath pos remainingPath
 
         Segment ( direction::directions ) remainingPath ->
-            withPath
-                ( neighbour pos direction )
-                ( Segment directions remainingPath )
-                ( board
-                    |> updateTileBoundary pos direction Path
-                )
+            board
+                |> updateTileBoundary pos direction Path
+                |> withPath
+                    ( neighbour pos direction )
+                    ( Segment directions remainingPath )
 
         Fork path1 path2 ->
-            withPath pos path2 ( withPath pos path1 board )
+            board
+                |> withPath pos path1
+                >> withPath pos path2
 
 neighbour : ( Int, Int ) -> A.Direction -> ( Int, Int )
 neighbour ( x, y ) direction =

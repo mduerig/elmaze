@@ -605,29 +605,49 @@ viewTile tileSet size ( x, y, { top, left, bottom, right, tileType } ) =
         tile =
             case tileType of
                 Goal ->
-                    [ Text.fromString "🌺"
-                        |> Text.size (round (size/5*3))
-                        |> rendered
-                    ]
+                    Text.fromString "🌺"
+                       |> Text.size (round (size/5*3))
+                       |> rendered
+
 
                 Start ->
-                    [ Text.fromString "🌟"
-                        |> Text.size (round (size/5*4))
-                        |> rendered
-                        |> shiftY (-size/5)
-                    ]
+                    Text.fromString "🌟"
+                       |> Text.size (round (size/5*4))
+                       |> rendered
+                       |> shiftY (-size/5)
 
                 _ ->
-                    []
+                    group []
+
+        wallStyle wall =
+            case wall of
+                Wall  -> solid thin (uniform Color.black)
+                Path -> invisible
+
+        defaultTile = group
+            [ square size
+                |> filled ( uniform Color.lightYellow )
+            , line size
+                |> traced ( wallStyle bottom )
+                |> shiftY -( size / 2 )
+            , line size
+                |> traced ( wallStyle top )
+                |> shiftY ( size / 2 )
+            , line size
+                |> traced ( wallStyle right )
+                |> rotate ( pi / 2 )
+                |> shiftX ( size / 2 )
+            , line size
+                |> traced ( wallStyle left )
+                |> rotate ( pi / 2 )
+                |> shiftX -( size / 2 )
+            ]
     in
         group
-            [ group
-                tile
+            [ tile
             , tileSet top right bottom left
-                |> Maybe.map
-                     ( image (size, size) )
-                |> Maybe.withDefault
-                     ( square size |> filled (uniform Color.lightYellow) )
+                |> Maybe.map ( image ( size, size ) )
+                |> Maybe.withDefault defaultTile
             ]
             |> shift ( size * toFloat x, size * toFloat y )
 

@@ -67,6 +67,11 @@ type Boundary
 type alias TileSet =
     Boundary -> Boundary -> Boundary -> Boundary -> Maybe String
 
+type Path
+    = DeadEnd
+    | Segment (List A.Direction) Path
+    | Fork Path Path
+
 type Msg
     = KeyArrow A.Direction
     | ResetGame
@@ -421,17 +426,10 @@ updateTileBoundary ( x, y ) direction boundary board =
                 A.Down  -> { tile | bottom = boundary }
                 A.Left  -> { tile | left = boundary }
                 A.Right -> { tile | right = boundary }
-
-        neighbour =
-            case direction of
-                A.Up    -> ( x, y + 1 )
-                A.Down  -> ( x, y - 1 )
-                A.Left  -> ( x - 1, y )
-                A.Right -> ( x + 1, y )
     in
         board
             |> updateTile ( x, y ) (update direction)
-            |> updateTile neighbour (update <| A.oppositeDirection direction)
+            |> updateTile ( neighbour (x, y) direction ) (update ( A.oppositeDirection direction ))
 
 setTileSet : TileSet -> Board -> Board
 setTileSet tileSet board =
@@ -444,6 +442,47 @@ hasBoundary direction boundary tile =
         A.Left  -> tile.left
         A.Up    -> tile.top
         A.Down  -> tile.bottom
+
+setPath : ( Int, Int ) -> Path -> Board -> Board
+setPath pos path0 board =
+    case path0 of
+        DeadEnd ->
+            board
+
+        Segment [] remainingPath ->
+            setPath pos remainingPath board
+
+        Segment (direction::directions) remainingPath ->
+            setPath
+                (neighbour pos direction)
+                (Segment directions remainingPath)
+                (board |> updateTileBoundary pos direction Path)
+
+        Fork path1 path2 ->
+            setPath
+                pos
+                path2
+                (setPath pos path1 board)
+
+neighbour : ( Int, Int ) -> A.Direction -> ( Int, Int )
+neighbour ( x, y ) direction =
+    case direction of
+        A.Up    -> ( x, y + 1 )
+        A.Down  -> ( x, y - 1 )
+        A.Left  -> ( x - 1, y )
+        A.Right -> ( x + 1, y )
+
+deadEnd : List A.Direction -> Path
+deadEnd directions =
+    Segment directions DeadEnd
+
+fork2 : Path -> Path -> List A.Direction -> Path
+fork2 outPath1 outPath2 inPath =
+    Segment inPath ( Fork outPath1 outPath2 )
+
+fork3 : Path -> Path -> Path -> List A.Direction -> Path
+fork3 outPath1 outPath2 outPath3 inPath =
+    Segment inPath ( Fork outPath1 ( Fork outPath2 outPath3 ) )
 
 viewGame : Game -> List (Html Msg)
 viewGame { board, programText } =

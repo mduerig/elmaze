@@ -1,48 +1,13 @@
 module Main exposing ( main )
 
 import Game exposing
-    ( Game, Board, emptyBoard, updateTileBoundary, updateTileType, updateTile, Boundary(..)
-    , TileType(..), Msg, addActor, setTileSet
+    ( Game, Board, emptyBoard, updateTileType, updateTile, Boundary(..)
+    , TileType(..), Msg, addActor, setTileSet, setPath, fork2, deadEnd
     )
 import Actor as A
 
 testBoard : Board
 testBoard = emptyBoard 8 6
-    |> updateTileBoundary (0, 0) A.Up Path
-    |> updateTileBoundary (0, 1) A.Up Path
-    |> updateTileBoundary (0, 2) A.Up Path
-    |> updateTileBoundary (0, 3) A.Right Path
-    |> updateTileBoundary (1, 1) A.Left Path
-    |> updateTileBoundary (1, 3) A.Right Path
-    |> updateTileBoundary (2, 1) A.Left Path
-    |> updateTileBoundary (2, 3) A.Right Path
-    |> updateTileBoundary (2, 4) A.Down Path
-    |> updateTileBoundary (2, 5) A.Down Path
-    |> updateTileBoundary (3, 1) A.Left Path
-    |> updateTileBoundary (3, 3) A.Right Path
-    |> updateTileBoundary (3, 5) A.Left Path
-    |> updateTileBoundary (4, 0) A.Up Path
-    |> updateTileBoundary (4, 1) A.Left Path
-    |> updateTileBoundary (4, 2) A.Down Path
-    |> updateTileBoundary (4, 2) A.Right Path
-    |> updateTileBoundary (4, 3) A.Down Path
-    |> updateTileBoundary (4, 3) A.Up Path
-    |> updateTileBoundary (4, 4) A.Right Path
-    |> updateTileBoundary (4, 5) A.Left Path
-    |> updateTileBoundary (5, 0) A.Left Path
-    |> updateTileBoundary (5, 2) A.Right Path
-    |> updateTileBoundary (5, 4) A.Up Path
-    |> updateTileBoundary (5, 5) A.Left Path
-    |> updateTileBoundary (5, 5) A.Right Path
-    |> updateTileBoundary (6, 0) A.Left Path
-    |> updateTileBoundary (6, 1) A.Down Path
-    |> updateTileBoundary (6, 2) A.Down Path
-    |> updateTileBoundary (6, 5) A.Right Path
-    |> updateTileBoundary (7, 4) A.Up Path
-    |> updateTile ( 0, 0 ) (updateTileType Start)
-    |> updateTile ( 7, 4 ) (updateTileType Goal)
-    |> addActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
-    |> addActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
     |> setTileSet
         ( \north east south west -> case [ north, east, south, west ] of
             [ Wall, Wall, Wall, Wall ] -> Just "tiles/0.png"
@@ -63,6 +28,32 @@ testBoard = emptyBoard 8 6
             [ Path, Path, Path, Path ] -> Just "tiles/nesw.png"
             _ -> Nothing
         )
+    |> setPath ( 0, 0 )
+        ( [A.Up]
+            |> fork2
+                ( [ A.Up, A.Up, A.Right, A.Right, A.Up, A.Up, A.Right, A.Right, A.Right, A.Right, A.Right, A.Down ]
+                    |> deadEnd
+                )
+                ( [ A.Right, A.Right, A.Right, A.Right ]
+                    |>fork2
+                        ( [ A.Up, A.Up ]
+                            |> fork2
+                                ( [A.Left, A.Left]
+                                    |> deadEnd
+                                )
+                                ( [A.Up, A.Right, A.Up]
+                                    |> deadEnd
+                                )
+                        )
+                        ( [ A.Down, A.Right, A.Right, A.Up, A.Up, A.Left, A.Left]
+                            |> deadEnd
+                        )
+                )
+        )
+    |> updateTile ( 0, 0 ) (updateTileType Start)
+    |> updateTile ( 7, 4 ) (updateTileType Goal)
+    |> addActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
+    |> addActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
 
 main : Program () Game Msg
 main =

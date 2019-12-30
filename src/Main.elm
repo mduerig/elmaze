@@ -5,7 +5,7 @@ import Actor as A
 
 testBoard : Board
 testBoard = emptyBoard 8 6
-    |> setTileSet
+    |> withTileSet
         ( \north east south west -> case [ north, east, south, west ] of
             [ Wall, Wall, Wall, Wall ] -> Just "tiles/0.png"
             [ Path, Wall, Wall, Wall ] -> Just "tiles/n.png"
@@ -25,7 +25,7 @@ testBoard = emptyBoard 8 6
             [ Path, Path, Path, Path ] -> Just "tiles/nesw.png"
             _ -> Nothing
         )
-    |> setPath ( 0, 0 )
+    |> withPath ( 0, 0 )
         ( [A.Up]
             |> fork2
                 ( [ A.Up, A.Up, A.Right, A.Right, A.Up, A.Up, A.Right, A.Right, A.Right, A.Right, A.Right, A.Down ]
@@ -47,10 +47,10 @@ testBoard = emptyBoard 8 6
                         )
                 )
         )
-    |> setStart ( 0, 0 )
-    |> setGoal ( 7, 4 )
-    |> addActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
-    |> addActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
+    |> withStartAt ( 0, 0 )
+    |> withGoalAt ( 7, 4 )
+    |> withActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
+    |> withActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
 
 main : Program () Game Msg
 main = play testBoard

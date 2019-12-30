@@ -4,14 +4,14 @@ module Game exposing
     , Board
     , emptyBoard
     , Boundary ( .. )
-    , addActor
-    , setTileSet
-    , setPath
+    , withActor
+    , withTileSet
+    , withPath
     , fork2
     , fork3
     , deadEnd
-    , setStart
-    , setGoal
+    , withStartAt
+    , withGoalAt
     , play
     )
 
@@ -126,7 +126,7 @@ initGame board _ =
         game =
             { board = { board
                 | defaultActors = board.actors }
-                |> setController C.keyboardController
+                |> withController C.keyboardController
             , programText = ""
             }
     in
@@ -181,7 +181,7 @@ updateGame msg  ( { board, programText } as game ) =
                 ( { game
                   | board = board
                         |> resetActors
-                        |> setController C.keyboardController
+                        |> withController C.keyboardController
                   , programText = ""
                 }
                 , Cmd.none
@@ -190,8 +190,8 @@ updateGame msg  ( { board, programText } as game ) =
             Coding coding  ->
                 ( { game | board = game.board
                     |> if coding
-                        then setController C.nopController
-                        else setController C.keyboardController
+                        then withController C.nopController
+                        else withController C.keyboardController
                   }
                 , Cmd.none
                 )
@@ -235,14 +235,14 @@ updateGame msg  ( { board, programText } as game ) =
                     { game
                     | board = board
                         |> resetActors
-                        |> setController ( C.programController program )
+                        |> withController ( C.programController program )
                     }
 
             StopProgram ->
                 updateGame StopInterpreter
                     { game
                     | board = board
-                        |> setController C.keyboardController
+                        |> withController C.keyboardController
                     }
 
             _ ->
@@ -294,7 +294,7 @@ updateController msg game =
 
         updatedController = game.board.actors
             |> A.filterActors ( always True ) ( always False )
-            |> List.map ( update >> setController )
+            |> List.map ( update >> withController )
             |> headOrElse identity
     in
         { game | board = updatedController game.board }
@@ -305,12 +305,12 @@ headOrElse default xs =
         |> List.head
         |> Maybe.withDefault default
 
-addActor : Actor -> Board -> Board
-addActor actor ( { actors } as board ) =
+withActor : Actor -> Board -> Board
+withActor actor ( { actors } as board ) =
     { board | actors = actor :: actors }
 
-setController : Controller -> Board -> Board
-setController controller board =
+withController : Controller -> Board -> Board
+withController controller board =
     { board | controller = controller }
 
 isConditionTrue : Actor -> Board -> P.Condition -> Bool
@@ -419,13 +419,13 @@ queryTile ( x, y ) { width, height, tiles } query =
         |> Maybe.map query
         |> Maybe.withDefault True
 
-setStart : ( Int, Int ) -> Board -> Board
-setStart ( x, y ) board =
+withStartAt : ( Int, Int ) -> Board -> Board
+withStartAt ( x, y ) board =
     board
         |> updateTile ( x, y ) ( updateTileType Start )
 
-setGoal : ( Int, Int ) -> Board -> Board
-setGoal ( x, y ) board =
+withGoalAt : ( Int, Int ) -> Board -> Board
+withGoalAt ( x, y ) board =
     board
         |> updateTile ( x, y ) ( updateTileType Goal )
 
@@ -456,8 +456,8 @@ updateTileBoundary ( x, y ) direction boundary board =
             |> updateTile ( x, y ) (update direction)
             |> updateTile ( neighbour (x, y) direction ) (update ( A.oppositeDirection direction ))
 
-setTileSet : TileSet -> Board -> Board
-setTileSet tileSet board =
+withTileSet : TileSet -> Board -> Board
+withTileSet tileSet board =
     { board | tileSet = tileSet }
 
 hasBoundary : A.Direction -> Boundary -> Tile -> Bool
@@ -468,26 +468,25 @@ hasBoundary direction boundary tile =
         A.Up    -> tile.top
         A.Down  -> tile.bottom
 
-setPath : ( Int, Int ) -> Path -> Board -> Board
-setPath pos path0 board =
-    case path0 of
+withPath : ( Int, Int ) -> Path -> Board -> Board
+withPath pos path board =
+    case path of
         DeadEnd ->
             board
 
         Segment [] remainingPath ->
-            setPath pos remainingPath board
+            withPath pos remainingPath board
 
-        Segment (direction::directions) remainingPath ->
-            setPath
-                (neighbour pos direction)
-                (Segment directions remainingPath)
-                (board |> updateTileBoundary pos direction Path)
+        Segment ( direction::directions ) remainingPath ->
+            withPath
+                ( neighbour pos direction )
+                ( Segment directions remainingPath )
+                ( board
+                    |> updateTileBoundary pos direction Path
+                )
 
         Fork path1 path2 ->
-            setPath
-                pos
-                path2
-                (setPath pos path1 board)
+            withPath pos path2 ( withPath pos path1 board )
 
 neighbour : ( Int, Int ) -> A.Direction -> ( Int, Int )
 neighbour ( x, y ) direction =

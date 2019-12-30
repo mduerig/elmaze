@@ -619,13 +619,11 @@ viewTile tileSet size ( x, y, { top, left, bottom, right, tileType } ) =
 
                 _ ->
                     []
-
-        background = tileSet top right bottom left
     in
         group
             [ group
                 tile
-            , background
+            , tileSet top right bottom left
                 |> Maybe.map
                      ( image (size, size) )
                 |> Maybe.withDefault

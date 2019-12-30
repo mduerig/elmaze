@@ -1,6 +1,7 @@
 module Game exposing
     ( Game
     , Msg
+    , Config
     , Board
     , emptyBoard
     , Boundary ( .. )
@@ -38,10 +39,19 @@ import Actor as A exposing ( Actor )
 import Controller as C exposing ( Controller )
 import Interpreter
 import Parse as P
+import Info
 
 type alias Game =
     { board : Board
+    , title : String
+    , info : Info.Model
     , programText : String
+    }
+
+type alias Config =
+    { title : String
+    , infoTitle : List ( Html Info.Msg )
+    , infoText : List ( Html Info.Msg )
     }
 
 type alias Board =
@@ -89,6 +99,8 @@ type Path
 
 type Msg
     = KeyArrow A.Direction
+    | InfoMsg Info.Msg
+    | ShowInfo
     | ResetGame
     | StartProgram
     | StopProgram
@@ -120,13 +132,15 @@ batch msg1 msg2 =
        ( _, Batch msgs )            -> Batch ( msg1 :: msgs )
        _                            -> Batch [ msg1, msg2 ]
 
-initGame : Board -> flags -> ( Game, Cmd Msg )
-initGame board _ =
+initGame : Config -> Board -> flags -> ( Game, Cmd Msg )
+initGame config board _ =
     let
         game =
             { board = { board
                 | defaultActors = board.actors }
                 |> withController C.keyboardController
+            , title = config.title
+            , info = Info.init False config.infoTitle config.infoText
             , programText = ""
             }
     in
@@ -161,7 +175,7 @@ emptyBoard width height =
     }
 
 updateGame : Msg -> Game -> ( Game, Cmd Msg )
-updateGame msg  ( { board, programText } as game ) =
+updateGame msg  ( { board, info, programText } as game ) =
     let
         program =
             case P.parse ( ensureTrailingLF programText ) of
@@ -177,13 +191,23 @@ updateGame msg  ( { board, programText } as game ) =
             GenerateRandom cmd ->
                 ( game, cmd )
 
+            InfoMsg infoMsg ->
+                ( { game | info = Info.update infoMsg info }
+                , Cmd.none
+                )
+
             ResetGame ->
                 ( { game
                   | board = board
                         |> resetActors
                         |> withController C.keyboardController
                   , programText = ""
-                }
+                  }
+                , Cmd.none
+                )
+
+            ShowInfo ->
+                ( { game | info = Info.show info }
                 , Cmd.none
                 )
 
@@ -511,7 +535,7 @@ fork3 outPath1 outPath2 outPath3 inPath =
     Segment inPath ( Fork outPath1 ( Fork outPath2 outPath3 ) )
 
 viewGame : Game -> List (Html Msg)
-viewGame { board, programText } =
+viewGame { board, title, info, programText } =
     let
         { actors, controller, animation } = board
         cellSize = board.size / toFloat board.width
@@ -526,7 +550,7 @@ viewGame { board, programText } =
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []
-                , Grid.col [] [ Html.h1 [] [ Html.text "Elmaze"] ]
+                , Grid.col [] [ Html.h1 [] [ Html.text title ] ]
                 , Grid.col [] []
                 ]
             , Grid.row []
@@ -564,6 +588,13 @@ viewGame { board, programText } =
                                 ]
                                 [ Html.text "Go!" ]
                         , Button.button
+                            [ Button.outlineInfo
+                            , Button.block
+                            , Button.disabled running
+                            , Button.onClick ShowInfo
+                            ]
+                            [ Html.text "Help"]
+                        , Button.button
                             [ Button.outlineWarning
                             , Button.block
                             , Button.disabled running
@@ -581,6 +612,8 @@ viewGame { board, programText } =
                 , Grid.col [ ] []
                 , Grid.col [] []
                 ]
+            , Info.view info
+                |> Html.map InfoMsg
             ]
         ]
 
@@ -665,20 +698,22 @@ keyDownDecoder =
         Decode.field "key" Decode.string
             |> Decode.map toDirection
 
-play : Board -> Program () Game Msg
-play board =
+play : Config -> Board -> Program () Game Msg
+play config board =
     Browser.document
         { subscriptions =
             \game -> Sub.batch
                 [ onKeyDown keyDownDecoder
                 , game.board.animation.onDelta AnimationFrame
                 , onResize Resize
+                , Info.subscriptions game.info
+                    |> Sub.map InfoMsg
                 ]
-        , init = initGame board
+        , init = initGame config board
         , update = updateGame
         , view =
             \game ->
-                { title = "Elmaze"
+                { title = config.title
                 , body = viewGame game
                 }
         }

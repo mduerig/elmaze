@@ -1,5 +1,6 @@
 module Main exposing ( main )
 
+import Html
 import Game exposing ( .. )
 import Actor as A
 
@@ -52,5 +53,12 @@ testBoard = emptyBoard 8 6
     |> withActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
     |> withActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
 
+testConfig : Config
+testConfig =
+    { title = "Test Level"
+    , infoTitle = [ Html.text "Test"]
+    , infoText = [ Html.text "This is a test level" ]
+    }
+
 main : Program () Game Msg
-main = play testBoard
+main = play testConfig testBoard

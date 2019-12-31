@@ -13,8 +13,8 @@ init onStateChange =
     Navbar.initialState ( MenuBar >> onStateChange )
         |> Tuple.mapFirst MenuBar
 
-view : ( MenuBar -> msg ) -> MenuBar -> Html msg
-view onStateChange ( MenuBar menuBar )
+view : ( MenuBar -> msg ) -> msg -> MenuBar -> Html msg
+view onStateChange onHelp ( MenuBar menuBar )
     = Grid.container []
     [ Navbar.config ( MenuBar >> onStateChange )
         |> Navbar.withAnimation
@@ -40,7 +40,9 @@ view onStateChange ( MenuBar menuBar )
         |> Navbar.customItems
             [ Navbar.formItem []
                 [ Button.button
-                    [ Button.outlineInfo ]
+                    [ Button.outlineInfo
+                    , Button.onClick onHelp
+                    ]
                     [ text "Help"]
                 ]
             ]

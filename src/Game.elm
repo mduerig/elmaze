@@ -557,7 +557,7 @@ viewGame { board, title, info, menuBar, programText } =
 
     in
         [ CDN.stylesheet
-        , MenuBar.view MenuBarChange menuBar
+        , MenuBar.view MenuBarChange ShowInfo menuBar
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []
@@ -598,13 +598,6 @@ viewGame { board, title, info, menuBar, programText } =
                                 , Button.onClick StartProgram
                                 ]
                                 [ Html.text "Go!" ]
-                        , Button.button
-                            [ Button.outlineInfo
-                            , Button.block
-                            , Button.disabled running
-                            , Button.onClick ShowInfo
-                            ]
-                            [ Html.text "Help"]
                         , Button.button
                             [ Button.outlineWarning
                             , Button.block

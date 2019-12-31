@@ -1,4 +1,10 @@
-module MenuBar exposing ( .. )
+module MenuBar exposing
+    ( MenuBar
+    , LevelItem
+    , init
+    , view
+    , subscriptions
+    )
 
 import Html exposing ( Html, text )
 import Html.Events as Events

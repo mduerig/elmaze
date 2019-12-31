@@ -40,11 +40,13 @@ import Controller as C exposing ( Controller )
 import Interpreter
 import Parse as P
 import Info exposing ( Info )
+import MenuBar exposing ( MenuBar )
 
 type alias Game =
     { board : Board
     , title : String
     , info : Info
+    , menuBar : MenuBar
     , programText : String
     }
 
@@ -100,6 +102,7 @@ type Path
 type Msg
     = KeyArrow A.Direction
     | InfoMsg Info.Msg
+    | MenuBarChange MenuBar
     | ShowInfo
     | ResetGame
     | StartProgram
@@ -135,16 +138,18 @@ batch msg1 msg2 =
 initGame : Config -> Board -> flags -> ( Game, Cmd Msg )
 initGame config board _ =
     let
+        ( menuBar, menuBarCmd ) = MenuBar.init MenuBarChange
         game =
             { board = { board
                 | defaultActors = board.actors }
                 |> withController C.keyboardController
             , title = config.title
             , info = Info.init False config.infoTitle config.infoText
+            , menuBar = menuBar
             , programText = ""
             }
     in
-        ( game, getProgramTextareaWidth )
+        ( game, Cmd.batch [ getProgramTextareaWidth, menuBarCmd ])
 
 getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
@@ -193,6 +198,11 @@ updateGame msg  ( { board, info, programText } as game ) =
 
             InfoMsg infoMsg ->
                 ( { game | info = Info.update infoMsg info }
+                , Cmd.none
+                )
+
+            MenuBarChange menuBar ->
+                ( { game | menuBar = menuBar }
                 , Cmd.none
                 )
 
@@ -535,7 +545,7 @@ fork3 outPath1 outPath2 outPath3 inPath =
     Segment inPath ( Fork outPath1 ( Fork outPath2 outPath3 ) )
 
 viewGame : Game -> List (Html Msg)
-viewGame { board, title, info, programText } =
+viewGame { board, title, info, menuBar, programText } =
     let
         { actors, controller, animation } = board
         cellSize = board.size / toFloat board.width
@@ -547,6 +557,7 @@ viewGame { board, title, info, programText } =
 
     in
         [ CDN.stylesheet
+        , MenuBar.view MenuBarChange menuBar
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []
@@ -708,6 +719,7 @@ play config board =
                 , onResize Resize
                 , Info.subscriptions game.info
                     |> Sub.map InfoMsg
+                , MenuBar.subscriptions MenuBarChange game.menuBar
                 ]
         , init = initGame config board
         , update = updateGame

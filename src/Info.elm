@@ -1,5 +1,5 @@
 module Info exposing
-    ( Model
+    ( Info
     , Msg
     , show
     , hide
@@ -20,26 +20,26 @@ type Msg
     | AnimateModal Modal.Visibility
 
 type alias Content = List ( Html Msg )
-type Model =
-    Model Modal.Visibility Content Content
+type Info =
+    Info Modal.Visibility Content Content
 
-init : Bool -> Content -> Content -> Model
+init : Bool -> Content -> Content -> Info
 init visible =
-    Model ( if visible then Modal.shown else Modal.hidden )
+    Info ( if visible then Modal.shown else Modal.hidden )
 
-show : Model -> Model
-show ( Model _ ttl txt ) =
-    Model Modal.shown ttl txt
+show : Info -> Info
+show ( Info _ ttl txt ) =
+    Info Modal.shown ttl txt
 
-hide : Model -> Model
-hide ( Model _ ttl txt ) =
-    Model Modal.hidden ttl txt
+hide : Info -> Info
+hide ( Info _ ttl txt ) =
+    Info Modal.hidden ttl txt
 
-update : Msg -> Model -> Model
-update msg (( Model _ ttl txt ) as model ) =
+update : Msg -> Info -> Info
+update msg (( Info _ ttl txt ) as info ) =
     case msg of
-        CloseModal              -> hide model
-        AnimateModal visibility -> Model visibility ttl txt
+        CloseModal              -> hide info
+        AnimateModal visibility -> Info visibility ttl txt
 
 title : Content -> Modal.Config Msg -> Modal.Config Msg
 title = Modal.h3 []
@@ -47,8 +47,8 @@ title = Modal.h3 []
 body : Content -> Modal.Config Msg -> Modal.Config Msg
 body = Modal.body []
 
-view : Model -> Html Msg
-view ( Model visible ttl txt ) =
+view : Info -> Html Msg
+view ( Info visible ttl txt ) =
     Modal.config CloseModal
         |> Modal.withAnimation AnimateModal
         |> Modal.large
@@ -63,6 +63,6 @@ view ( Model visible ttl txt ) =
             ]
         |> Modal.view visible
 
-subscriptions : Model -> Sub Msg
-subscriptions ( Model visible _ _ ) =
+subscriptions : Info -> Sub Msg
+subscriptions ( Info visible _ _ ) =
     Modal.subscriptions visible AnimateModal

@@ -39,12 +39,12 @@ import Actor as A exposing ( Actor )
 import Controller as C exposing ( Controller )
 import Interpreter
 import Parse as P
-import Info
+import Info exposing ( Info )
 
 type alias Game =
     { board : Board
     , title : String
-    , info : Info.Model
+    , info : Info
     , programText : String
     }
 

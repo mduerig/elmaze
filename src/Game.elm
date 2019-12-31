@@ -555,9 +555,21 @@ viewGame { board, title, info, menuBar, programText } =
 
         running = C.isProgram controller
 
+        levelList :  List ( MenuBar.LevelItem Msg )
+        levelList =
+            [
+                { text = [ Html.text "Level 1" ]
+                , onSelect = ShowInfo
+                }
+            ,
+                { text = [ Html.text "Level 2" ]
+                , onSelect = ShowInfo
+                }
+            ]
+
     in
         [ CDN.stylesheet
-        , MenuBar.view MenuBarChange ShowInfo menuBar
+        , MenuBar.view MenuBarChange ShowInfo levelList menuBar
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []

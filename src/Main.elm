@@ -53,12 +53,13 @@ testBoard = emptyBoard 8 6
     |> withActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
     |> withActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
 
-testConfig : Config
-testConfig =
+testLevel : Level
+testLevel =
     { title = "Test Level"
+    , board = testBoard
     , infoTitle = [ Html.text "Test"]
     , infoText = [ Html.text "This is a test level" ]
     }
 
 main : Program () Game Msg
-main = play testConfig testBoard
+main = play testLevel

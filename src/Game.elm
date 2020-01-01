@@ -1,7 +1,7 @@
 module Game exposing
     ( Game
     , Msg
-    , Config
+    , Level
     , Board
     , emptyBoard
     , Boundary ( .. )
@@ -50,8 +50,9 @@ type alias Game =
     , programText : String
     }
 
-type alias Config =
+type alias Level =
     { title : String
+    , board : Board
     , infoTitle : List ( Html Info.Msg )
     , infoText : List ( Html Info.Msg )
     }
@@ -136,7 +137,7 @@ batch msg1 msg2 =
        ( _, Batch msgs )            -> Batch ( msg1 :: msgs )
        _                            -> Batch [ msg1, msg2 ]
 
-initGame : Config -> Board -> flags -> ( Game, Cmd Msg )
+initGame : Level -> Board -> flags -> ( Game, Cmd Msg )
 initGame config board _ =
     let
         ( menuBar, menuBarCmd ) = MenuBar.init "Select a Level" MenuBarChange
@@ -720,8 +721,8 @@ keyDownDecoder =
         Decode.field "key" Decode.string
             |> Decode.map toDirection
 
-play : Config -> Board -> Program () Game Msg
-play config board =
+play : Level -> Program () Game Msg
+play level =
     Browser.document
         { subscriptions =
             \game -> Sub.batch
@@ -732,11 +733,11 @@ play config board =
                     |> Sub.map InfoMsg
                 , MenuBar.subscriptions MenuBarChange game.menuBar
                 ]
-        , init = initGame config board
+        , init = initGame level level.board
         , update = updateGame
         , view =
             \game ->
-                { title = config.title
+                { title = level.title
                 , body = viewGame game
                 }
         }

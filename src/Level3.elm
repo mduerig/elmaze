@@ -1,4 +1,4 @@
-module Level2 exposing ( level )
+module Level3 exposing ( level )
 
 import Html
 import Game exposing
@@ -8,6 +8,7 @@ import Game exposing
     , emptyBoard
     , withTileSet
     , withPath
+    , fork2
     , deadEnd
     , withStartAt
     , withGoalAt
@@ -19,8 +20,14 @@ board : TileSet -> Board
 board tileSet = emptyBoard 5 5
     |> withTileSet tileSet
     |> withPath ( 0, 0 )
-        ( [ Right, Right, Right, Up, Up, Left, Left, Up, Up, Right, Right, Right ]
-            |> deadEnd
+        ( [ Right, Right, Right, Up, Up ]
+            |> fork2
+                ( [ Left, Left, Up, Up, Right, Right, Right ]
+                    |> deadEnd
+                )
+                ( [ Up, Up ]
+                    |> deadEnd
+                )
         )
     |> withStartAt ( 0, 0 )
     |> withGoalAt ( 4, 4 )
@@ -28,12 +35,12 @@ board tileSet = emptyBoard 5 5
 
 level : TileSet -> Level
 level tileSet =
-    { title = "Record a Trace"
+    { title = "Find the shortest way"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Record a Trace" ]
+    , infoTitle = [ Html.text "🐞 Find the shortest path" ]
     , infoText =
         [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Observe the trace that is recorded in the text box to the left of the maze. " ]
-        , Html.p [] [ Html.text "Press the 'Go!' button to replay the recorded trace and observe the beetle 🐞 when it reaches the flower 🌺." ]
+        , Html.p [] [ Html.text "Can you find the shortest path? " ]
+        , Html.p [] [ Html.text "Observe the traces for different paths and replay them using the 'Go!' button. " ]
         ]
     }

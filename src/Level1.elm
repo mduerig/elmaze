@@ -8,47 +8,28 @@ import Game exposing
     , emptyBoard
     , withTileSet
     , withPath
-    , fork2
     , deadEnd
     , withStartAt
     , withGoalAt
     , withActor
     )
-import Actor as A
+import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
-board tileSet = emptyBoard 8 6
+board tileSet = emptyBoard 5 5
     |> withTileSet tileSet
     |> withPath ( 0, 0 )
-        ( [A.Up]
-            |> fork2
-                ( [ A.Up, A.Up, A.Right, A.Right, A.Up, A.Up, A.Right, A.Right, A.Right, A.Right, A.Right, A.Down ]
-                    |> deadEnd
-                )
-                ( [ A.Right, A.Right, A.Right, A.Right ]
-                    |>fork2
-                        ( [ A.Up, A.Up ]
-                            |> fork2
-                                ( [A.Left, A.Left]
-                                    |> deadEnd
-                                )
-                                ( [A.Up, A.Right, A.Up]
-                                    |> deadEnd
-                                )
-                        )
-                        ( [ A.Down, A.Right, A.Right, A.Up, A.Up, A.Left, A.Left]
-                            |> deadEnd
-                        )
-                )
+        ( [ Up, Up, Up, Right, Right, Down, Down, Right, Right, Up, Up, Up ]
+            |> deadEnd
         )
     |> withStartAt ( 0, 0 )
-    |> withGoalAt ( 7, 4 )
-    |> withActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
+    |> withGoalAt ( 4, 4 )
+    |> withActor ( hero 0 ( 0, 0 ) Up "🐞" )
 
 level : TileSet -> Level
 level tileSet =
-    { title = "Level 1"
+    { title = "Navigate the maze"
     , board = board tileSet
-    , infoTitle = [ Html.text "Level 1"]
-    , infoText = [ Html.text "This is level 1" ]
+    , infoTitle = [ Html.text "🐞 Navigate the maze"]
+    , infoText = [ Html.text "Help the beetle 🐞 to find the flower 🌺. Use the arrow keys to navigate through the maze." ]
     }

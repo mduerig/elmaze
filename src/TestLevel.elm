@@ -14,37 +14,37 @@ import Game exposing
     , withGoalAt
     , withActor
     )
-import Actor as A
+import Actor exposing ( Direction ( .. ), hero, friend )
 
 board : TileSet -> Board
 board tileSet = emptyBoard 8 6
     |> withTileSet tileSet
     |> withPath ( 0, 0 )
-        ( [A.Up]
+        ( [ Up ]
             |> fork2
-                ( [ A.Up, A.Up, A.Right, A.Right, A.Up, A.Up, A.Right, A.Right, A.Right, A.Right, A.Right, A.Down ]
+                ( [ Up, Up, Right, Right, Up, Up, Right, Right, Right, Right, Right, Down ]
                     |> deadEnd
                 )
-                ( [ A.Right, A.Right, A.Right, A.Right ]
+                ( [ Right, Right, Right, Right ]
                     |>fork2
-                        ( [ A.Up, A.Up ]
+                        ( [ Up, Up ]
                             |> fork2
-                                ( [A.Left, A.Left]
+                                ( [Left, Left]
                                     |> deadEnd
                                 )
-                                ( [A.Up, A.Right, A.Up]
+                                ( [Up, Right, Up]
                                     |> deadEnd
                                 )
                         )
-                        ( [ A.Down, A.Right, A.Right, A.Up, A.Up, A.Left, A.Left]
+                        ( [ Down, Right, Right, Up, Up, Left, Left]
                             |> deadEnd
                         )
                 )
         )
     |> withStartAt ( 0, 0 )
     |> withGoalAt ( 7, 4 )
-    |> withActor ( A.hero 0 ( 0, 0 ) A.Up "🐞" )
-    |> withActor ( A.friend 1 ( 1, 1 ) A.Up  "🦋" )
+    |> withActor ( hero 0 ( 0, 0 ) Up "🐞" )
+    |> withActor ( friend 1 ( 1, 1 ) Up  "🦋" )
 
 level : TileSet -> Level
 level tileSet =

@@ -43,7 +43,8 @@ import Info exposing ( Info )
 import MenuBar exposing ( MenuBar )
 
 type alias Game =
-    { board : Board
+    { levels : List Level
+    , board : Board
     , title : String
     , info : Info
     , menuBar : MenuBar
@@ -105,7 +106,7 @@ type Msg
     | InfoMsg Info.Msg
     | MenuBarChange MenuBar
     | ShowInfo
-    | SelectLevel Int
+    | SelectLevel Level
     | ResetGame
     | StartProgram
     | StopProgram
@@ -140,16 +141,15 @@ batch msg1 msg2 =
 initGame : List Level -> flags -> ( Game, Cmd Msg )
 initGame levels _ =
     let
-
-        ( menuBar, menuBarCmd ) = MenuBar.init "Select a Level" MenuBarChange
-
         { board, title, infoTitle, infoText } = levels
             |> List.head
             |> Maybe.withDefault emptyLevel
 
+        ( menuBar, menuBarCmd ) = MenuBar.init title MenuBarChange
+
         game =
-            { board = { board
-                | defaultActors = board.actors }
+            { levels = levels
+            , board = { board | defaultActors = board.actors }
                 |> withController C.keyboardController
             , title = title
             , info = Info.init False infoTitle infoText
@@ -165,6 +165,17 @@ emptyLevel =
     , board = emptyBoard 0 0
     , infoTitle = [ Html.text "No levels"]
     , infoText = [ Html.text "This game has no levels"]
+    }
+
+setLevel : Level -> Game -> Game
+setLevel { board, title, infoTitle, infoText } game =
+    { game | board = { board | defaultActors = board.actors }
+            |> withController C.keyboardController
+        , title = title
+        , info = Info.init False infoTitle infoText
+        , menuBar = game.menuBar
+            |> MenuBar.withLevelToggle title
+        , programText = ""
     }
 
 getProgramTextareaWidth : Cmd Msg
@@ -237,8 +248,8 @@ updateGame msg  ( { board, info, programText } as game ) =
                 , Cmd.none
                 )
 
-            SelectLevel n ->
-                ( { game | menuBar = game.menuBar |> MenuBar.withLevelToggle ("Level " ++ String.fromInt n ) }
+            SelectLevel level ->
+                ( game |> setLevel level
                 , Cmd.none
                 )
 
@@ -565,8 +576,14 @@ fork3 : Path -> Path -> Path -> List A.Direction -> Path
 fork3 outPath1 outPath2 outPath3 inPath =
     Segment inPath ( Fork outPath1 ( Fork outPath2 outPath3 ) )
 
+levelItem : Level -> MenuBar.LevelItem Msg
+levelItem level =
+    { text = level.title
+    , onSelect = SelectLevel level
+    }
+
 viewGame : Game -> List (Html Msg)
-viewGame { board, title, info, menuBar, programText } =
+viewGame { levels, board, title, info, menuBar, programText } =
     let
         { actors, controller, animation } = board
         cellSize = board.size / toFloat board.width
@@ -575,22 +592,9 @@ viewGame { board, title, info, menuBar, programText } =
             |> List.map ( A.viewActor animation.t cellSize )
 
         running = C.isProgram controller
-
-        levelList :  List ( MenuBar.LevelItem Msg )
-        levelList =
-            [
-                { text = "Level 1"
-                , onSelect = SelectLevel 1
-                }
-            ,
-                { text = "Level 2"
-                , onSelect = SelectLevel 2
-                }
-            ]
-
     in
         [ CDN.stylesheet
-        , MenuBar.view MenuBarChange ShowInfo levelList menuBar
+        , MenuBar.view MenuBarChange ShowInfo ( List.map levelItem levels ) menuBar
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []

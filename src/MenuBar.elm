@@ -41,7 +41,7 @@ withLevelToggle toggle ( MenuBar menuBar ) =
     MenuBar { menuBar | levelToggle = toggle }
 
 view : ( MenuBar -> msg ) -> msg -> List ( LevelItem msg ) -> MenuBar -> Html msg
-view onStateChange onHelp items ( MenuBar menuBar )
+view onStateChange onHelp levelItems ( MenuBar menuBar )
     = Grid.container []
     [ Navbar.config ( withNavBar menuBar >> onStateChange )
         |> Navbar.withAnimation
@@ -54,7 +54,7 @@ view onStateChange onHelp items ( MenuBar menuBar )
             [ Navbar.dropdown
                 { id = "levelDropDown"
                 , toggle = Navbar.dropdownToggle [] [ text menuBar.levelToggle ]
-                , items = items
+                , items = levelItems
                     |> List.map levelItem
                 }
             ]

@@ -61,5 +61,13 @@ testLevel =
     , infoText = [ Html.text "This is a test level" ]
     }
 
+testLevel2 : Level
+testLevel2 =
+    { title = "Test Level2"
+    , board = emptyBoard 3 3
+    , infoTitle = [ Html.text "Test2"]
+    , infoText = [ Html.text "This is a test level2" ]
+    }
+
 main : Program () Game Msg
-main = play [ testLevel ]
+main = play [ testLevel, testLevel2 ]

@@ -153,7 +153,7 @@ initGame levels _ =
             , board = { board | defaultActors = board.actors }
                 |> withController C.keyboardController
             , title = title
-            , info = Info.init False infoTitle infoText
+            , info = Info.init True infoTitle infoText
             , menuBar = menuBar
             , programText = ""
             }
@@ -173,7 +173,7 @@ setLevel { board, title, infoTitle, infoText } game =
     { game | board = { board | defaultActors = board.actors }
             |> withController C.keyboardController
         , title = title
-        , info = Info.init False infoTitle infoText
+        , info = Info.init True infoTitle infoText
         , menuBar = game.menuBar
             |> MenuBar.withLevelToggle title
         , programText = ""

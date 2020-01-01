@@ -1,4 +1,4 @@
-module Level1 exposing ( level )
+module Level2 exposing ( level )
 
 import Html
 import Game exposing
@@ -19,7 +19,7 @@ board : TileSet -> Board
 board tileSet = emptyBoard 5 5
     |> withTileSet tileSet
     |> withPath ( 0, 0 )
-        ( [ Up, Up, Up, Right, Right, Down, Down, Right, Right, Up, Up, Up ]
+        ( [ Right, Right, Right, Up, Up, Left, Left, Up, Up, Right, Right, Right ]
             |> deadEnd
         )
     |> withStartAt ( 0, 0 )
@@ -28,11 +28,12 @@ board tileSet = emptyBoard 5 5
 
 level : TileSet -> Level
 level tileSet =
-    { title = "Navigate the Maze"
+    { title = "Record a Trace"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Navigate the Maze"]
+    , infoTitle = [ Html.text "🐞 Record a Trace"]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺." ]
-        , Html.p [] [ Html.text "Use the arrow keys to navigate through the maze. Take care not to bump into walls." ]
+        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , Html.p [] [ Html.text "Observe the trace that is recorded in the text box to the left of the maze. " ]
+        , Html.p [] [ Html.text "Press the 'Go!' button to replay the recorded trace and observe the beetle 🐞 when it reaches the flower 🌺." ]
         ]
     }

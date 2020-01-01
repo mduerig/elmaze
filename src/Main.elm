@@ -3,6 +3,7 @@ module Main exposing ( main )
 import Game exposing ( Game, Msg, TileSet, Boundary( .. ), play )
 import TestLevel
 import Level1
+import Level2
 
 tileSet : TileSet
 tileSet north east south west = case [ north, east, south, west ] of
@@ -27,5 +28,6 @@ tileSet north east south west = case [ north, east, south, west ] of
 main : Program () Game Msg
 main = play
     [ Level1.level tileSet
+    , Level2.level tileSet
     , TestLevel.level tileSet
     ]

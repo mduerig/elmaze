@@ -28,8 +28,13 @@ board tileSet = emptyBoard 5 5
 
 level : TileSet -> Level
 level tileSet =
-    { title = "Navigate the maze"
+    { title = "Navigate the Maze"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Navigate the maze"]
-    , infoText = [ Html.text "Help the beetle 🐞 to find the flower 🌺. Use the arrow keys to navigate through the maze." ]
+    , infoTitle = [ Html.text "🐞 Navigate the Maze"]
+    , infoText =
+        [ Html.text
+            (  "Help the beetle 🐞 to find the flower 🌺. Use the arrow keys to navigate through the maze. "
+            ++ "Take care not to bump into walls."
+            )
+        ]
     }

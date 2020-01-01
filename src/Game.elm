@@ -588,6 +588,8 @@ viewGame { levels, board, title, info, menuBar, programText } =
     let
         { actors, controller, animation } = board
         cellSize = board.size / toFloat board.width
+        boardWidth = cellSize * toFloat board.width
+        boardHeight = cellSize * toFloat board.height
 
         viewActors = actors
             |> List.map ( A.viewActor animation.t cellSize )
@@ -599,16 +601,12 @@ viewGame { levels, board, title, info, menuBar, programText } =
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [] []
-                , Grid.col [] [ Html.h1 [] [ Html.text title ] ]
-                , Grid.col [] []
-                ]
-            , Grid.row []
-                [ Grid.col [] []
                 , Grid.col []
-                    [ viewActors ++
-                        ( tilesWithIndex board
+                    [   viewActors
+                    ++  ( tilesWithIndex board
                             |> List.map  ( viewTile board.tileSet cellSize )
                         )
+                    ++  viewBackground boardWidth boardHeight cellSize title
                         |> group
                         |> svg
                     ]
@@ -659,6 +657,18 @@ viewGame { levels, board, title, info, menuBar, programText } =
             ]
         ]
 
+viewBackground : Float -> Float -> Float -> String -> List ( Collage Msg )
+viewBackground boardWidth boardHeight cellSize title =
+    [ Text.fromString title
+        |> Text.size 40
+        |> rendered
+        |> shiftX (( boardWidth - cellSize ) / 2 )
+        |> shiftY boardHeight
+    , rectangle ( 2.1 * cellSize + boardWidth ) ( 2.1 * cellSize + boardHeight )
+        |> filled ( uniform Color.lightGray )
+        |> shiftX (( boardWidth - cellSize ) / 2 )
+        |> shiftY (( boardHeight - cellSize ) / 2 )
+    ]
 ensureTrailingLF : String -> String
 ensureTrailingLF s =
     if String.endsWith "\n" s || s == ""

@@ -3,6 +3,7 @@ module Game exposing
     , Msg
     , Level
     , Board
+    , TileSet
     , emptyBoard
     , Boundary ( .. )
     , withActor

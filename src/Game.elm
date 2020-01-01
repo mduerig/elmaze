@@ -137,21 +137,35 @@ batch msg1 msg2 =
        ( _, Batch msgs )            -> Batch ( msg1 :: msgs )
        _                            -> Batch [ msg1, msg2 ]
 
-initGame : Level -> Board -> flags -> ( Game, Cmd Msg )
-initGame config board _ =
+initGame : List Level -> flags -> ( Game, Cmd Msg )
+initGame levels _ =
     let
+
         ( menuBar, menuBarCmd ) = MenuBar.init "Select a Level" MenuBarChange
+
+        { board, title, infoTitle, infoText } = levels
+            |> List.head
+            |> Maybe.withDefault emptyLevel
+
         game =
             { board = { board
                 | defaultActors = board.actors }
                 |> withController C.keyboardController
-            , title = config.title
-            , info = Info.init False config.infoTitle config.infoText
+            , title = title
+            , info = Info.init False infoTitle infoText
             , menuBar = menuBar
             , programText = ""
             }
     in
         ( game, Cmd.batch [ getProgramTextareaWidth, menuBarCmd ])
+
+emptyLevel : Level
+emptyLevel =
+    { title = "No levels to play"
+    , board = emptyBoard 0 0
+    , infoTitle = [ Html.text "No levels"]
+    , infoText = [ Html.text "This game has no levels"]
+    }
 
 getProgramTextareaWidth : Cmd Msg
 getProgramTextareaWidth =
@@ -721,8 +735,8 @@ keyDownDecoder =
         Decode.field "key" Decode.string
             |> Decode.map toDirection
 
-play : Level -> Program () Game Msg
-play level =
+play : List Level -> Program () Game Msg
+play levels =
     Browser.document
         { subscriptions =
             \game -> Sub.batch
@@ -733,11 +747,11 @@ play level =
                     |> Sub.map InfoMsg
                 , MenuBar.subscriptions MenuBarChange game.menuBar
                 ]
-        , init = initGame level level.board
+        , init = initGame levels
         , update = updateGame
         , view =
             \game ->
-                { title = level.title
+                { title = game.title
                 , body = viewGame game
                 }
         }

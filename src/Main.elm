@@ -62,4 +62,4 @@ testLevel =
     }
 
 main : Program () Game Msg
-main = play testLevel
+main = play [ testLevel ]

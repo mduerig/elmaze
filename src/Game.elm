@@ -104,6 +104,7 @@ type Msg
     | InfoMsg Info.Msg
     | MenuBarChange MenuBar
     | ShowInfo
+    | SelectLevel Int
     | ResetGame
     | StartProgram
     | StopProgram
@@ -138,7 +139,7 @@ batch msg1 msg2 =
 initGame : Config -> Board -> flags -> ( Game, Cmd Msg )
 initGame config board _ =
     let
-        ( menuBar, menuBarCmd ) = MenuBar.init MenuBarChange
+        ( menuBar, menuBarCmd ) = MenuBar.init "Select a Level" MenuBarChange
         game =
             { board = { board
                 | defaultActors = board.actors }
@@ -218,6 +219,11 @@ updateGame msg  ( { board, info, programText } as game ) =
 
             ShowInfo ->
                 ( { game | info = Info.show info }
+                , Cmd.none
+                )
+
+            SelectLevel n ->
+                ( { game | menuBar = game.menuBar |> MenuBar.withLevelToggle ("Level " ++ String.fromInt n ) }
                 , Cmd.none
                 )
 
@@ -558,12 +564,12 @@ viewGame { board, title, info, menuBar, programText } =
         levelList :  List ( MenuBar.LevelItem Msg )
         levelList =
             [
-                { text = [ Html.text "Level 1" ]
-                , onSelect = ShowInfo
+                { text = "Level 1"
+                , onSelect = SelectLevel 1
                 }
             ,
-                { text = [ Html.text "Level 2" ]
-                , onSelect = ShowInfo
+                { text = "Level 2"
+                , onSelect = SelectLevel 2
                 }
             ]
 

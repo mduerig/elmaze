@@ -2,6 +2,7 @@ module MenuBar exposing
     ( MenuBar
     , LevelItem
     , init
+    , withLevelToggle
     , view
     , subscriptions
     )
@@ -12,23 +13,37 @@ import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
 import Bootstrap.Navbar as Navbar
 
-type MenuBar =
-    MenuBar Navbar.State
+type MenuBar = MenuBar MenuBarState
+
+type alias MenuBarState =
+    { navBar : Navbar.State
+    , levelToggle : String
+    }
 
 type alias LevelItem msg =
-    { text : List ( Html msg )
+    { text : String
     , onSelect : msg
     }
 
-init : ( MenuBar -> msg ) -> ( MenuBar, Cmd msg )
-init onStateChange =
-    Navbar.initialState ( MenuBar >> onStateChange )
-        |> Tuple.mapFirst MenuBar
+init : String -> ( MenuBar -> msg ) -> ( MenuBar, Cmd msg )
+init levelToggle onStateChange =
+    Navbar.initialState ( newMenuBar levelToggle >> onStateChange )
+        |> Tuple.mapFirst ( newMenuBar levelToggle )
+
+newMenuBar : String -> Navbar.State -> MenuBar
+newMenuBar levelToggle navBar = MenuBar
+    { navBar = navBar
+    , levelToggle = levelToggle
+    }
+
+withLevelToggle : String -> MenuBar -> MenuBar
+withLevelToggle toggle ( MenuBar menuBar ) =
+    MenuBar { menuBar | levelToggle = toggle }
 
 view : ( MenuBar -> msg ) -> msg -> List ( LevelItem msg ) -> MenuBar -> Html msg
 view onStateChange onHelp items ( MenuBar menuBar )
     = Grid.container []
-    [ Navbar.config ( MenuBar >> onStateChange )
+    [ Navbar.config ( withNavBar menuBar >> onStateChange )
         |> Navbar.withAnimation
         |> Navbar.collapseMedium
         |> Navbar.light
@@ -38,7 +53,7 @@ view onStateChange onHelp items ( MenuBar menuBar )
         |> Navbar.items
             [ Navbar.dropdown
                 { id = "levelDropDown"
-                , toggle = Navbar.dropdownToggle [] [ text "Select a level" ]
+                , toggle = Navbar.dropdownToggle [] [ text menuBar.levelToggle ]
                 , items = items
                     |> List.map levelItem
                 }
@@ -52,13 +67,18 @@ view onStateChange onHelp items ( MenuBar menuBar )
                     [ text "Help"]
                 ]
             ]
-        |> Navbar.view menuBar
+        |> Navbar.view menuBar.navBar
     ]
 
 levelItem : LevelItem msg -> Navbar.DropdownItem msg
 levelItem { text, onSelect } =
-    Navbar.dropdownItem [ Events.onClick onSelect ] text
+    Navbar.dropdownItem [ Events.onClick onSelect ] [ Html.text text ]
 
 subscriptions : ( MenuBar -> msg ) -> MenuBar -> Sub msg
 subscriptions onStateChange ( MenuBar menuBar ) =
-    Navbar.subscriptions menuBar ( MenuBar >> onStateChange )
+    Navbar.subscriptions menuBar.navBar ( withNavBar menuBar >> onStateChange )
+
+withNavBar : MenuBarState -> Navbar.State -> MenuBar
+withNavBar menuBar navBar =
+    MenuBar { menuBar | navBar = navBar }
+

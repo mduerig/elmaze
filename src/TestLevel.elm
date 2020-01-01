@@ -5,6 +5,7 @@ import Game exposing
     ( TileSet
     , Board
     , Level
+    , emptyLevel
     , emptyBoard
     , withTileSet
     , withPath
@@ -48,7 +49,8 @@ board tileSet = emptyBoard 8 6
 
 level : TileSet -> Level
 level tileSet =
-    { title = "Test Level"
+    { emptyLevel
+    | title = "Test Level"
     , board = board tileSet
     , infoTitle = [ Html.text "Test"]
     , infoText = [ Html.text "This is a test level" ]

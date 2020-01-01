@@ -5,6 +5,7 @@ module Game exposing
     , Board
     , TileSet
     , emptyBoard
+    , emptyLevel
     , Boundary ( .. )
     , withActor
     , withTileSet
@@ -55,6 +56,7 @@ type alias Game =
 type alias Level =
     { title : String
     , board : Board
+    , programText : String
     , infoTitle : List ( Html Info.Msg )
     , infoText : List ( Html Info.Msg )
     }
@@ -142,7 +144,7 @@ batch msg1 msg2 =
 initGame : List Level -> flags -> ( Game, Cmd Msg )
 initGame levels _ =
     let
-        { board, title, infoTitle, infoText } = levels
+        { board, programText, title, infoTitle, infoText } = levels
             |> List.head
             |> Maybe.withDefault emptyLevel
 
@@ -155,7 +157,7 @@ initGame levels _ =
             , title = title
             , info = Info.init True infoTitle infoText
             , menuBar = menuBar
-            , programText = ""
+            , programText = programText
             }
     in
         ( game, Cmd.batch [ getProgramTextareaWidth, menuBarCmd ])
@@ -164,19 +166,20 @@ emptyLevel : Level
 emptyLevel =
     { title = "No levels to play"
     , board = emptyBoard 0 0
+    , programText = ""
     , infoTitle = [ Html.text "No levels"]
     , infoText = [ Html.text "This game has no levels"]
     }
 
 setLevel : Level -> Game -> Game
-setLevel { board, title, infoTitle, infoText } game =
+setLevel { board, programText, title, infoTitle, infoText } game =
     { game | board = { board | defaultActors = board.actors }
             |> withController C.keyboardController
         , title = title
         , info = Info.init True infoTitle infoText
         , menuBar = game.menuBar
             |> MenuBar.withLevelToggle title
-        , programText = ""
+        , programText = programText
     }
 
 getProgramTextareaWidth : Cmd Msg

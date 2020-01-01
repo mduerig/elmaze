@@ -1,4 +1,4 @@
-module Level3 exposing ( level )
+module Level4 exposing ( level )
 
 import Html
 import Game exposing
@@ -37,12 +37,14 @@ board tileSet = emptyBoard 5 5
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Find the shortest way"
+    | title = "Find a shorter program"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Find the shortest path" ]
+    , programText = "forward\nforward\nforward\nleft\nforward\nforward\nforward\nforward\nright\nforward\n"
+    , infoTitle = [ Html.text "🐞 Find a shorter program" ]
     , infoText =
         [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Can you find the shortest path? " ]
-        , Html.p [] [ Html.text "Observe the traces for different paths and replay them using the 'Go!' button. " ]
+        , Html.p [] [ Html.text "Can you find a shorter program than the one given? " ]
+        , Html.p [] [ Html.text "You can replace repeated commands with a 'repeat' statement. " ]
+        , Html.p [] [ Html.text "Try for example 'repeat 4 forward'." ]
         ]
     }

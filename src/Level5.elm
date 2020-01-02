@@ -5,6 +5,7 @@ import Game exposing
     ( TileSet
     , Board
     , Level
+    , Path
     , emptyLevel
     , emptyBoard
     , withTileSet
@@ -17,6 +18,7 @@ import Game exposing
     )
 import Actor exposing ( Direction ( .. ), hero )
 
+square : Path
 square = []
     |> fork2
         ( [ Right, Right, Up, Up ] |> deadEnd )

@@ -12,6 +12,7 @@ module Info exposing
     )
 
 import Html exposing ( Html, text )
+import Html.Attributes as Attr
 import Bootstrap.Button as Button
 import Bootstrap.Modal as Modal
 
@@ -58,6 +59,7 @@ view ( Info visible ttl txt ) =
             [ Button.button
                 [ Button.outlinePrimary
                 , Button.onClick ( AnimateModal Modal.hiddenAnimated )
+                , Button.attrs [ Attr.autofocus True ]
                 ]
                 [ text "Got it!" ]
             ]

@@ -6,6 +6,7 @@ import Level1
 import Level2
 import Level3
 import Level4
+import Level5
 
 tileSet : TileSet
 tileSet north east south west = case [ north, east, south, west ] of
@@ -33,5 +34,6 @@ main = play
     , Level2.level tileSet
     , Level3.level tileSet
     , Level4.level tileSet
-    , TestLevel.level tileSet
+    , Level5.level tileSet
+    -- , TestLevel.level tileSet
     ]

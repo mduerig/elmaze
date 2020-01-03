@@ -664,7 +664,7 @@ viewGame { levels, board, title, info, menuBar, programText } =
 viewBackground : Float -> Float -> Float -> String -> List ( Collage Msg )
 viewBackground boardWidth boardHeight cellSize title =
     [ Text.fromString title
-        |> Text.size 40
+        |> Text.size ( floor ( cellSize / 2 ) )
         |> rendered
         |> shiftX (( boardWidth - cellSize ) / 2 )
         |> shiftY boardHeight

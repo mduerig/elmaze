@@ -43,7 +43,7 @@ board tileSet = emptyBoard 8 8
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Dizzy now"
+    | title = "Dizzy now   ⭐⭐⭐⭐"
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Dizzy now" ]
     , infoText =

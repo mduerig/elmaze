@@ -37,7 +37,7 @@ board tileSet = emptyBoard 5 5
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Find the shortest way"
+    | title = "Find the shortest way   ⭐"
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Find the shortest path" ]
     , infoText =

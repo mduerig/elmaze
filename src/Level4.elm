@@ -37,7 +37,7 @@ board tileSet = emptyBoard 5 5
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Find a shorter program"
+    | title = "Find a shorter program   ⭐⭐"
     , board = board tileSet
     , programText = "forward\nforward\nforward\nleft\nforward\nforward\nforward\nforward\nright\nforward\n"
     , infoTitle = [ Html.text "🐞 Find a shorter program" ]

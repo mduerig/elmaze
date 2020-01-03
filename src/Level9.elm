@@ -35,7 +35,7 @@ level tileSet =
     { emptyLevel
     | title = "Full circle"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Full cirlce" ]
+    , infoTitle = [ Html.text "🐞 Full cirlce   ⭐⭐" ]
     , infoText =
         [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
         , Html.p [] [ Html.text "Use 'while' as necessary for long straight streches." ]

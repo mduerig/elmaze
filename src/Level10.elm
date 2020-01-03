@@ -33,7 +33,7 @@ board tileSet = emptyBoard 10 10
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Full circle reloaded"
+    | title = "Full circle reloaded   ⭐⭐⭐"
     , board = board tileSet
     , programText = "let fastForward = while free forward\n"
     , infoTitle = [ Html.text "🐞 Full cirlce reloaded" ]

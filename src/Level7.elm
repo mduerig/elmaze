@@ -30,7 +30,7 @@ board tileSet = emptyBoard 15 3
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Stop before it's too late"
+    | title = "Stop before it's too late   ⭐⭐⭐"
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Stop before it's too late" ]
     , infoText =

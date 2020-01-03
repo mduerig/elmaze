@@ -36,12 +36,12 @@ board tileSet = emptyBoard 5 5
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Five lines"
+    | title = "Five lines   ⭐⭐"
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Five lines" ]
     , infoText =
         [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
         , Html.p [] [ Html.text "Write a program with no more than five lines. " ]
-        , Html.p [] [ Html.text "Tip: use the 'repeat' statement. " ]
+        , Html.p [] [ Html.text "Tip: use the 'repeat' statement wisely. " ]
         ]
     }

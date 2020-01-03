@@ -30,7 +30,7 @@ board tileSet = emptyBoard 15 3
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Too lazy to count"
+    | title = "Too lazy to count   ⭐⭐⭐"
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Too lazy to count" ]
     , infoText =

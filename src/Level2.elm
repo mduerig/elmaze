@@ -30,7 +30,7 @@ board tileSet = emptyBoard 5 5
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Record a Trace"
+    | title = "Record a Trace   ⭐"
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Record a Trace" ]
     , infoText =

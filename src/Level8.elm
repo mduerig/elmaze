@@ -16,38 +16,26 @@ import Game exposing
     )
 import Actor exposing ( Direction ( .. ), hero )
 
-right : Int ->  List Direction
-right n = List.repeat n Right
-
-left : Int ->  List Direction
-left n = List.repeat n Left
-
-up : Int ->  List Direction
-up n = List.repeat n Up
-
-down : Int ->  List Direction
-down n = List.repeat n Down
-
 board : TileSet -> Board
-board tileSet = emptyBoard 5 5
+board tileSet = emptyBoard 14 14
     |> withTileSet tileSet
     |> withPath ( 0, 0 )
-        ( right 4 ++ up 4 ++ left 4 ++ down 3 ++ right 3 ++ up 2 ++ left 2 ++ down 1 ++ right 1
+        ( List.repeat 13 Right ++ List.repeat 13 Up
             |> deadEnd
         )
     |> withStartAt ( 0, 0 )
-    |> withGoalAt ( 2, 2 )
+    |> withGoalAt ( 13, 13 )
     |> withActor ( hero 0 ( 0, 0 ) Right "🐞" )
 
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Going in circles"
+    | title = "Forward, forward, forward..."
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Going in circles" ]
+    , infoTitle = [ Html.text "🐞 Forward, forward, forward..." ]
     , infoText =
         [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Write a program with no more than five lines. " ]
-        , Html.p [] [ Html.text "Tip: use the 'repeat' statement. " ]
+        , Html.p [] [ Html.text "Use 'while' to move forward as long as the path is free." ]
+        , Html.p [] [ Html.text "Tip: you have to use 'while' twice." ]
         ]
     }

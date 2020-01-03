@@ -30,9 +30,9 @@ board tileSet = emptyBoard 15 3
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Stop before it's too late."
+    | title = "Stop before it's too late"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Stop before it's too late." ]
+    , infoTitle = [ Html.text "🐞 Stop before it's too late" ]
     , infoText =
         [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
         , Html.p [] [ Html.text "Use 'while' to move forward until reaching the flower 🌺." ]

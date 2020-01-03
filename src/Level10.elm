@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -38,10 +39,10 @@ level tileSet =
     , programText = "let fastForward = while free forward\n"
     , infoTitle = [ Html.text "🐞 Full cirlce reloaded" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Instead of repeating them same 'while' statment you can also define a shortcut for it via a let binding." ]
-        , Html.p [] [ Html.text "The let binding 'let fastForward = while free forward' makes 'fastForward' a shortcut for 'while free forward'." ]
-        , Html.p [] [ Html.text "Subsequent occurences of 'fastForward' in the program are replaced with 'while free forward'." ]
-        , Html.p [] [ Html.text "How many time do you have to use 'fastForward' in you program?" ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Instead of repeating them same ", em "while", text " statment you can also define a shortcut for it via a let binding." ]
+        , p [ text "The let binding ", em "let fastForward = while free forward", text " makes ", em "fastForward", text " a shortcut for ", em "while free forward", text "." ]
+        , p [ text "Subsequent occurences of ", em "fastForward", text " in the program are replaced with ", em "while free forward", text "." ]
+        , p [ text "How many time do you have to use ", em "fastForward", text " in you program?" ]
         ]
     }

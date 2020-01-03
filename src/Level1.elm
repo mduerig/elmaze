@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( p, text )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -34,7 +35,7 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Navigate the Maze" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺." ]
-        , Html.p [] [ Html.text "Use the arrow keys to navigate through the maze. Take care not to bump into walls." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺." ]
+        , p [ text "Use the arrow keys to navigate through the maze. Take care not to bump into walls." ]
         ]
     }

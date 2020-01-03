@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -34,8 +35,8 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Too lazy to count" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Instead of using 'repeat' with a fixed number you can use 'while' with a condition." ]
-        , Html.p [] [ Html.text "Try with 'while free forward'. " ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Instead of using ", em "repeat ", text "with a fixed number you can use ", em "while ", text "with a condition." ]
+        , p [ text "Try with ", em "while free forward. " ]
         ]
     }

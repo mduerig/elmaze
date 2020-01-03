@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -33,11 +34,11 @@ board tileSet = emptyBoard 10 10
 level : TileSet -> Level
 level tileSet =
     { emptyLevel
-    | title = "Full circle"
+    | title = "Full circle   ⭐⭐"
     , board = board tileSet
-    , infoTitle = [ Html.text "🐞 Full cirlce   ⭐⭐" ]
+    , infoTitle = [ Html.text "🐞 Full cirlce" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Use 'while' as necessary for long straight streches." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Use ", em "while", text " as necessary for long straight streches." ]
         ]
     }

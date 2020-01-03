@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -34,8 +35,8 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Forward, forward, forward..." ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Use 'while' to move forward as long as the path is free." ]
-        , Html.p [] [ Html.text "Tip: you have to use 'while' twice." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Use ", em "while", text " to move forward as long as the path is free." ]
+        , p [ text "Tip: you have to use ", em "while", text " twice." ]
         ]
     }

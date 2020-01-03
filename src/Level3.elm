@@ -15,6 +15,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -41,8 +42,8 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Find the shortest path" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Can you find the shortest path? " ]
-        , Html.p [] [ Html.text "Observe the traces for different paths and replay them using the 'Go!' button. " ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Can you find the shortest path? " ]
+        , p [ text "Observe the traces for different paths and replay them using the ", em "Go! ", text "button." ]
         ]
     }

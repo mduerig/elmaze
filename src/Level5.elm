@@ -16,6 +16,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 square : Path
@@ -40,8 +41,8 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Five lines" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Write a program with no more than five lines. " ]
-        , Html.p [] [ Html.text "Tip: use the 'repeat' statement wisely. " ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Write a program with no more than five lines. " ]
+        , p [ text "Tip: use the ", em "repeat ", text "statement wisely. " ]
         ]
     }

@@ -15,6 +15,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -42,9 +43,9 @@ level tileSet =
     , programText = "forward\nforward\nforward\nleft\nforward\nforward\nforward\nforward\nright\nforward\n"
     , infoTitle = [ Html.text "🐞 Find a shorter program" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Can you find a shorter program than the one given? " ]
-        , Html.p [] [ Html.text "You can replace repeated commands with a 'repeat' statement. " ]
-        , Html.p [] [ Html.text "Try for example 'repeat 4 forward'." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Can you find a shorter program than the one given? " ]
+        , p [ text "You can replace repeated commands with a ", em "repeat ", text "statement. " ]
+        , p [ text "Try for example ", em "repeat 4 forward", text "." ]
         ]
     }

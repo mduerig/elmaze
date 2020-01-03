@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -38,7 +39,7 @@ level tileSet =
     , programText = "let fastForward = while free forward\nlet oneSide = [fastForward, left]\n"
     , infoTitle = [ Html.text "🐞 Full cirlce for a while" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Can you write a program that uses 'oneSide' once together with 'while'?" ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Can you write a program that uses ", em "oneSide", text " once together with ", em "while", text "?" ]
         ]
     }

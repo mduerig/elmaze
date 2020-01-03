@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -34,8 +35,8 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Record a Trace" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Observe the trace that is recorded in the text box to the left of the maze. " ]
-        , Html.p [] [ Html.text "Press the 'Go!' button to replay the recorded trace and observe the beetle 🐞 when it reaches the flower 🌺." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Observe the trace that is recorded in the text box to the left of the maze. " ]
+        , p [ text "Press the ", em "Go! ", text "button to replay the recorded trace and observe the beetle 🐞 when it reaches the flower 🌺." ]
         ]
     }

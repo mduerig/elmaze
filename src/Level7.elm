@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -34,9 +35,9 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Stop before it's too late" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Use 'while' to move forward until reaching the flower 🌺." ]
-        , Html.p [] [ Html.text "The condition 'goal' holds when reaching the flower." ]
-        , Html.p [] [ Html.text "Tip: you can use 'not' to negate a condition." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Use ", em "while", text " to move forward until reaching the flower 🌺." ]
+        , p [ text "The condition ", em "goal", text " holds when reaching the flower." ]
+        , p [ text "Tip: you can use ", em "not", text " to negate a condition." ]
         ]
     }

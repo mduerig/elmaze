@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 board : TileSet -> Board
@@ -38,10 +39,10 @@ level tileSet =
     , programText = "let fastForward = while free forward\nlet oneSide = [fastForward, left]\n"
     , infoTitle = [ Html.text "🐞 Full cirlce all the way" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Let bindings can also be used in subsequent let bindings." ]
-        , Html.p [] [ Html.text "Here 'oneSide = [fastForward, left]' lets the beetle turn left after executing 'fastForward'." ]
-        , Html.p [] [ Html.text "How many time do you use 'oneSide' in your program?" ]
-        , Html.p [] [ Html.text "Can you write a program that uses 'oneSide' only once?" ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Let bindings can also be used in subsequent let bindings." ]
+        , p [ text "Here ", em "oneSide = [fastForward, left]", text " causes the beetle turn left after executing ", em "fastForward", text "." ]
+        , p [ text "How many time do you use ", em "oneSide", text " in your program?" ]
+        , p [ text "Can you write a program that uses ", em "oneSide", text " only once?" ]
         ]
     }

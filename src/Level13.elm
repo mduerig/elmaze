@@ -14,6 +14,7 @@ import Game exposing
     , withGoalAt
     , withActor
     )
+import Levels exposing ( text, em, p )
 import Actor exposing ( Direction ( .. ), hero )
 
 rightDown : Int ->  List Direction
@@ -47,7 +48,7 @@ level tileSet =
     , board = board tileSet
     , infoTitle = [ Html.text "🐞 Dizzy now" ]
     , infoText =
-        [ Html.p [] [ Html.text "Help the beetle 🐞 to find the flower 🌺. " ]
-        , Html.p [] [ Html.text "Write a program using let bindings and 'while' like in the previous levels." ]
+        [ p [ text "Help the beetle 🐞 to find the flower 🌺. " ]
+        , p [ text "Write a program using let bindings and ", em "while", text " like in the previous levels." ]
         ]
     }

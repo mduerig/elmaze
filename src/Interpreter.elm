@@ -31,7 +31,7 @@ update isTrue ( Interpreter ( program ) bindings ) =
             [] ->
                 ( Interpreter [] bindings, A.Nop )
 
-            (P.Command move) :: stmts ->
+            ( P.Command move ) :: stmts ->
                 case move of
                     P.Do [] ->
                         updateRec ( Interpreter stmts bindings )
@@ -43,10 +43,10 @@ update isTrue ( Interpreter ( program ) bindings ) =
                                 |> Maybe.map (P.Command >> List.singleton)
                                 |> Maybe.withDefault []
                         in
-                            updateRec ( Interpreter (stmt ++ ( P.Command <| P.Do moves ) :: stmts) bindings )
+                            updateRec ( Interpreter ( stmt ++ ( P.Command <| P.Do moves ) :: stmts ) bindings )
 
                     P.Do ( atomicMove :: moves) ->
-                        ( Interpreter ( ( P.Command <| P.Do <| moves ) :: stmts ) bindings
+                        ( Interpreter (( P.Command <| P.Do <| moves ) :: stmts ) bindings
                         , case atomicMove of
                             P.Left     -> A.TurnLeft
                             P.Right    -> A.TurnRight
@@ -95,5 +95,5 @@ update isTrue ( Interpreter ( program ) bindings ) =
                         in
                             updateRec ( Interpreter ( nextMoves ++ stmts ) bindings )
 
-            (P.Binding (P.Let moveId move)) :: stmts ->
-                updateRec ( Interpreter stmts ( Dict.insert moveId move bindings ) )
+            ( P.Binding ( P.Let moveId move )) :: stmts ->
+                updateRec ( Interpreter stmts ( Dict.insert moveId move bindings ))

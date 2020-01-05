@@ -63,13 +63,13 @@ program =
 
         lines : Program -> Parser ( Step Program Program )
         lines statements = oneOf
-            [ succeed (\stmt -> case stmt of
-                            Just s  -> Loop (s :: statements)
-                            _       -> Loop  statements)
+            [ succeed ( \stmt -> case stmt of
+                            Just s  -> Loop ( s :: statements )
+                            _       -> Loop  statements )
                 |= line
             , succeed ()
                 |. end
-                |> map (\_ -> Done ( List.reverse statements ) )
+                |> map ( \_ -> Done ( List.reverse statements ))
             ]
     in
         loop [] lines
@@ -181,11 +181,11 @@ condition =
         , succeed Not
             |. keyword "not"
             |. hspaces
-            |= lazy (\_ -> condition)
+            |= lazy ( \_ -> condition )
         ]
 
 hspaces : Parser ()
-hspaces = chompWhile (\c -> c == ' ' || c == '\t')
+hspaces = chompWhile ( \c -> c == ' ' || c == '\t' )
 
 eol : Parser ()
 eol = oneOf [ symbol "\n", symbol "\r" ]

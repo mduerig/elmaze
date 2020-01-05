@@ -6,6 +6,7 @@ module Actor exposing
     , IsGoalPredicate
     , hero
     , friend
+    , neighbour
     , eqActor
     , viewActor
     , oppositeDirection
@@ -80,6 +81,14 @@ actorData id pos phi avatar =
     , avatar = avatar
     }
 
+neighbour : ( Int, Int ) -> Direction -> ( Int, Int )
+neighbour ( x, y ) direction =
+    case direction of
+        Up    -> ( x, y + 1 )
+        Down  -> ( x, y - 1 )
+        Left  -> ( x - 1, y )
+        Right -> ( x + 1, y )
+
 eqActor : Actor -> Actor -> Bool
 eqActor actor1 actor2 =
     case (actor1, actor2) of
@@ -104,13 +113,13 @@ mapActor f actor =
        Friend data -> f data
 
 turnActor : Direction -> Actor -> Actor
-turnActor direction actor =
+turnActor direction =
     let
-        turn data = data
+        turn actor = actor
             |> turnActorData direction
             |> animateActor ( turnAnimation direction )
     in
-        updateActor turn actor
+        updateActor turn
 
 turnActorData : Direction -> ActorData -> ActorData
 turnActorData direction actor =
@@ -144,13 +153,13 @@ filterActors filterHero filterFriend actors =
             )
 
 moveActorAhead : Actor -> Actor
-moveActorAhead actor =
+moveActorAhead =
     let
-        move a = a
-            |> moveActor a.phi
-            |> animateActor ( moveAnimation a.phi )
+        move actor = actor
+            |> moveActor actor.phi
+            |> animateActor ( moveAnimation actor.phi )
     in
-        updateActor move actor
+        updateActor move
 
 moveActor : Direction -> ActorData -> ActorData
 moveActor direction actor =
@@ -161,24 +170,20 @@ moveActor direction actor =
         Down  -> { actor | y = actor.y - 1 }
 
 setActorDirection : Direction -> Actor -> Actor
-setActorDirection direction actor =
-    actor
-        |> updateActor ( \data -> { data | phi = direction } )
+setActorDirection direction =
+    updateActor ( \data -> { data | phi = direction } )
 
 playLoseAnimation : Actor -> Actor
-playLoseAnimation actor =
-    actor
-        |> updateActor ( \data -> { data | animation = loseAnimation } )
+playLoseAnimation =
+    updateActor ( \data -> { data | animation = loseAnimation } )
 
 playWinAnimation : Actor -> Actor
-playWinAnimation actor =
-    actor
-        |> updateActor ( \data -> { data | animation = winAnimation } )
+playWinAnimation =
+    updateActor ( \data -> { data | animation = winAnimation } )
 
 clearActorAnimation : Actor -> Actor
-clearActorAnimation actor =
-    actor
-        |> updateActor ( \data -> { data | animation = noAnimation } )
+clearActorAnimation =
+    updateActor ( \data -> { data | animation = noAnimation } )
 
 updateActor : ( ActorData -> ActorData ) -> Actor -> Actor
 updateActor update actor =

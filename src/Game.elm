@@ -102,7 +102,7 @@ type alias TileSet =
 
 type Path
     = DeadEnd
-    | Segment (List A.Direction) Path
+    | Segment ( List A.Direction ) Path
     | Fork Path Path
 
 type Msg
@@ -138,7 +138,7 @@ batch : Msg -> Msg -> Msg
 batch msg1 msg2 =
     case ( msg1, msg2 ) of
        ( Batch msgs1, Batch msgs2 ) -> Batch ( msgs1 ++ msgs2 )
-       ( Batch msgs, _ )            -> Batch ( msgs ++ [ msg2 ] )
+       ( Batch msgs, _ )            -> Batch ( msgs ++ [ msg2 ])
        ( _, Batch msgs )            -> Batch ( msg1 :: msgs )
        _                            -> Batch [ msg1, msg2 ]
 
@@ -168,13 +168,14 @@ emptyLevel =
     { title = "No levels to play"
     , board = emptyBoard 0 0
     , programText = ""
-    , infoTitle = [ Html.text "No levels"]
-    , infoText = [ Html.text "This game has no levels"]
+    , infoTitle = [ Html.text "No levels" ]
+    , infoText = [ Html.text "This game has no levels" ]
     }
 
 setLevel : Level -> Game -> Game
 setLevel { board, programText, title, infoTitle, infoText } game =
-    { game | board = { board | defaultActors = board.actors }
+    { game
+        | board = { board | defaultActors = board.actors }
             |> withController C.keyboardController
         , title = title
         , info = Info.init True infoTitle infoText
@@ -193,7 +194,7 @@ emptyBoard width height =
     , width = width
     , height = height
     , tiles =
-        Array.repeat (width * height)
+        Array.repeat ( width * height )
             { tileType = Empty
             , top = Wall
             , left = Wall
@@ -217,7 +218,7 @@ updateGame msg  ( { board, info, programText } as game ) =
         program =
             case P.parse ( ensureTrailingLF programText ) of
                 Ok ast    -> Interpreter.init ast
-                Err error -> Debug.log (Debug.toString error) Interpreter.void
+                Err error -> Debug.log ( Debug.toString error ) Interpreter.void
 
     in
         case msg of
@@ -349,7 +350,7 @@ updateActors msg ( { board } as game ) =
 
         actorsAndMessages = A.mapActors mapHero mapFriend board.actors
     in
-        ( { game | board = { board | actors = List.map Tuple.first actorsAndMessages } }
+        ( { game | board = { board | actors = List.map Tuple.first actorsAndMessages }}
         , Batch ( List.map Tuple.second actorsAndMessages )
         )
 
@@ -371,10 +372,8 @@ updateController msg game =
         { game | board = updatedController game.board }
 
 headOrElse : a -> List a -> a
-headOrElse default xs =
-    xs
-        |> List.head
-        |> Maybe.withDefault default
+headOrElse default =
+    List.head >> Maybe.withDefault default
 
 withActor : Actor -> Board -> Board
 withActor actor ( { actors } as board ) =
@@ -394,13 +393,13 @@ isConditionTrue hero board condition =
             -> A.canActorMove hero ( isFreePredicate board )
 
         P.Blocked
-            -> not ( A.canActorMove hero ( isFreePredicate board ) )
+            -> not ( A.canActorMove hero ( isFreePredicate board ))
 
         P.Goal
             -> A.isActorAtGoal hero ( isGoalPredicate board )
 
 updateHero : Msg -> A.IsFreePredicate -> A.IsGoalPredicate -> Controller -> Actor -> ( Actor, Msg )
-updateHero msg isFree isGoal controller actor =
+updateHero msg isFree isGoal controller hero =
     let
         running = C.isProgram controller
 
@@ -411,74 +410,72 @@ updateHero msg isFree isGoal controller actor =
     in
         case C.getInput controller of
             A.Forward ->
-                if A.canActorMove actor isFree then
-                    ( A.moveActorAhead actor
+                if A.canActorMove hero isFree then
+                    ( A.moveActorAhead hero
                     , batch StartAnimation ( recordMove A.Up )
                     )
                 else
-                    ( A.playLoseAnimation actor
+                    ( A.playLoseAnimation hero
                     , batch StartAnimation StopProgram
                     )
 
             A.TurnLeft ->
-                ( A.turnActor A.Left actor
+                ( A.turnActor A.Left hero
                 , batch StartAnimation ( recordMove A.Left )
                 )
 
             A.TurnRight ->
-                ( A.turnActor A.Right actor
+                ( A.turnActor A.Right hero
                 , batch StartAnimation ( recordMove A.Right )
                 )
 
             _ ->
                 if msg == AnimationEnd then
-                    if A.isActorAtGoal actor isGoal then
-                        ( A.playWinAnimation actor
+                    if A.isActorAtGoal hero isGoal then
+                        ( A.playWinAnimation hero
                         , batch StopProgram ( if running then StartAnimation else nop )
                         )
                     else
-                        ( A.clearActorAnimation actor
+                        ( A.clearActorAnimation hero
                         , nop
                         )
                 else
-                    ( actor, nop )
+                    ( hero, nop )
 
 updateFriend : Msg -> A.IsFreePredicate -> Actor -> ( Actor, Msg )
-updateFriend msg isFree actor =
+updateFriend msg isFree friend =
     let
         rnd = Random.uniform A.Up [ A.Down, A.Left, A.Right ]
     in
         case msg of
-            RandomDirection forActor direction ->
-                if A.eqActor forActor actor
-                    then ( A.setActorDirection direction actor, nop )
-                    else ( actor, nop )
+            RandomDirection actor direction ->
+                if A.eqActor actor friend
+                    then ( A.setActorDirection direction friend, nop )
+                    else ( friend, nop )
 
             AnimationStart ->
-                if A.canActorMove actor isFree then
-                    ( A.moveActorAhead actor, nop )
+                if A.canActorMove friend isFree then
+                    ( A.moveActorAhead friend, nop )
                 else
-                    ( actor, GenerateRandom ( Random.generate ( RandomDirection actor ) rnd ) )
+                    ( friend, GenerateRandom ( Random.generate ( RandomDirection friend ) rnd ))
 
             AnimationEnd ->
-                ( A.clearActorAnimation actor, nop )
+                ( A.clearActorAnimation friend, nop )
 
             _ ->
-                ( actor, nop )
+                ( friend, nop )
 
 stopAnimation : Board -> Board
-stopAnimation board =
-    let animation = board.animation
-    in  { board | animation = { animation | t = 0, onDelta = always Sub.none }}
+stopAnimation ( { animation } as board ) =
+    { board | animation = { animation | t = 0, onDelta = always Sub.none }}
 
 startAnimation : Board -> Board
 startAnimation ( { animation } as board ) =
     { board | animation = { animation | t = 0, onDelta = onAnimationFrameDelta }}
 
 advanceAnimation : Float -> Board -> Board
-advanceAnimation dt board =
-    let animation = board.animation
-    in  { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
+advanceAnimation dt ( { animation } as board ) =
+    { board | animation = { animation | t = animation.t + animation.v * dt / 1000 }}
 
 resetActors : Board -> Board
 resetActors board =
@@ -486,46 +483,43 @@ resetActors board =
 
 queryTile : ( Int, Int ) -> Board -> (Tile -> Bool) -> Bool
 queryTile ( x, y ) { width, height, tiles } query =
-    Array.get ((height - 1 - y) * width + x) tiles
+    Array.get (( height - 1 - y)  * width + x ) tiles
         |> Maybe.map query
         |> Maybe.withDefault True
 
 withStartAt : ( Int, Int ) -> Board -> Board
-withStartAt ( x, y ) board =
-    board
-        |> updateTile ( x, y ) ( updateTileType Start )
+withStartAt ( x, y ) =
+    updateTile ( x, y ) ( withTileType Start )
 
 withGoalAt : ( Int, Int ) -> Board -> Board
-withGoalAt ( x, y ) board =
-    board
-        |> updateTile ( x, y ) ( updateTileType Goal )
+withGoalAt ( x, y ) =
+    updateTile ( x, y ) ( withTileType Goal )
 
-updateTile : ( Int, Int ) -> (Tile -> Tile) -> Board -> Board
+updateTile : ( Int, Int ) -> ( Tile -> Tile ) -> Board -> Board
 updateTile ( x, y ) update ( { width, height, tiles } as board ) =
     let
-        i = (height - 1 - y) * width + x
+        i = ( height - 1 - y ) * width + x
         set tile = { board | tiles = Array.set i tile tiles }
     in
         Array.get i tiles
-            |> Maybe.map (update >> set)
+            |> Maybe.map ( update >> set )
             |> Maybe.withDefault board
 
-updateTileType : TileType -> Tile -> Tile
-updateTileType tileType tile = { tile | tileType = tileType }
+withTileType : TileType -> Tile -> Tile
+withTileType tileType tile = { tile | tileType = tileType }
 
-updateTileBoundary : ( Int, Int ) -> A.Direction -> Boundary -> Board -> Board
-updateTileBoundary ( x, y ) direction boundary board =
+withTileBoundary : ( Int, Int ) -> A.Direction -> Boundary -> Board -> Board
+withTileBoundary ( x, y ) direction boundary =
     let
-        update dir tile =
+        withBoundary dir tile =
             case dir of
                 A.Up    -> { tile | top = boundary }
                 A.Down  -> { tile | bottom = boundary }
                 A.Left  -> { tile | left = boundary }
                 A.Right -> { tile | right = boundary }
     in
-        board
-            |> updateTile ( x, y ) (update direction)
-            |> updateTile ( neighbour (x, y) direction ) (update ( A.oppositeDirection direction ))
+           updateTile ( x, y ) ( withBoundary direction )
+        >> updateTile ( A.neighbour (x, y) direction ) ( withBoundary ( A.oppositeDirection direction ))
 
 withTileSet : TileSet -> Board -> Board
 withTileSet tileSet board =
@@ -549,25 +543,17 @@ withPath pos path board =
             board
                 |> withPath pos remainingPath
 
-        Segment ( direction::directions ) remainingPath ->
+        Segment ( direction :: directions ) remainingPath ->
             board
-                |> updateTileBoundary pos direction Path
+                |> withTileBoundary pos direction Path
                 |> withPath
-                    ( neighbour pos direction )
+                    ( A.neighbour pos direction )
                     ( Segment directions remainingPath )
 
         Fork path1 path2 ->
             board
                 |> withPath pos path1
                 >> withPath pos path2
-
-neighbour : ( Int, Int ) -> A.Direction -> ( Int, Int )
-neighbour ( x, y ) direction =
-    case direction of
-        A.Up    -> ( x, y + 1 )
-        A.Down  -> ( x, y - 1 )
-        A.Left  -> ( x - 1, y )
-        A.Right -> ( x + 1, y )
 
 deadEnd : List A.Direction -> Path
 deadEnd directions =
@@ -590,15 +576,14 @@ levelItem level =
 viewGame : Game -> List (Html Msg)
 viewGame { levels, board, title, info, menuBar, programText } =
     let
-        { actors, controller, animation } = board
         cellSize = board.size / toFloat board.width
         boardWidth = cellSize * toFloat board.width
         boardHeight = cellSize * toFloat board.height
 
-        viewActors = actors
-            |> List.map ( A.viewActor animation.t cellSize )
+        viewActors = board.actors
+            |> List.map ( A.viewActor board.animation.t cellSize )
 
-        running = C.isProgram controller
+        running = C.isProgram board.controller
     in
         [ CDN.stylesheet
         , MenuBar.view MenuBarChange ShowInfo ( List.map levelItem levels ) menuBar
@@ -611,8 +596,8 @@ viewGame { levels, board, title, info, menuBar, programText } =
                             |> List.map  ( viewTile board.tileSet cellSize )
                         )
                     ++  viewBackground boardWidth boardHeight cellSize title
-                        |> group
-                        |> svg
+                    |> group
+                    |> svg
                     ]
                 , Grid.col []
                     [ Html.div []
@@ -695,30 +680,30 @@ viewTile tileSet size ( x, y, { top, left, bottom, right, tileType } ) =
             case tileType of
                 Goal ->
                     Text.fromString "🌺"
-                       |> Text.size (round (size/5*3))
+                       |> Text.size ( round ( size / 5 * 3 ))
                        |> rendered
 
 
                 Start ->
                     Text.fromString "🌟"
-                       |> Text.size (round (size/5*4))
+                       |> Text.size ( round ( size / 5 * 4 ))
                        |> rendered
-                       |> shiftY (-size/5)
+                       |> shiftY ( -size / 5 )
 
                 _ ->
                     group []
 
         wallStyle wall =
             case wall of
-                Wall  -> solid thin (uniform Color.black)
-                Path -> invisible
+                Wall  -> solid thin ( uniform Color.black )
+                Path  -> invisible
 
         defaultTile = group
             [ square size
                 |> filled ( uniform Color.lightYellow )
             , line size
                 |> traced ( wallStyle bottom )
-                |> shiftY -( size / 2 )
+                |> shiftY ( -size / 2 )
             , line size
                 |> traced ( wallStyle top )
                 |> shiftY ( size / 2 )
@@ -729,7 +714,7 @@ viewTile tileSet size ( x, y, { top, left, bottom, right, tileType } ) =
             , line size
                 |> traced ( wallStyle left )
                 |> rotate ( pi / 2 )
-                |> shiftX -( size / 2 )
+                |> shiftX ( -size / 2 )
             ]
     in
         group
@@ -757,21 +742,19 @@ keyDownDecoder =
 play : List Level -> Program () Game Msg
 play levels =
     Browser.document
-        { subscriptions =
-            \game -> Sub.batch
-                [ onKeyDown keyDownDecoder
-                , game.board.animation.onDelta AnimationFrame
-                , onResize Resize
-                , Info.subscriptions game.info
-                    |> Sub.map InfoMsg
-                , MenuBar.subscriptions MenuBarChange game.menuBar
-                ]
+        { subscriptions = \game -> Sub.batch
+            [ onKeyDown keyDownDecoder
+            , game.board.animation.onDelta AnimationFrame
+            , onResize Resize
+            , Info.subscriptions game.info
+                |> Sub.map InfoMsg
+            , MenuBar.subscriptions MenuBarChange game.menuBar
+            ]
         , init = initGame levels
         , update = updateGame
-        , view =
-            \game ->
-                { title = game.title
-                , body = viewGame game
-                }
+        , view = \game ->
+            { title = game.title
+            , body = viewGame game
+            }
         }
 
